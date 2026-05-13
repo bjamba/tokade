@@ -1,5 +1,5 @@
-import SwiftUI
 import Charts
+import SwiftUI
 
 /// Budget-scoped window card. Plots `%` utilization over the current
 /// server-anchored 5-hour window using the snapshot archive — model-mix

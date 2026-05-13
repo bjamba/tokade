@@ -1,5 +1,5 @@
-import SwiftUI
 import Charts
+import SwiftUI
 
 @MainActor
 struct ModelsTab: View {

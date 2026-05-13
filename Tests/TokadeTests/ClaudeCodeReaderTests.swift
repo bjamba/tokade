@@ -1,11 +1,10 @@
-import XCTest
 @testable import Tokade
+import XCTest
 
 /// The JSONL parser is the boundary between Claude Code's on-disk format and
 /// Tokade's domain model. Schema drift here would silently zero out
 /// utilization without crashing.
 final class ClaudeCodeReaderTests: XCTestCase {
-
     /// Write a JSONL fixture to a temp dir Tokade can read with the same
     /// directory enumeration it uses in production.
     private func makeFixture(lines: [String]) throws -> URL {
@@ -132,7 +131,7 @@ final class ClaudeCodeReaderTests: XCTestCase {
         XCTAssertEqual(events.count, 1)
     }
 
-    func testReturnsEmptyForMissingDirectory() async throws {
+    func testReturnsEmptyForMissingDirectory() async {
         let bogus = FileManager.default.temporaryDirectory
             .appendingPathComponent("does-not-exist-\(UUID().uuidString)")
         let reader = ClaudeCodeReader(projectsURL: bogus)

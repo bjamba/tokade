@@ -33,5 +33,10 @@ jobs:
       - name: Test
         run: swift test
 
+      - name: swiftformat lint
+        run: |
+          brew install swiftformat
+          swiftformat --lint .
+
       - name: Guardrail checks
         run: ./scripts/check.sh

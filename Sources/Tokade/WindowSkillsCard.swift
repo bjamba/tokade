@@ -1,5 +1,5 @@
-import SwiftUI
 import Charts
+import SwiftUI
 
 @MainActor
 struct WindowSkillsCard: View {
@@ -37,7 +37,7 @@ struct WindowSkillsCard: View {
                 .chartYSelection(value: $hover)
                 .frame(height: CGFloat(cmds.count) * 24 + 16)
                 .overlay(alignment: .topTrailing) {
-                    if let label = hover, let row = cmds.first(where: { "/\($0.name)" == label }) {
+                    if let label = hover, let row = cmds.first(where: { label == "/\($0.name)" }) {
                         MiniTooltip(rows: [
                             ("Command", "/\(row.name)"),
                             ("Tokens", formatCount(row.total)),

@@ -52,7 +52,7 @@ actor StatusFileReader {
         let week = parseWindow(limits?["seven_day"] as? [String: Any])
 
         let sessionId = obj["session_id"] as? String
-        if five == nil && week == nil && sessionId == nil { return nil }
+        if five == nil, week == nil, sessionId == nil { return nil }
         return RateLimitSnapshot(
             fiveHour: five,
             sevenDay: week,

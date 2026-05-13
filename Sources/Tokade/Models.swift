@@ -18,7 +18,7 @@ struct UsageEvent: Hashable {
     }
 }
 
-extension Sequence where Element == UsageEvent {
+extension Sequence<UsageEvent> {
     func within(_ interval: TimeInterval, of now: Date = Date()) -> [UsageEvent] {
         let cutoff = now.addingTimeInterval(-interval)
         return filter { $0.timestamp >= cutoff }
@@ -113,6 +113,6 @@ struct StackedRow: Identifiable, Hashable {
 
 func formatCount(_ n: Int) -> String {
     if n >= 1_000_000 { return String(format: "%.1fM", Double(n) / 1_000_000) }
-    if n >= 1_000 { return String(format: "%.1fk", Double(n) / 1_000) }
+    if n >= 1000 { return String(format: "%.1fk", Double(n) / 1000) }
     return "\(n)"
 }

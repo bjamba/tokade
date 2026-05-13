@@ -1,12 +1,11 @@
-import XCTest
 @testable import Tokade
+import XCTest
 
 /// Auto-reset projection of the 5-hour window. When Claude Code hasn't
 /// messaged since the window expired, Tokade advances the `resetsAt`
 /// forward in 5h increments. A regression here would show the wrong window
 /// boundaries everywhere on the Budget tab.
 final class RateLimitHelpersTests: XCTestCase {
-
     private func snapshot(resetsAt: Date, pct: Double = 50) -> RateLimitSnapshot {
         RateLimitSnapshot(
             fiveHour: RateLimitWindow(usedPercentage: pct, resetsAt: resetsAt),

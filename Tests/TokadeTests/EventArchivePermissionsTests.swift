@@ -1,12 +1,11 @@
-import XCTest
 @testable import Tokade
+import XCTest
 
 /// Archive files contain `cwd` paths from the user's Claude Code sessions
 /// (mild PII). The user's promise in the README is that these files are
 /// 0600 — owner-only read/write — so a multi-user macOS can't sniff them
 /// via another local account.
 final class EventArchivePermissionsTests: XCTestCase {
-
     private func makeTempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("tokade-archive-test-\(UUID().uuidString)")

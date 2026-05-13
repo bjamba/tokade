@@ -1,5 +1,5 @@
-import SwiftUI
 import Charts
+import SwiftUI
 
 /// Per-window utilization chart on the Budget tab. Each bar = one server-anchored
 /// 5-hour window; height = end-of-window utilization (%) drawn from the snapshot
