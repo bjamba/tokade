@@ -48,6 +48,14 @@ for fn in groupedByModel groupedByProject toolCallCounts groupedBySlashCommand s
     fi
 done
 
+# Rule: archives must set 0600 permissions on their data files. Enforces the
+# privacy promise in the README.
+for f in Sources/Tokade/EventArchive.swift Sources/Tokade/SnapshotArchive.swift; do
+    if ! grep -q "0o600" "$f"; then
+        fail "$f missing 0o600 permission assignment. See CLAUDE.md § Archive file permissions."
+    fi
+done
+
 # Rule: no LLM-attribution strings sneaking into committed code or comments.
 # (Exclude this script itself, which has to mention the pattern to grep for it.)
 if grep -RIn --include='*.swift' --include='*.md' \

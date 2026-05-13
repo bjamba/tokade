@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// One persisted snapshot of server-side rate-limit state. We append one
 /// of these per poll so we can plot true budget utilization (%) over time
@@ -29,6 +30,7 @@ actor SnapshotArchive {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private var lastWritten: UsageSnapshot?
+    private let log = Logger(subsystem: "com.bjamba.tokade", category: "SnapshotArchive")
 
     init(directory: URL = FileManager.default
             .homeDirectoryForCurrentUser
@@ -50,19 +52,43 @@ actor SnapshotArchive {
            last.sessionId == snapshot.sessionId {
             return
         }
-        try? FileManager.default.createDirectory(at: directory,
-                                                  withIntermediateDirectories: true)
-        guard let data = try? encoder.encode(snapshot) else { return }
+        do {
+            try FileManager.default.createDirectory(at: directory,
+                                                     withIntermediateDirectories: true)
+        } catch {
+            log.warning("createDirectory failed for \(self.directory.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            return
+        }
+        guard let data = try? encoder.encode(snapshot) else {
+            log.warning("encode failed for snapshot")
+            return
+        }
         var line = data
         line.append(0x0A) // newline
 
-        if let handle = try? FileHandle(forWritingTo: fileURL) {
-            defer { try? handle.close() }
-            _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: line)
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            if let handle = try? FileHandle(forWritingTo: fileURL) {
+                defer { try? handle.close() }
+                _ = try? handle.seekToEnd()
+                do {
+                    try handle.write(contentsOf: line)
+                } catch {
+                    log.warning("write failed: \(error.localizedDescription, privacy: .public)")
+                    return
+                }
+            } else {
+                log.warning("FileHandle(forWritingTo:) failed for \(self.fileURL.path, privacy: .public)")
+                return
+            }
         } else {
-            FileManager.default.createFile(atPath: fileURL.path, contents: line)
+            FileManager.default.createFile(
+                atPath: fileURL.path,
+                contents: line,
+                attributes: [.posixPermissions: 0o600]
+            )
         }
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600],
+                                                ofItemAtPath: fileURL.path)
         lastWritten = snapshot
     }
 
@@ -77,5 +103,11 @@ actor SnapshotArchive {
             out.append(snap)
         }
         return out
+    }
+
+    /// Erase the snapshot archive. Used by the "Erase history…" action.
+    func erase() {
+        try? FileManager.default.removeItem(at: fileURL)
+        lastWritten = nil
     }
 }
