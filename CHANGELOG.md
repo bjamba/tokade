@@ -6,26 +6,31 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-13
+
+The M2 release. Perf + accessibility + repo-surface upgrades. No
+user-visible feature changes beyond the colorblind-friendly shape glyphs.
+
 ### Added
 
-- `.swiftformat` config (conservative ruleset) + CI lint step
-- Incremental JSONL parsing: per-file mtime cache; steady-state polls
-  re-parse zero files instead of all of them. Major perf win for
-  long-term users with many session JSONLs.
-- Shape glyphs per model tier (Haiku ●, Sonnet ■, Opus ▲) in legends
-  and tooltips. Second visual channel for colorblind users since the
-  palette is blue-family.
-- VoiceOver labels on bar charts across Models tab, Past 5h windows,
-  and Window skills.
-- README screenshots for each tab (Budget / Models / Trends)
-- README Roadmap section linking to the public Projects v2 board
-- README Questions section pointing to GitHub Discussions
-- `.github/CODEOWNERS` (single-line, `* @bjamba`)
-- Xcode 15.4 pin on both CI and Release workflows so an Apple update can't
-  silently change Swift semantics
-- CONTRIBUTING.md Roadmap subsection documenting board column semantics
-- Discussions enabled at the repo level
-- Public Projects v2 board "Tokade Roadmap" with all open issues attached
+- **Incremental JSONL parsing.** Per-file mtime cache; steady-state polls
+  re-parse zero files instead of all of them. Big perf win for users with
+  many historical session JSONLs.
+- **Shape glyphs per model tier** (Haiku ●, Sonnet ■, Opus ▲, other ◆) in
+  legends and tooltips. Second visual channel for colorblind users since
+  the palette is blue-family.
+- **VoiceOver labels** on every `BarMark` / `RectangleMark` across Models
+  tab, Past 5h windows, and Window skills. Line/area marks deliberately
+  not labeled — they're continuous; chart-level summaries are M3 work.
+- **`.swiftformat` config** (conservative ruleset) + CI lint step
+- **README screenshots** of each tab (Budget / Models / Trends)
+- **README Roadmap section** linking the public Projects v2 board
+- **README Questions section** pointing to GitHub Discussions
+- **`.github/CODEOWNERS`** (`* @bjamba`)
+- **Xcode 15.4 pin** on CI + Release workflows
+- **CONTRIBUTING.md** Roadmap + code-style sections
+- **GitHub Discussions** enabled
+- **Public Projects v2 board** "Tokade Roadmap" with all open issues attached
 
 ## [0.2.0] — 2026-05-13
 
@@ -82,6 +87,7 @@ Initial public release. Path: `github.com/bjamba/tokade`.
 - Statusline shim + installer
 - MIT license, README, AppIcon + menu bar template glyph
 
-[Unreleased]: https://github.com/bjamba/tokade/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/bjamba/tokade/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/bjamba/tokade/releases/tag/v0.3.0
 [0.2.0]: https://github.com/bjamba/tokade/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bjamba/tokade/releases/tag/v0.1.0
