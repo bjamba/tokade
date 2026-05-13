@@ -1,0 +1,4 @@
+<!-- COSMETIC: round-glasses — thin round wire-frame glasses. -->
+<circle cx="42" cy="40" r="6" fill="{{WHITE}}" fill-opacity="0.15" stroke="{{DARK}}" stroke-width="2"/>
+<circle cx="58" cy="40" r="6" fill="{{WHITE}}" fill-opacity="0.15" stroke="{{DARK}}" stroke-width="2"/>
+<rect x="47" y="39" width="6" height="2" fill="{{DARK}}"/>

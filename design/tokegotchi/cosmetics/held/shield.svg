@@ -1,0 +1,6 @@
+<!-- COSMETIC: shield — held in left hand. -->
+<ellipse cx="71" cy="100" rx="9" ry="11" fill="{{BELT}}"/>
+<ellipse cx="71" cy="100" rx="7" ry="9" fill="{{PANTS_DARK}}"/>
+<ellipse cx="71" cy="100" rx="5" ry="7" fill="{{BELT}}"/>
+<rect x="70" y="93" width="2" height="14" fill="{{HAIR}}"/>
+<rect x="64" y="99" width="14" height="2" fill="{{HAIR}}"/>

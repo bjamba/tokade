@@ -1,0 +1,9 @@
+<!-- COSMETIC: jester — three-point cap with bells, red and yellow. -->
+<path d="M 26 18 L 22 -2 L 36 18 Z" fill="#A03030"/>
+<path d="M 50 18 L 50 -10 L 60 18 Z" fill="#FFCC00"/>
+<path d="M 74 18 L 78 -2 L 64 18 Z" fill="#A03030"/>
+<rect x="26" y="14" width="48" height="6" fill="#FFCC00"/>
+<rect x="26" y="14" width="48" height="2" fill="#7A2020"/>
+<circle cx="22" cy="-2" r="2.5" fill="#FFD700"/>
+<circle cx="50" cy="-10" r="2.5" fill="#A03030"/>
+<circle cx="78" cy="-2" r="2.5" fill="#FFD700"/>

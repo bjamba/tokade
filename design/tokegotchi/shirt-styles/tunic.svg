@@ -1,0 +1,13 @@
+<!-- SHIRT STYLE: tunic — default forest-green tunic with shading. -->
+<g clip-path="url(#shirt-clip)">
+  <rect x="32" y="64" width="36" height="42" fill="{{SHIRT}}"/>
+  <rect x="32" y="64" width="10" height="42" fill="{{SHIRT_LIGHT}}"/>
+  <rect x="58" y="64" width="10" height="42" fill="{{SHIRT_DARK}}"/>
+  <rect x="32" y="64" width="36" height="5" fill="{{SHIRT_DARK}}"/>
+</g>
+<ellipse cx="30" cy="66" rx="8" ry="6" fill="{{SHIRT}}"/>
+<ellipse cx="70" cy="66" rx="8" ry="6" fill="{{SHIRT}}"/>
+<ellipse cx="27" cy="65" rx="3" ry="4" fill="{{SHIRT_LIGHT}}"/>
+<ellipse cx="73" cy="65" rx="3" ry="4" fill="{{SHIRT_DARK}}"/>
+<rect x="22" y="70" width="8" height="2" fill="{{SHIRT_DARK}}"/>
+<rect x="70" y="70" width="8" height="2" fill="{{SHIRT_DARK}}"/>

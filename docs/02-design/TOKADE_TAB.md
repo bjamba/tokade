@@ -1,319 +1,463 @@
-# Tokade tab — design doc
+# Tokade tab — design
 
 > **Last reviewed**: 2026-05-13
 > **Owner**: @bjamba
-> **Status**: design draft (not implemented)
-> **Companion ADR**: [0005-tokade-tab-data-architecture.md](../adr/0005-tokade-tab-data-architecture.md)
+> **Status**: design (no implementation yet)
+> **Companion ADR**: [0005-tokade-tab-rpg-system.md](../adr/0005-tokade-tab-rpg-system.md)
 
 ## Vision
 
-A fourth top-level tab that hosts a small library of light "games" coupled
-to your real Claude Code telemetry. The games don't simulate Claude
-usage — they *consume* it. Empty install = empty tab. The point is to
-make patterns visible, make milestones feel earned, and (eventually)
-turn a number on a chart into something with personality.
+The Tokade tab is a small RPG that lives inside the Tokade menu bar app and is fueled by your real Claude Code telemetry. You raise a creature called a **Tokegotchi**, walking it through *regions* (your projects), fighting monsters, completing quests, and aging it through tokens you spend with Claude. The longer it lives, the better.
 
-v1 ships with two features:
+It is not a Tamagotchi (passive observation). It is not Stardew Valley (active sim). It sits in between: telemetry generates events; the player makes light tactical choices at occasional encounters.
 
-- **Achievements** — auto-detected badges for usage patterns. Passive,
-  observational, immediate-reward.
-- **Tokegotchi** — a single pet that lives in a card. Mood and vitals
-  driven by your current rate-limit state and recent activity. Active in
-  the sense that it changes over time, but no input gameplay yet.
+The aesthetic target is **SNES-era pixel-art JRPG** — Final Fantasy VI, Chrono Trigger. Tokegotchis are ~32×54 pixel sprites, animated by transforms on named body parts.
 
-The tab is built so that adding a third or tenth game is the same shape
-as adding the second. See the
-[companion ADR](../adr/0005-tokade-tab-data-architecture.md) for the
-architecture.
+---
 
-## Out of scope for v1
+## Player experience
 
-- Any game requiring keyboard input (Snake, Tetris, etc. — explicitly
-  deferred to v2)
-- Multiplayer / leaderboards / social
-- Network calls of any kind — the no-network promise stands
-- Custom art assets — start with SF Symbols and unicode
-- User-naming the Tokegotchi (lock the name in v1; revisit)
+### First launch
+
+A character creator screen lets the player pick:
+
+| Trait | Options | Notes |
+|---|---|---|
+| Skin color | 6 swatches (lavender, peach, sage, sand, slate, coral) | Body color |
+| Iris color | 6 swatches | Saturated, distinguishable at 32×54 |
+| Hair style | 11 styles | horns, spiky, cat-ears, pigtails, mohawk, antennae, long, bald, flame, tentacles, mushroom |
+| Hair color | 6 swatches | Independent of style |
+| Name | free text (12 char cap) | Default "Boba" |
+
+This gives **6 × 6 × 11 × 6 = 2,376 visible base appearances** — plenty of identity without a customization rabbit-hole.
+
+### The game loop
+
+1. **Work in Claude Code.** Telemetry events fire: messages, tool calls, slash commands.
+2. **Items drop, HP drains.** Specific kinds of work generate specific kinds of items (see "Tick economy" below). Token consumption drains HP.
+3. **Open the Tokade tab to check on the pet.** Stats, current region, recent drops, active quests, idle animation.
+4. **Take light actions** — feed the pet, accept a quest, equip a cosmetic, travel to a previously-visited region's town center.
+5. **Encounter events fire as you accumulate "steps"** (LoC + tool calls + token output). Monsters drop EXP/gold; NPCs offer quests/skills/items; shops sell cosmetics and equipment.
+6. **The pet ages with every token consumed.** When age points exhaust the lifespan, the pet dies a peaceful, celebrated death. A new generation hatches with partial inheritance.
+
+The player's long-term score is **how many days each Tokegotchi lived**, recorded in a Hall of Fame.
+
+---
 
 ## Tab layout
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ Tokade tab                                              │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  Tokegotchi                                       │  │
-│  │  ─────────────                                    │  │
-│  │     ╭───╮       Boba                              │  │
-│  │     │ ◕‿◕ │      Status: content                  │  │
-│  │     ╰───╯       Born: 2026-04-22  (Day 21)        │  │
-│  │                                                   │  │
-│  │   Energy   ████████░░  82%                        │  │
-│  │   Hunger   ██████░░░░  62%                        │  │
-│  │   Mood     ███████░░░  73%                        │  │
-│  │                                                   │  │
-│  │   "I'm cozy. Send me an Opus message later 🌟"   │  │
-│  └───────────────────────────────────────────────────┘  │
-│                                                         │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  Achievements          12 / 24 earned             │  │
-│  │  ─────────────                                    │  │
-│  │   🏅 First message            Apr 22              │  │
-│  │   🏅 Lifetime: 1M tokens      Apr 28              │  │
-│  │   🏅 First Opus message       Apr 22              │  │
-│  │   🏅 3-day streak             Apr 24              │  │
-│  │   🏅 7-day streak             Apr 29              │  │
-│  │   🏅 …                                            │  │
-│  │   🔒 Lifetime: 100M tokens                        │  │
-│  │   🔒 30-day streak                                │  │
-│  │   …  (Show all)                                   │  │
-│  └───────────────────────────────────────────────────┘  │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────┐
+│ Tokade tab                                 │
+├────────────────────────────────────────────┤
+│  ┌──────────────────────────────────────┐  │
+│  │  Region: tokade  (Iron Fortress)     │  │
+│  │  Day 12 · Reputation: 47             │  │
+│  │                                      │  │
+│  │     [animated sprite, idle/walk]     │  │
+│  │            "Boba"                    │  │
+│  │                                      │  │
+│  │  HP ████████░░ 82/95                 │  │
+│  │  SP ██████░░░░ 60/80                 │  │
+│  │  Age 312K / 500K  · Gen 3            │  │
+│  │  STR 18  DEX 22  INT 31  AGI 14  CHA 26 │
+│  └──────────────────────────────────────┘  │
+│                                             │
+│  ┌──────────┬──────────┬──────────┐         │
+│  │Inventory │ Quests   │ Events   │         │
+│  ├──────────┴──────────┴──────────┤         │
+│  │ 🍖 Hearty meat × 3              │         │
+│  │ 🧪 Sonnet potion × 2            │         │
+│  │ 🏋 Dumbbell (STR +1) × 1       │         │
+│  │ 🗡 Iron Sword [equipped]       │         │
+│  └────────────────────────────────┘         │
+│                                              │
+│  ▸ A wild Compile Beetle appeared! (tap)    │
+└─────────────────────────────────────────────┘
 ```
 
-## Tokegotchi specification
+Sub-sheets that open over the main panel:
 
-### Identity
+- **Character sheet** — full stats, skills learned, gear equipped, ancestry
+- **Region map** — visited regions with discovered nodes, current location, fast-travel (only within current region)
+- **Battle modal** — passive (auto-resolve) or active (4-button menu) depending on user toggle
+- **Quest dialog** — NPC text + quest description + accept/decline
+- **Shop** — list of items with gold prices
+- **Hall of Fame** — past generations, peak stats, days lived
 
-- Lives in a single card at the top of the Tokade tab
-- Has a fixed name `Boba` in v1 (we'll let users rename in a later milestone)
-- Has a "birthday" = the timestamp of the user's first archived event
-- Has an "age" in days computed from birthday
+---
 
-### Vitals
+## Layer 1: Tick economy
 
-Three meters, each a percentage 0–100. Computed from telemetry on every
-30-second poll. Updates live.
+Every Claude Code event generates a game effect. **This is the central mechanic.**
 
-| Vital | Source | Mapping |
-|-------|--------|---------|
-| **Energy** | `100 - current_5h_pct` | High = window fresh; low = window almost spent |
-| **Hunger** | Time since last event in `events` | 100% if last event ≤ 12h ago; linearly drops to 0% at 7 days |
-| **Mood** | `(Energy + Hunger) / 2`, optionally biased by `Tokegotchi.streak` (3+ consecutive active days nudges Mood up by 10) | Composite |
+### Token consumption → HP drain
 
-Display as three short horizontal bars colored by the existing palette
-(blue family). When any vital drops below 25%, that bar turns amber.
+| Model | HP drain |
+|---|---|
+| Haiku | 1 HP per 10K tokens |
+| Sonnet | 1 HP per 5K tokens |
+| Opus | 1 HP per 2K tokens |
 
-### Mood states + speech
+HP persists between sessions — no auto-regen. A heavy Opus day leaves the pet wounded next morning.
 
-Mood determines a single sprite + speech line shown in the card. The
-sprite is a unicode-art expression rendered in a monospace font.
+### Token consumption → age
 
-| Mood band | Sprite (illustrative) | Sample lines |
-|-----------|----------------------|--------------|
-| 80–100 | `╭───╮` / `│ ◕‿◕ │` / `╰───╯` | "I'm cozy. 🌟" · "Plenty of budget left. Keep cooking." |
-| 60–79  | `╭───╮` / `│ ·_· │` / `╰───╯` | "Good pace today." · "Steady. Boba approves." |
-| 40–59  | `╭───╮` / `│ -_- │` / `╰───╯` | "You're using me a lot. Pace yourself." |
-| 20–39  | `╭───╮` / `│ >_< │` / `╰───╯` | "Burning hot. Window won't last." · "Maybe a Sonnet for the next one?" |
-| 0–19   | `╭───╮` / `│ x_x │` / `╰───╯` | "You hit the cap. Boba needs a nap." (locked emoji 😴) |
+Aging is the long-term version of HP drain. **Aging is irreversible** (except via Youth Elixir).
 
-Three speech lines per band, rotated daily by hash(date + line index) so
-the same line doesn't appear two days running. Lines live in a single
-file (`Sources/Tokade/Arcade/Tokegotchi/Lines.swift`) so they're easy to
-edit and contribute to.
+| Model | Age multiplier |
+|---|---|
+| Haiku | ×0.5 per token |
+| Sonnet | ×1.0 per token |
+| Opus | ×2.0 per token |
 
-Special override: when `isFiveHourDataStale(rateLimits)` is true, mood
-flips to "asleep" with sprite `( - . - ) zzz`. The pet sleeps through
-windows you're not using.
+Default `lifespan = 500K` age points (~1 week of moderate mixed-model use). Aging only happens when CC actively emits tokens; vacations don't age the pet.
 
-### Life cycle / age
+### Tool calls → stat-boost item drops
 
-Boba doesn't reset, evolve, or die in v1. There's a single Tokegotchi
-that grows older over time. Age in days is shown next to the name.
+Each tool that has high user-controllability drops a themed stat item:
 
-Future (v1.1): an "evolutions" system where Boba changes appearance at
-milestones (Day 7, Day 30, Day 100). v1 does **not** ship this — the
-sprite is fixed across the age dimension. We just track + display age.
+| Stat | Source tool(s) | Drop |
+|---|---|---|
+| STR | `Bash` | dumbbell, axe, anvil |
+| DEX | `Edit`, `Write` | chisel, scalpel, brush |
+| INT | `WebFetch`, `WebSearch` | scroll, lens, tome |
+| AGI | switching cwd + `Task` | boots, signal flag, map |
+| CHA | sustained messages in single project | banner, signet ring, lyre |
 
-### Persistence
+Low-user-control tools (`Read`, `Grep`, `Glob`, `TodoWrite`) drop **generic scrap**, sold at shops for a few gold each.
 
-A single JSON file at `~/.tokade/history/tokegotchi.json`:
+Drop weights are not uniform — Bash drops 60% STR items, 10% each of other stats. Weighted random rewards diversification but doesn't deterministically punish specialization.
 
-```json
+### Skills (slash commands) → potion drops
+
+Using a Claude Code skill (slash command) drops a **potion** that refills SP. Different skills produce different rarity potions:
+
+| Skill complexity | Drop |
+|---|---|
+| Common skills (`/review`, `/clear`) | small SP potion (+10 SP) |
+| Heavier skills (`/security-review`) | medium SP potion (+30 SP) |
+| Custom user-defined skills | rare SP potion (+60 SP) |
+
+### File edits → food drops
+
+`Edit` / `Write` / `NotebookEdit` calls drop **food items** that recover HP.
+
+| Edit size | Drop |
+|---|---|
+| ≤10 LoC | bread (+5 HP) |
+| 10–100 LoC | hearty meat (+25 HP) |
+| 100+ LoC | feast (+75 HP) |
+
+The bigger the change you write, the better the food.
+
+---
+
+## Layer 2: State model
+
+Lives in `~/.tokade/games/tokegotchi.json` (file mode 0600).
+
+```jsonc
 {
-  "name": "Boba",
-  "bornAt": "2026-04-22T18:12:04Z",
-  "lastSeenMoodBand": 60,
-  "todaysLineIndex": 1
-}
-```
-
-Created on first launch from the user's earliest archived event. Updated
-on each poll. File permissions: 0600 (same as other archive files).
-
-If the file is missing or corrupt, recreate from `events.jsonl`'s
-earliest event. If `events.jsonl` is also empty, Boba enters an "egg"
-state until the first event lands.
-
-## Achievements specification
-
-### Definition shape
-
-Each achievement is a value type with:
-
-- `id: String` — stable identifier (e.g. `"lifetime-1m-tokens"`)
-- `title: String` — display name
-- `description: String` — one sentence
-- `icon: String` — SF Symbol or emoji
-- `predicate: (TelemetrySnapshot) -> Bool` — pure function over the
-  current state. Called on every poll; once true, sticky.
-
-Stickiness: once earned, the achievement records its `earnedAt: Date`
-and never re-evaluates. We persist the entire earned set; predicates run
-only for unearned items.
-
-### Initial v1 badge set (24)
-
-**Volume**
-
-| id | title | predicate |
-|----|-------|-----------|
-| `lifetime-1m` | First million | total tokens ≥ 1M |
-| `lifetime-100m` | Heavy hitter | total tokens ≥ 100M |
-| `lifetime-1b` | One billion | total tokens ≥ 1B |
-| `lifetime-10b` | Token whale | total tokens ≥ 10B |
-
-**Model coverage**
-
-| id | title | predicate |
-|----|-------|-----------|
-| `first-haiku` | Hello, Haiku | any event with model containing "haiku" |
-| `first-sonnet` | Hello, Sonnet | … "sonnet" |
-| `first-opus` | Hello, Opus | … "opus" |
-| `polyglot-day` | Three-model day | all three tiers used same calendar day |
-
-**Tools and skills**
-
-| id | title | predicate |
-|----|-------|-----------|
-| `tool-set-bero` | Bash · Edit · Read · Other | all of {Bash, Edit, Read, Write} in one session |
-| `skill-sampler` | Skill sampler | 5 distinct slash commands used lifetime |
-| `skill-explorer` | New tool | invoked a slash command never used before |
-
-**Rhythm**
-
-| id | title | predicate |
-|----|-------|-----------|
-| `streak-3` | 3-day streak | activity 3 consecutive calendar days |
-| `streak-7` | 7-day streak | activity 7 consecutive days |
-| `streak-30` | 30-day streak | activity 30 consecutive days |
-| `early-bird` | Early bird | 3 sessions before 7am |
-| `night-owl` | Night owl | 3 sessions between midnight and 4am |
-
-**Budget**
-
-| id | title | predicate |
-|----|-------|-----------|
-| `window-survivor` | Window survivor | finished a 5h window between 90–99% utilization |
-| `near-miss` | Walked the line | finished a 7d window between 95–99% |
-| `capped` | Maxed out | hit 100% on any window (badge of honor or shame, ymmv) |
-| `cache-pro` | Cache pro | `cache_read / total_input ≥ 70%` for a 7-day stretch |
-
-**Project flavor**
-
-| id | title | predicate |
-|----|-------|-----------|
-| `multi-project` | Multitasker | events from 3+ distinct cwds in one day |
-| `deep-dive` | Deep dive | a single session ≥ 1M tokens |
-| `marathon` | Marathon | a single session ≥ 4 hours wall-clock |
-
-**Tokegotchi-linked**
-
-| id | title | predicate |
-|----|-------|-----------|
-| `boba-first-week` | Boba's first week | Tokegotchi age ≥ 7 days |
-| `boba-survived-cap` | Boba survived the cap | hit 100% window without going idle for 24h after |
-
-That's 24 badges. Reasonable for a v1 gallery: ~half achievable in the
-first month of use, ~quarter in the first day, ~quarter as long-term goals.
-
-### UI shape
-
-Achievements card body:
-
-- Header: `Achievements   N / 24 earned`
-- List view, sorted: earned first (newest first), then locked (in catalog order)
-- Each row: icon + title + (earned: date) | (locked: lock emoji)
-- "Show all" expands the locked section if >5 hidden
-- Tooltip on hover: full description + predicate explanation
-
-Tap a badge: opens a sheet with the badge's description + a small chart
-or stat showing your progress toward it (e.g., for `lifetime-1b`, a
-horizontal progress bar with current total vs. 1B). Sheet is read-only.
-
-### Persistence
-
-A single JSON file at `~/.tokade/history/achievements.json`:
-
-```json
-{
-  "earned": {
-    "lifetime-1m":    "2026-04-28T12:33:01Z",
-    "first-opus":     "2026-04-22T18:13:11Z",
-    "streak-3":       "2026-04-24T09:00:00Z"
+  "identity": {
+    "name":       "Boba",
+    "generation": 3,
+    "bornAt":     "2026-05-13T15:42:08Z",
+    "ageTokens":  312000,        // accumulated weighted token count
+    "appearance": {
+      "skin":      "lavender",
+      "iris":      "blue",
+      "hairStyle": "horns",
+      "hairColor": "coral"
+    }
+  },
+  "vitals": {
+    "hp":     82,
+    "hpMax":  95,                // derived: 80 + (STR + DEX) * 2
+    "sp":     60,
+    "spMax":  80,                // derived: 40 + (INT + CHA) * 2
+    "stats":  { "STR": 18, "DEX": 22, "INT": 31, "AGI": 14, "CHA": 26 }
+  },
+  "progress": {
+    "exp":      450,
+    "gold":     1284
+  },
+  "world": {
+    "currentRegion": "code/tokade",
+    "reputation":    { "code/tokade": 47, "code/old-project": 12 }
+  },
+  "inventory": {
+    "items":         { "bread": 4, "hearty-meat": 3, "sonnet-potion": 2, "dumbbell": 1, "revive-stone": 1 },
+    "equippedCosmetic": { "hair": "horns", "shirt": "tunic", "pants": "long-pants", "hat": null, "eyewear": "shades" },
+    "equippedGear":  { "weapon": "iron-sword", "amulet": null, "ring": null, "armor": null },
+    "skillsLearned": ["strike", "mend", "athletics", "persuasion"],
+    "activeQuests":  ["compile-beetle-cull", "find-the-librarian"]
+  },
+  "bloodline": {
+    "ancestors": [
+      { "name": "Mochi", "generation": 1, "peakStats": { /* ... */ }, "daysLived": 8, "causeOfDeath": "natural" },
+      { "name": "Yuki",  "generation": 2, "peakStats": { /* ... */ }, "daysLived": 4, "causeOfDeath": "hp-zero" }
+    ]
   }
 }
 ```
 
-On startup, load earned set. On each poll, evaluate unearned predicates
-against the current `TelemetrySnapshot`. If any flip to true, record
-`earnedAt: now`, persist, fire a one-shot notification banner
-("🏅 First million tokens — earned").
+There is no explicit "level" — age in days lived is the score.
 
-File permissions: 0600.
+---
 
-### Notification banner
+## Layer 3: Regions and world
 
-A minimal toast in the panel for newly-earned badges, dismissable. No
-macOS-level notification — we don't have `NSUserNotification` permissions
-and the bar for Tier 2 OSS doesn't include them.
+Each project (cwd) maps to a **region**. Regions are matched by **cwd prefix**, so `~/code/foo` and `~/code/foo/subdir` are the same region.
 
-## Telemetry contract
+### Region content (seeded + grown)
 
-The Tokegotchi card and the Achievement predicates both consume a
-shared **`TelemetrySnapshot`** value type computed once per poll:
+When a new cwd is first observed, the system analyzes the project to **seed** the region's flavor (language, dependency manager, file count, etc.):
 
-```swift
-struct TelemetrySnapshot {
-    let now: Date
-    let events: [UsageEvent]
-    let snapshots: [UsageSnapshot]
-    let rateLimits: RateLimitSnapshot?
+| Project signature | Region flavor |
+|---|---|
+| Swift / Xcode project | Stonework Town (stoic architecture, granite golems) |
+| Python / poetry | Garden Village (lush flora, plant-themed monsters) |
+| Rust / cargo | Iron Fortress (industrial, mechanical foes, blacksmith shop) |
+| JS/TS / npm | Bazaar (busy market, trickster NPCs, deal-making) |
+| Go / mod | Open Steppe (wide plains, fast couriers, wolves) |
+| (no project file) | Wilderness (unstructured, more monsters than NPCs) |
 
-    // Derived; cached.
-    let currentFiveHourPct: Double?
-    let currentSevenDayPct: Double?
-    let totalTokens: Int
-    let lastEventAt: Date?
-    let dailyActiveStreak: Int
-}
+The flavor seeds **what's possible** in the region — monster types, NPC archetypes, dungeon theme — but everything is hidden.
+
+### Discovery via LoC steps
+
+The player explores a region through **steps**. The step formula:
+
+```
+steps = (lines_edited * 1.0) + (tool_calls * 0.5) + (output_tokens / 200)
 ```
 
-The exact shape and computation rules live in
-[ADR-0005](../adr/0005-tokade-tab-data-architecture.md).
+This means even chat-heavy days advance discovery; refactor-heavy days advance much faster.
 
-## Open questions
+| Step threshold | Unlocked |
+|---|---|
+| 0     | Open road (just walking) |
+| 200   | First village (1 NPC, shop opens) |
+| 1500  | More NPCs, side paths visible |
+| 5000  | Dungeon discovered (boss monster, rare drop) |
+| 15000 | Hidden zone (mythic NPC, late-game quest) |
 
-These need an answer before we ship v1 but don't block design review:
+After the first NPC is discovered, **fast-travel** between nodes within the same region becomes available. Travel between *regions* still requires switching cwd in CC.
 
-1. **Naming the pet.** v1 hardcodes "Boba." Should we ship a "rename"
-   action and persist user choice? Adds a settings sheet. (Lean: defer.)
-2. **Notification banner styling.** Toast-in-panel vs. a small badge that
-   dot-appears next to the Tokade tab label like "GitHub notifications
-   count" on the segmented control? (Lean: dot indicator.)
-3. **What happens if `~/.claude/projects/` is empty?** Achievements
-   gallery still shows the locked list. Tokegotchi enters an "egg" state
-   with no animation. (Lean: yes.)
+### Reputation
+
+Reputation per region grows with **sustained messaging in that project's cwd**. Specifically: every 50 messages in a region grants +1 reputation. Reputation caps at 100. High reputation unlocks:
+
+- Shop discounts (≥30)
+- Special quests from NPCs (≥50)
+- A region-flavored cosmetic gift (≥75)
+- A late-game item (≥100, mythic)
+
+---
+
+## Layer 4: Encounters
+
+### Monster combat
+
+User-toggleable between two modes:
+
+- **Passive**: auto-resolve based on stats vs monster stats. Result appears as a brief banner. Used by default; respect "I'm coding, don't interrupt me."
+- **Active**: turn-based menu RPG modal. `Attack` / `Use Skill` / `Use Item` / `Run`. 2–6 turns until one side drops.
+
+A subset of monsters (bosses, rare encounters) trigger active mode regardless of toggle — these are the meaningful fights.
+
+Combat math:
+- Damage dealt = `(attacker_STR or weapon_atk) - target_DEF` with stat-scaling from skills
+- Skill damage = `base + relevant_stat × multiplier` (e.g., Fireball = `10 + INT × 2.5`)
+- Dodge chance = `target_AGI - attacker_AGI` percent (capped 5–60%)
+
+### NPCs
+
+NPCs appear in regions at discovery thresholds. Each NPC has a role:
+
+| Role | What they do |
+|---|---|
+| **Merchant** | Sells items, cosmetics, gear |
+| **Trainer** | Teaches in-game skills (spend EXP) |
+| **Quest-giver** | Offers explicit prompt-style quests |
+| **Lore-keeper** | Background flavor + sometimes hints |
+
+NPCs sometimes block paths and trigger **D&D-style skill checks** (see Layer 6).
+
+### Quests
+
+Two distinct flavors:
+
+- **NPC quests** are explicit, prescriptive: *"Use `/review` three times today and report back."* They appear in the Quest log, you complete them by doing the thing in Claude Code, you return to the NPC for the gold/EXP/item reward. These intentionally try to **change your CC behavior**.
+- **System achievements** are implicit milestones: *"Hello, Opus" (first Opus message), "Three-model day", "7-day streak"*. They fire silently when triggered and reward small items + a Hall-of-Fame entry. They reward **what you naturally do**.
+
+### Encounter frequency
+
+Default scaling:
+
+| Session intensity | Monsters | NPC interactions | Achievement triggers |
+|---|---|---|---|
+| Light (10K LoC, 1hr) | 1–2 | 0–1 | 0–2 |
+| Medium (50K LoC, 4hr) | 5–8 | 2–4 | 3–6 |
+| Heavy (200K LoC, 8hr+) | 15–25 | 6–10 | 8–15 |
+
+A `encounter_frequency_multiplier` setting (default 1.0, range 0.25–4.0) lets the player tune.
+
+---
+
+## Layer 5: Aging, death, inheritance
+
+### Aging
+
+Aging is purely token-driven; see Layer 1 for the per-model multiplier. Pet ages only when CC is actively consuming tokens.
+
+When `age > 0.7 × lifespan`, the pet enters **Elder state**: hair tinged gray, idle pose tired, occasional "I'm not as quick as I once was" dialog. Visible to the player.
+
+### Two-track death
+
+- **Natural death** (age reaches lifespan): peaceful eulogy line, sprite fades, Hall-of-Fame entry written. **No revive possible** — death by old age is final. The achievement is the days lived.
+- **HP=0 death**: pet enters **Critical state** for 24 real-time hours. Player can:
+  - Use a Revive Stone (consumable) → restore HP to max, abort death
+  - Refill HP via food items → exit critical state naturally
+  - Do nothing → tragic eulogy + next generation
+
+### Lifespan-extension items
+
+| Item | Effect | Source |
+|---|---|---|
+| **Revive Stone** | Auto-consumed on HP=0 to restore HP. No effect on natural death. | Rare boss drop, 5000 gold |
+| **Youth Elixir** | Pauses aging for next 24 real-time hours | Quest chain, 2000 gold |
+| **Phoenix Feather** | Pauses aging for 7 real-time days | Single hand-placed in a late-game dungeon |
+| **Ancient Tonic** | Halves age-cost of next 100K tokens | Crafted (recipe is a quest reward) |
+
+### Inheritance on death
+
+| Trait | Carryover |
+|---|---|
+| Each stat (STR/DEX/INT/AGI/CHA) | 30% of peak value |
+| Learned skills | Carry at 50% effectiveness; re-train by spending half original EXP |
+| Town reputation per region | 100% — "your ancestor was the great Boba" |
+| Gold | 10% |
+| Inventory items | All carry |
+| Equipped cosmetics | All carry |
+| Equipped gear | Carry only one piece (player picks); rest goes to Hall |
+| Appearance | 70% chance each color (skin/iris) inherits; hair style re-rolls |
+
+### Hall of Fame
+
+- Last 20 generations stored in full detail (name, peak stats, days lived, cause of death, ancestry quotes)
+- Older entries roll up to summary (just name + days lived) — infinite history at low storage cost
+- Browsable in a sheet within the Tokade tab
+
+---
+
+## Layer 6: Skills
+
+Two distinct categories. Both bought with **EXP** from Trainer NPCs.
+
+### Combat skills (20 total)
+
+Used during battle, cost SP per use. Damage/effect scales with the relevant stat.
+
+| Category | Skills | Stat scaling |
+|---|---|---|
+| **Damage** (4) | Strike, Pierce, Fireball, Inspire-Attack | STR / DEX / INT / CHA |
+| **Heal** (4) | Mend, Greater Heal, Group Heal, Resurrection | CHA / CHA / CHA / INT |
+| **Buff** (4) | Power-Up (+STR), Quickness (+AGI), Focus (+INT), Rally (+all) | self-targeted, multi-turn |
+| **Debuff** (4) | Weaken, Slow, Confuse, Demoralize | inflicted on monster |
+| **Utility** (4) | Block, Escape, Steal, Analyze | combat tools, no damage |
+
+Example: Fireball cost = 12 SP. Damage = `10 + INT × 2.5`. So at INT=20, Fireball deals 60 damage.
+
+### RPG skills (10 total)
+
+D&D-style narrative skills triggered by **skill checks** in dialog. Possessing the skill + meeting a stat threshold unlocks alternative branches.
+
+| Skill | Stat | What it unlocks |
+|---|---|---|
+| Athletics | STR | force doors, climb walls, push obstacles |
+| Lockpicking | DEX | open chests + gates without keys (consumes lockpicks) |
+| Stealth | DEX | sneak past monsters, find hidden NPCs |
+| Investigation | INT | clues in environments, identify item rarity |
+| Arcana | INT | decode runes, identify magical items |
+| Persuasion | CHA | extra quest dialog options, shop discounts |
+| Intimidation | CHA | force NPC info, scare low-tier monsters |
+| Insight | CHA | detect lying NPCs |
+| Survival | DEX or INT | track monsters, find wilderness shortcuts |
+| Performance | CHA | entertainer NPCs, festival quests |
+
+Example branching scene:
+
+> *A locked iron gate bars the path.*
+> [Athletics 25] kick it down (costs 15 HP)
+> [Lockpicking 15] pick the lock (consumes lockpick)
+> [Persuasion 20] convince the guard (requires reputation ≥ 30)
+> [back away]
+
+Each option requires the skill **and** the stat threshold. Player builds determine which paths open.
+
+---
+
+## Sprite + animation system
+
+> See [docs/adr/0005-tokade-tab-rpg-system.md](../adr/0005-tokade-tab-rpg-system.md) for the architecture rationale.
+
+- **Source resolution**: 32×54 pixels (viewBox `0 -18 100 168`)
+- **Proportions**: FFVI-ish humanoid — head ~33% of height, torso ~30%, legs ~37%
+- **Color**: 16-color palette per sprite, parameterized by ROLE (skin/skin-light/skin-dark/hair/hair-dark/iris/etc.); the runtime swaps actual RGB values to produce 6 skin × 6 iris × 6 hair-color variants of every shape from a single matrix
+- **Animation**: per-part transforms (`HEAD_TRANSFORM`, `R_ARM_TRANSFORM`, `L_ARM_TRANSFORM`, `R_LEG_TRANSFORM`, `L_LEG_TRANSFORM`). At least 3 frames per Tokegotchi: idle, walk-A, walk-B
+- **Stylization**: every other source pixel row darkened 12% for a pixel-grid scanline feel (toggleable)
+- **Outline**: 1-pixel dark border applied at source resolution to every silhouette
+- **In-app render**: matrix → nearest-neighbor upscale → blit to SwiftUI Canvas. No PNG files at runtime.
+
+### Cosmetic slots and inventory
+
+| Slot | v1 items |
+|---|---|
+| Hair (style chosen at creation) | 11: horns, spiky, cat-ears, pigtails, mohawk, antennae, long, bald, flame, tentacles, mushroom |
+| Hat | 7: beanie, wizard-hat, cap, crown, jester, octopus, halo |
+| Eyewear | 5: shades, round-glasses, eye-patch, monocle, heart-glasses |
+| Shirt | 6: tunic, striped, vest, red-robe, lab-coat, jester-motley |
+| Pants | 6: long-pants, shorts, blue-trousers, kilt, bell-bottoms, striped-leggings |
+| Belt | 2: leather, gold |
+| Cape | 4: red-cape, blue-cape, rainbow, bat-wings |
+| Held items (R + L) | 8: sword, shield, staff, mug, rubber-duck, crystal-ball, fish, magic-wand |
+
+Total: **49 cosmetic items across 9 slots** at v1. Each is one ~5-line SVG; new items take minutes to author.
+
+### Animation rig
+
+The base sprite has named part groups: `head`, `r-arm`, `l-arm`, `r-leg`, `l-leg`. Each accepts a full SVG transform expression as an env-var-driven placeholder.
+
+Locked canonical animation frames:
+
+| Frame | Transforms |
+|---|---|
+| **idle** | all noop |
+| **walk-A** | head `translate(0,1.5)`, r-leg `translate(0,-3.125)`, both arms `rotate(8 ...)` (body twists right) |
+| **walk-B** | head `translate(0,1.5)`, l-leg `translate(0,-3.125)`, both arms `rotate(-8 ...)` (body twists left) |
+
+Both arms tilt the **same direction** in each frame — front-view walking shows up as body sway, not counter-swing. Cycle at ~6fps to read as walking.
+
+Future animations using the same rig: `eat`, `sleep`, `wave`, `attack`, `cast`, `death`.
+
+---
+
+## Open questions (not blocking v1)
+
+1. **Per-region soundtrack?** Could tie to project language. Big scope addition; defer.
+2. **Cross-Tokegotchi memory?** Should ancestors leave physical objects in regions (graves, journals)? Atmospheric but expensive.
+3. **Custom NPC dialog from project metadata?** Hooking into `package.json` or `README.md` for region flavor text. Risky for privacy; defer.
+4. **Cosmetic mutations on inheritance** — should the new generation occasionally inherit a *new* color (e.g., the ancestor's blue eyes mutate to teal)? Adds variety; complicates UI.
+5. **Active animations** — beyond walk + idle, when does the pet visibly do something? On feed, on level up, on quest accept?
+
+---
 
 ## Future (v2+)
 
-- Snake / Breakout as the first playable game
-- Tokegotchi evolutions at age milestones (Day 7, 30, 100)
-- Tokegotchi customization (rename, color tint from model mix)
-- A "year-in-Claude" Polaroid view as a third game-card
-- Daily oracle: fortune-cookie line from yesterday's usage
-- Plant-a-tree garden (token volume = growth rate)
-- Idle factory (in-game tokens earned from real tokens 1:1000)
-- Achievement leaderboards (anonymized, opt-in, would break no-network)
+- Multiplayer Tokegotchi exchange — gift cosmetics between users
+- A second game in the tab — pure card game or puzzle, share the Tokegotchi state
+- "Year-in-Claude" Polaroid review at year-end, generated from Hall of Fame data
+- Tokegotchi customization (rename mid-life, color-shift via potion)
+- Cosmetic crafting system — combine items at a workbench NPC

@@ -1,0 +1,13 @@
+<!-- PANTS STYLE: blue-trousers — long indigo pants. -->
+<g clip-path="url(#pants-clip-r)">
+  <rect x="36" y="106" width="11" height="32" fill="#3A5798"/>
+  <rect x="36" y="106" width="4" height="32" fill="#5A78B8"/>
+  <rect x="43" y="106" width="4" height="32" fill="#26396A"/>
+  <rect x="36" y="134" width="11" height="4" fill="#1A2A50"/>
+</g>
+<g clip-path="url(#pants-clip-l)">
+  <rect x="53" y="106" width="11" height="32" fill="#3A5798"/>
+  <rect x="53" y="106" width="4" height="32" fill="#5A78B8"/>
+  <rect x="60" y="106" width="4" height="32" fill="#26396A"/>
+  <rect x="53" y="134" width="11" height="4" fill="#1A2A50"/>
+</g>

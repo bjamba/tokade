@@ -1,0 +1,13 @@
+<!-- PANTS STYLE: striped-leggings — red-and-white vertical stripes. -->
+<g clip-path="url(#pants-clip-r)">
+  <rect x="36" y="106" width="11" height="32" fill="#FFFFFF"/>
+  <rect x="36" y="106" width="2" height="32" fill="#C03030"/>
+  <rect x="40" y="106" width="2" height="32" fill="#C03030"/>
+  <rect x="44" y="106" width="2" height="32" fill="#C03030"/>
+</g>
+<g clip-path="url(#pants-clip-l)">
+  <rect x="53" y="106" width="11" height="32" fill="#FFFFFF"/>
+  <rect x="55" y="106" width="2" height="32" fill="#C03030"/>
+  <rect x="59" y="106" width="2" height="32" fill="#C03030"/>
+  <rect x="63" y="106" width="2" height="32" fill="#C03030"/>
+</g>

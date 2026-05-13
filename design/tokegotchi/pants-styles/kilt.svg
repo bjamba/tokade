@@ -1,0 +1,8 @@
+<!-- PANTS STYLE: kilt — skirt-like single-piece, no leg split. -->
+<rect x="34" y="106" width="32" height="22" rx="2" fill="{{SHIRT}}"/>
+<rect x="34" y="106" width="32" height="3" fill="{{SHIRT_DARK}}"/>
+<rect x="34" y="125" width="32" height="3" fill="{{SHIRT_DARK}}"/>
+<rect x="38" y="106" width="2" height="22" fill="{{SHIRT_DARK}}"/>
+<rect x="46" y="106" width="2" height="22" fill="{{SHIRT_DARK}}"/>
+<rect x="54" y="106" width="2" height="22" fill="{{SHIRT_DARK}}"/>
+<rect x="62" y="106" width="2" height="22" fill="{{SHIRT_DARK}}"/>

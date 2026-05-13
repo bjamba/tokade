@@ -1,0 +1,12 @@
+<!-- SHIRT STYLE: striped — horizontal stripes (sailor / casual). -->
+<g clip-path="url(#shirt-clip)">
+  <rect x="32" y="64" width="36" height="42" fill="{{WHITE}}"/>
+  <rect x="32" y="70" width="36" height="6" fill="{{IRIS}}"/>
+  <rect x="32" y="84" width="36" height="6" fill="{{IRIS}}"/>
+  <rect x="32" y="98" width="36" height="6" fill="{{IRIS}}"/>
+  <rect x="32" y="64" width="36" height="5" fill="{{SKIN_DARK}}"/>
+</g>
+<ellipse cx="30" cy="66" rx="8" ry="6" fill="{{WHITE}}"/>
+<ellipse cx="70" cy="66" rx="8" ry="6" fill="{{WHITE}}"/>
+<rect x="22" y="70" width="8" height="2" fill="{{IRIS}}"/>
+<rect x="70" y="70" width="8" height="2" fill="{{IRIS}}"/>

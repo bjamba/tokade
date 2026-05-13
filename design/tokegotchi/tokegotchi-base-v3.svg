@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -18 100 168" width="512" height="864" shape-rendering="geometricPrecision">
+
+  <!-- TOKEGOTCHI BASE — v3 -->
+  <!-- 32x48 source resolution. FFVI-ish proportions. Named part groups for rigging. -->
+  <!-- Every color region has light + mid + dark for pixel-art form. Horns replace hair. -->
+
+  <defs>
+    <clipPath id="head-clip"><circle cx="50" cy="38" r="23"/></clipPath>
+    <clipPath id="shirt-clip"><rect x="32" y="64" width="36" height="42" rx="6"/></clipPath>
+    <clipPath id="pants-clip-r"><rect x="36" y="106" width="11" height="32" rx="3"/></clipPath>
+    <clipPath id="pants-clip-l"><rect x="53" y="106" width="11" height="32" rx="3"/></clipPath>
+    <clipPath id="arm-clip-r"><rect x="25" y="65" width="9" height="40" rx="4"/></clipPath>
+    <clipPath id="arm-clip-l"><rect x="66" y="65" width="9" height="40" rx="4"/></clipPath>
+  </defs>
+
+  <!-- ============ CAPE (cosmetic — z-behind everything) ============ -->
+  <g id="cape">
+    {{CAPE_BODY}}
+  </g>
+
+  <!-- ============ LEGS (animatable via _LEG_TRANSFORM) ============ -->
+  <g id="r-leg" transform="{{R_LEG_TRANSFORM}}">
+    <rect x="36" y="106" width="11" height="30" rx="3" fill="{{SKIN}}"/>
+    <ellipse cx="41.5" cy="138" rx="7" ry="4" fill="{{SKIN}}"/>
+    <ellipse cx="44" cy="139" rx="4" ry="2.5" fill="{{SKIN_DARK}}"/>
+  </g>
+  <g id="l-leg" transform="{{L_LEG_TRANSFORM}}">
+    <rect x="53" y="106" width="11" height="30" rx="3" fill="{{SKIN}}"/>
+    <ellipse cx="58.5" cy="138" rx="7" ry="4" fill="{{SKIN}}"/>
+    <ellipse cx="61" cy="139" rx="4" ry="2.5" fill="{{SKIN_DARK}}"/>
+  </g>
+
+  <!-- ============ PANTS (swappable) ============ -->
+  <g id="pants">
+    {{PANTS_BODY}}
+  </g>
+
+  <!-- ============ ARMS (with shading) ============ -->
+  <!-- Arms animatable via _ARM_TRANSFORM (pivot at shoulder). Clip-paths removed so rotation works cleanly. -->
+  <g id="r-arm" transform="{{R_ARM_TRANSFORM}}">
+    <ellipse cx="32" cy="65" rx="7" ry="5" fill="{{SKIN}}"/>
+    <rect x="25" y="65" width="9" height="40" rx="4" fill="{{SKIN}}"/>
+    <rect x="25" y="65" width="3" height="40" fill="{{SKIN_LIGHT}}"/>
+    <rect x="31" y="65" width="3" height="40" fill="{{SKIN_DARK}}"/>
+  </g>
+  <g id="l-arm" transform="{{L_ARM_TRANSFORM}}">
+    <ellipse cx="68" cy="65" rx="7" ry="5" fill="{{SKIN}}"/>
+    <rect x="66" y="65" width="9" height="40" rx="4" fill="{{SKIN}}"/>
+    <rect x="66" y="65" width="3" height="40" fill="{{SKIN_LIGHT}}"/>
+    <rect x="72" y="65" width="3" height="40" fill="{{SKIN_DARK}}"/>
+  </g>
+
+  <!-- ============ TORSO ============ -->
+  <g id="torso">
+    <rect x="32" y="62" width="36" height="48" rx="8" fill="{{SKIN}}"/>
+  </g>
+
+  <!-- ============ SHIRT (swappable) ============ -->
+  <g id="shirt">
+    {{SHIRT_BODY}}
+  </g>
+
+  <!-- ============ BELT (swappable, drawn on top of shirt) ============ -->
+  <g id="belt">
+    {{BELT_BODY}}
+  </g>
+
+  <!-- ============ HEAD + HAIR + HAT (animated as a single unit via HEAD_TRANSFORM) ============ -->
+  <g id="head" transform="{{HEAD_TRANSFORM}}">
+    <!-- base head -->
+    <circle cx="50" cy="38" r="23" fill="{{SKIN}}"/>
+    <!-- shading clipped to head -->
+    <g clip-path="url(#head-clip)">
+      <ellipse cx="38" cy="26" rx="11" ry="8" fill="{{SKIN_LIGHT}}"/>          <!-- top-left highlight -->
+      <ellipse cx="60" cy="48" rx="14" ry="10" fill="{{SKIN_DARK}}"/>          <!-- bottom-right shadow -->
+      <ellipse cx="50" cy="58" rx="18" ry="4" fill="{{SKIN_DARK}}"/>           <!-- chin shadow band -->
+    </g>
+
+    <!-- Eyes: sclera + iris + pupil + highlight -->
+    <ellipse cx="42" cy="40" rx="6" ry="8" fill="{{WHITE}}"/>
+    <ellipse cx="58" cy="40" rx="6" ry="8" fill="{{WHITE}}"/>
+    <ellipse cx="42" cy="41" rx="3.6" ry="5.2" fill="{{IRIS}}"/>
+    <ellipse cx="58" cy="41" rx="3.6" ry="5.2" fill="{{IRIS}}"/>
+    <circle  cx="42" cy="42" r="1.5" fill="{{DARK}}"/>
+    <circle  cx="58" cy="42" r="1.5" fill="{{DARK}}"/>
+    <circle  cx="40" cy="38" r="1.5" fill="{{WHITE}}"/>
+    <circle  cx="56" cy="38" r="1.5" fill="{{WHITE}}"/>
+
+    <!-- Mouth -->
+    <ellipse cx="50" cy="54" rx="5" ry="2" fill="{{DARK}}"/>
+
+    <!-- Eyewear (cosmetic — z-above face, below hair) -->
+    <g id="eyewear">
+      {{EYEWEAR_BODY}}
+    </g>
+
+    <!-- Hair (swappable via HAIR_STYLE) -->
+    <g id="hair">
+      {{HAIR_BODY}}
+    </g>
+
+    <!-- Hat (cosmetic — z-above hair) -->
+    <g id="hat">
+      {{HAT_BODY}}
+    </g>
+  </g>
+
+  <!-- ============ HELD ITEMS (front of everything) ============ -->
+  <g id="held-r">
+    {{HELD_R_BODY}}
+  </g>
+  <g id="held-l">
+    {{HELD_L_BODY}}
+  </g>
+
+</svg>

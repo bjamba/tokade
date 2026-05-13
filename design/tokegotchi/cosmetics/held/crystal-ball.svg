@@ -1,0 +1,6 @@
+<!-- COSMETIC: crystal-ball — glowing translucent sphere held in right hand. -->
+<circle cx="29" cy="100" r="7" fill="#80C0E8"/>
+<circle cx="29" cy="100" r="5.5" fill="#A8D8F0"/>
+<circle cx="26" cy="97" r="2" fill="#FFFFFF"/>
+<rect x="24" y="106" width="10" height="3" fill="#7A5A1A"/>
+<rect x="24" y="106" width="10" height="1" fill="#D4A93C"/>

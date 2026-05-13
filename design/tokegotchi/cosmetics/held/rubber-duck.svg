@@ -1,0 +1,6 @@
+<!-- COSMETIC: rubber-duck — small yellow duck in right hand. -->
+<ellipse cx="29" cy="103" rx="6" ry="4" fill="#FFD040"/>
+<circle cx="28" cy="98" r="3.5" fill="#FFD040"/>
+<path d="M 30 96 L 35 97 L 30 99 Z" fill="#F09030"/>
+<circle cx="27" cy="97" r="0.9" fill="#1A1A2E"/>
+<ellipse cx="29" cy="103" rx="4" ry="1.5" fill="#FFE070"/>

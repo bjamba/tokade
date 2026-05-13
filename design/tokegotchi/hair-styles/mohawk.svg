@@ -1,0 +1,4 @@
+<!-- HAIR STYLE: mohawk — a single tall strip down the middle of the head. -->
+<rect x="46" y="2" width="8" height="20" rx="2" fill="{{HAIR}}"/>
+<rect x="48" y="4" width="6" height="18" fill="{{HAIR_DARK}}"/>
+<rect x="46" y="2" width="3" height="20" fill="{{HAIR}}"/>
