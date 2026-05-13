@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 
 @main
+@MainActor
 struct TokadeApp: App {
     @State private var store: UsageStore
 

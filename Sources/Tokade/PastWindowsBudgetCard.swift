@@ -4,6 +4,7 @@ import Charts
 /// Per-window utilization chart on the Budget tab. Each bar = one server-anchored
 /// 5-hour window; height = end-of-window utilization (%) drawn from the snapshot
 /// archive. Sparse until a few cycles have been recorded.
+@MainActor
 struct PastWindowsBudgetCard: View {
     @Bindable var store: UsageStore
     let rangeSeconds: TimeInterval
@@ -94,7 +95,7 @@ struct PastWindowsBudgetCard: View {
         let approxCount = entries.filter(\.isApproximate).count
         let realCount = entries.count - approxCount
 
-        let onlyInProgress = entries.count <= 1 && (entries.first?.isCurrent ?? false)
+        _ = entries.count <= 1 && (entries.first?.isCurrent ?? false)  // onlyInProgress (reserved for future banner)
         let yMax = max(20.0, (entries.map(\.endPct).max() ?? 0) + 5)
         let showsCap = yMax >= 100
         return Card(title: "Past 5h windows utilization") {

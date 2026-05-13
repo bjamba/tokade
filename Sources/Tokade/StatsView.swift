@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 
+@MainActor
 struct ModelsTab: View {
     @Bindable var store: UsageStore
     @State private var range: TimeRange = .sevenDays

@@ -58,7 +58,7 @@ actor SnapshotArchive {
 
         if let handle = try? FileHandle(forWritingTo: fileURL) {
             defer { try? handle.close() }
-            try? handle.seekToEnd()
+            _ = try? handle.seekToEnd()
             try? handle.write(contentsOf: line)
         } else {
             FileManager.default.createFile(atPath: fileURL.path, contents: line)
