@@ -16,6 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Match the Xcode pin in ci.yml so release builds match CI builds.
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "15.4"
+
       - name: Show Swift version
         run: swift --version
 
