@@ -28,6 +28,8 @@ struct WindowSkillsCard: View {
                         y: .value("Command", "/\(row.name)")
                     )
                     .foregroundStyle(.purple.gradient)
+                    .accessibilityLabel("/\(row.name)")
+                    .accessibilityValue("\(formatCount(row.total)) tokens, \(String(format: "%.1f", total > 0 ? Double(row.total) / Double(total) * 100 : 0)) percent of slash command tokens this window")
                     .annotation(position: .trailing) {
                         Text(formatCount(row.total))
                             .font(.caption2).foregroundStyle(.secondary)

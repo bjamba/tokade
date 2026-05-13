@@ -1,5 +1,5 @@
-import XCTest
 @testable import Tokade
+import XCTest
 
 /// `ClaudeCodeReader` caches per-file parse results keyed by mtime so that
 /// 30-second polls don't re-parse hundreds of unchanged files. Tests

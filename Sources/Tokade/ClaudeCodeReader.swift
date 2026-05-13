@@ -17,8 +17,7 @@ actor ClaudeCodeReader {
 
     init(projectsURL: URL = FileManager.default
             .homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude/projects"))
-    {
+            .appendingPathComponent(".claude/projects")) {
         self.projectsURL = projectsURL
     }
 
