@@ -1,10 +1,34 @@
 import SwiftUI
 import AppKit
 
+/// Search for a resource shipped with the app. We don't use `Bundle.module`
+/// because SPM's auto-generated accessor for executable targets only looks at
+/// `Bundle.main.bundleURL/Tokade_Tokade.bundle` (top of the .app — wrong spot)
+/// and a hard-coded build-time path that dies if the project dir is renamed
+/// or the .app is run from `/Applications`.
+private func appBundledResource(named name: String, ext: String) -> URL? {
+    let main = Bundle.main
+    let candidates: [URL?] = [
+        main.resourceURL?
+            .appendingPathComponent("Tokade_Tokade.bundle")
+            .appendingPathComponent("\(name).\(ext)"),
+        main.bundleURL
+            .appendingPathComponent("Tokade_Tokade.bundle")
+            .appendingPathComponent("\(name).\(ext)"),
+        main.resourceURL?.appendingPathComponent("\(name).\(ext)"),
+    ]
+    for c in candidates {
+        if let url = c, FileManager.default.fileExists(atPath: url.path) {
+            return url
+        }
+    }
+    return nil
+}
+
 /// Load the bundled Tokade glyph as a template NSImage at the requested point size.
-/// Falls back to an SF Symbol if the PNG isn't found in the resource bundle.
+/// Falls back to an SF Symbol if the PNG isn't found.
 func tokadeIcon(size: CGFloat = 18) -> NSImage {
-    let url = Bundle.module.url(forResource: "MenuBarIcon", withExtension: "png")
+    let url = appBundledResource(named: "MenuBarIcon", ext: "png")
     let img = url.flatMap(NSImage.init(contentsOf:))
         ?? NSImage(systemSymbolName: "circle.dashed", accessibilityDescription: nil)
         ?? NSImage()

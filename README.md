@@ -102,6 +102,57 @@ utilization data via any public API. The Admin API only covers API-key usage,
 not Claude.ai Pro/Max subscriptions. The statusline JSON is the only
 authoritative source Tokade can reach without scraping claude.ai cookies.
 
+## Limitations and assumptions
+
+These shape every chart and metric. None of them are bugs — they're the
+boundaries of what's possible given what Anthropic exposes.
+
+- **claude.ai web and desktop usage is invisible.** Tokade only sees Claude
+  Code's local JSONL. If you also chat on claude.ai or the desktop app, your
+  raw-token charts undercount real usage. The server-reported `%` still
+  reflects the unified total (Code + web + desktop), so the Budget tab is
+  accurate; only the Models / Trends token charts are Code-only.
+- **Raw tokens are not budget-weighted.** Anthropic applies undisclosed
+  per-model weights when computing rate-limit `%`. A 1M-token Opus session
+  burns substantially more budget than a 1M-token Sonnet session. The Models
+  tab shows raw counts, so high-token Haiku sessions can look bigger than
+  low-token Opus sessions even though Opus consumed more of your cap.
+- **Plan caps aren't published.** Anthropic doesn't publish tokens-per-week
+  caps for Pro / Max 5× / Max 20×. Tokade derives an inferred 5h cap from
+  your server `%` ÷ local 5h tokens, then uses that for approximate bars on
+  the Past 5h Windows chart. The inference is biased downward by whatever
+  share of usage was on claude.ai (since local tokens undercount).
+- **Approximate bars assume a stable model mix and surface split.** If your
+  model mix shifts over months (heavy Opus then heavy Sonnet, or vice versa),
+  past approximate bars drift in the direction the mix shifted. The same is
+  true if your claude.ai-vs-Code split changes.
+- **Historical `%` only exists from when Tokade started.** Server-truth `%`
+  comes from the statusline shim. Anything before the shim was wired is
+  reconstructed from raw tokens with the caveats above.
+- **5h-window auto-reset is projected, not observed.** When your server
+  `resetsAt` is in the past and Claude Code hasn't messaged since, Tokade
+  advances the window forward in 5h increments. The next Claude Code message
+  confirms or corrects it.
+- **YTD projection is linear.** The wedge edges are YTD-average rate and
+  last-30-day rate. Tokade doesn't model seasonality, holidays, or
+  intentional usage shifts; it only shows the range bounded by your damped
+  and responsive paces.
+- **No network. No telemetry.** Everything stays on your machine, archived
+  under `~/.tokade/`.
+
+## Coming soon
+
+- **Arcade tab.** Small games whose state is coupled to your real Claude
+  usage — your rate-limit `%`, your model mix, your session pace. Idea sketch
+  rather than a roadmap: think difficulty that ramps with your 5h burn,
+  unlockables tied to weekly milestones, leaderboards keyed to cache-hit
+  efficiency. Brainstorm in progress.
+- **Cost estimation.** Optional dollar values per chart using published API
+  token rates. Useful only for API-key users; Pro/Max subscribers will see a
+  "subscription" tag instead of a cost.
+- **Multi-account support.** Switch between accounts (work / personal / API
+  key) and see separate budget views.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
