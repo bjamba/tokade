@@ -1,0 +1,12 @@
+.build/
+.swiftpm/
+*.xcodeproj/
+DerivedData/
+*.app/
+.DS_Store
+
+# Personal/local Claude Code project settings — not useful to others.
+.claude/
+
+# One-time post-rename helper for the maintainer. Delete after running.
+finalize-rename.sh

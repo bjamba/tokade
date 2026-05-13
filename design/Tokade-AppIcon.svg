@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0.3" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#ffcb85"></stop>
+      <stop offset="55%" stop-color="#ff9633"></stop>
+      <stop offset="100%" stop-color="#ff6f1c"></stop>
+    </linearGradient>
+    <radialGradient id="topGloss" cx="0.5" cy="0" r="0.7" fx="0.5" fy="0">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.42"></stop>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.08"></stop>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"></stop>
+    </radialGradient>
+    <linearGradient id="discGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1"></stop>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.78"></stop>
+    </linearGradient>
+    <clipPath id="badge">
+      <rect x="0" y="0" width="1024" height="1024" rx="230" ry="230"></rect>
+    </clipPath>
+    <filter id="discShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="7"></feGaussianBlur>
+      <feOffset dx="0" dy="10"></feOffset>
+      <feComponentTransfer><feFuncA type="linear" slope="0.28"></feFuncA></feComponentTransfer>
+      <feMerge>
+        <feMergeNode></feMergeNode>
+        <feMergeNode in="SourceGraphic"></feMergeNode>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g clip-path="url(#badge)">
+    <rect width="1024" height="1024" fill="url(#bg)"></rect>
+    <rect width="1024" height="1024" fill="url(#topGloss)"></rect>
+  </g>
+
+  
+  <g filter="url(#discShadow)">
+    <circle cx="512" cy="512" r="349" fill="url(#discGrad)" fill-opacity="0.72" stroke="#ffffff" stroke-opacity="0.5" stroke-width="3.8"></circle>
+    <circle cx="512" cy="512" r="288" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="6" opacity="0.85"></circle>
+  </g>
+
+  
+  <g transform="translate(512 512) scale(28.04) translate(-12 -12)">
+    <path d="M 8.6 10.8 L 9.2 9.1 L 14.8 9.1 L 15.4 10.8 L 14.4 11 L 14.05 10.15 L 12.55 10.15 L 12.55 14.15 L 13.7 15.2 L 13.7 15.45 L 10.3 15.45 L 10.3 15.2 L 11.45 14.15 L 11.45 10.15 L 9.95 10.15 L 9.6 11 Z" fill="#ff6f1c"></path>
+  </g>
+</svg>
