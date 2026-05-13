@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/bjamba/tokade/discussions
+    about: For "how do I..." or "should we...?" — use Discussions, not Issues.

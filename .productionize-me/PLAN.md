@@ -1,0 +1,175 @@
+# Tokade — Productionize Plan (Tier 2: small public OSS)
+
+## TL;DR
+
+Weekend-scale plan. Free-tier GitHub features only. Two real gaps (testing,
+CI/CD) and a halo of smaller polish items. Three milestones:
+
+- **M0** — pre-flight. The bar for "strangers can clone and contribute
+  without you holding their hand." Mostly automation + templates + a first
+  layer of tests.
+- **M1** — launch-ready. First tagged release `v0.1.0` with a `.app`
+  artifact attached, full critical-math test coverage, observability at I/O
+  boundaries, clear-archive UI, privacy posture documented.
+- **M2** — mature. Roadmap board, ADRs, accessibility patterns, incremental
+  parsing for long-term users, public Discussions.
+
+Effort estimates: **M0 ≈ 1.5 days**, **M1 ≈ 2 days**, **M2 ≈ open-ended**.
+
+GitHub features used: Issues + templates, PR template, Labels, Milestones,
+Projects (v2), Releases, Actions (CI + release), SECURITY policy,
+Discussions. No paid features, no third-party services.
+
+---
+
+## M0 — Pre-flight (~1.5 days)
+
+The minimum to not embarrass yourself in front of a first contributor.
+
+### Automation
+
+| P | Item | What | Where | Effort |
+|---|------|------|-------|--------|
+| P0 | CI build on PR | GitHub Actions workflow that runs `swift build -c release` on `macos-latest` for every PR + push to main | `.github/workflows/ci.yml` | S |
+| P0 | Test scaffold | Add `Tests/TokadeTests/` target to `Package.swift`. One smoke test so CI proves it runs tests, not just builds. | `Package.swift`, `Tests/TokadeTests/SmokeTests.swift` | S |
+| P0 | Critical-math test bootstrap | First batch: `ClaudeCodeReader.parseFile` against fixtures, `Models.swift` extensions (`groupedByModel`, `within`, `groupedBySlashCommand`). At least one happy-path + one edge case per function. | `Tests/TokadeTests/*` | M |
+| P0 | Pre-commit hook | `.pre-commit-config.yaml` running: `swift build -c release` (catches build breaks before push), grep guards (no `Bundle.module`, no `URLSession`/`URLRequest` outside README) | `.pre-commit-config.yaml`, `scripts/check.sh` | S |
+
+### GitHub repo surface
+
+| P | Item | What | Where | Effort |
+|---|------|------|-------|--------|
+| P0 | Issue templates | Bug report, feature request, question — as GitHub Issue Forms (YAML) so issues come in structured | `.github/ISSUE_TEMPLATE/bug.yml`, `feature.yml`, `config.yml` | S |
+| P0 | PR template | Checklist: tests added, CHANGELOG updated, no `Bundle.module`, screenshots if UI | `.github/PULL_REQUEST_TEMPLATE.md` | S |
+| P0 | SECURITY.md | How to privately report vulnerabilities (just use GitHub's private reporting feature; link to it) | `SECURITY.md` | S |
+| P0 | Labels | Curated set: `bug`, `enhancement`, `documentation`, `good first issue`, `area:budget`, `area:models`, `area:trends`, `area:archive`, `area:build`, `regression`, `wontfix` | created via `gh label create` | S |
+
+### Documentation + guardrails
+
+| P | Item | What | Where | Effort |
+|---|------|------|-------|--------|
+| P0 | CLAUDE.md | Enforceable rules: no `Bundle.module` direct calls, no network code, don't remove chart-stability modifiers, file perms 0600 in archives, etc. Each rule paired with an enforcement mechanism (hook or grep). | `CLAUDE.md` | M |
+
+**M0 exit criteria**: a stranger can clone, run `./install.sh`, file a bug
+with proper template, open a PR that gets auto-built and tested by CI.
+
+---
+
+## M1 — Launch-ready (~2 days)
+
+Everything needed to call it `v0.1.0`.
+
+### Tests + reliability
+
+| P | Item | What | Where | Effort |
+|---|------|------|-------|--------|
+| P1 | Complete critical-math tests | `effectiveFiveHourResetsAt`, `isFiveHourDataStale`, projection wedge math (YTD), past-windows cap inference, snapshot dedup, event archive high-water mark | `Tests/TokadeTests/*` | M |
+| P1 | `os_log` at I/O boundaries | Replace silent `try?` with `os_log` warning on the error path, return the same default value. Boundaries: `ClaudeCodeReader`, `StatusFileReader`, both archives. | source files above | S |
+| P1 | Graceful "Claude Code not installed" UI | If `~/.claude/projects/` doesn't exist, show a banner instead of empty charts | `MenuView.swift` or new card | S |
+
+### Privacy + security follow-through
+
+| P | Item | What | Where | Effort |
+|---|------|------|-------|--------|
+| P1 | File perms 0600 | `chmod 0600` after creating archive files; verified by a test | `EventArchive.swift`, `SnapshotArchive.swift`, new test | S |
+| P1 | "Erase history…" action | Menu item in the panel footer with confirmation. Deletes `~/.tokade/history/*` and `~/.tokade/last-status.json`. | `MenuView.swift` | S |
+| P1 | Privacy section in README | Explicit callout: what's in `events.jsonl` (incl. cwd), what's not (prompt content), how to wipe it, file perms | `README.md` | S |
+
+### Release pipeline
+
+| P | Item | What | Where | Effort |
+|---|------|------|-------|--------|
+| P1 | Release workflow | On push of `v*` tag: build `.app`, zip it, create GitHub Release with autogenerated changelog from PRs since last tag, attach the zip | `.github/workflows/release.yml` | M |
+| P1 | First release `v0.1.0` | Tag main, let the workflow attach the artifact, write release notes covering the journey so far | GitHub Release page | S |
+| P1 | README badges | CI status, latest release, MIT license. Three badges, top of README. | `README.md` | S |
+| P1 | CHANGELOG.md | Keep-a-changelog format. `v0.1.0` entry. From here on every PR adds an Unreleased entry. | `CHANGELOG.md` | S |
+
+### Documentation polish
+
+| P | Item | What | Where | Effort |
+|---|------|------|-------|--------|
+| P1 | CONTRIBUTING.md | How to file issues, fork/PR workflow, code style (swiftformat), test expectations, the `Bundle.module` trap | `CONTRIBUTING.md` | S |
+| P1 | ADRs for the non-obvious calls | At minimum: ADR-001 server-`%` as ground truth (raw tokens deliberately a separate dimension), ADR-002 Bundle.module workaround, ADR-003 fixed-bar-thickness philosophy, ADR-004 ad-hoc signing accepted | `docs/adr/*.md` | M |
+| P1 | Architecture doc | `docs/02-design/ARCHITECTURE.md` — the mermaid from SUMMARY.md + narrative + file-by-file index | `docs/02-design/ARCHITECTURE.md` | S |
+
+**M1 exit criteria**: `v0.1.0` is tagged, released, has a downloadable
+`.app`, has a build badge that's green. Anyone clicking "Releases" gets
+something usable. Contributor doc explains how to add tests.
+
+---
+
+## M2 — Mature (open-ended)
+
+Quality-of-life and roadmap-shaping. Not blocking on anything.
+
+### GitHub project surface
+
+| P | Item | What | Where | Effort |
+|---|------|------|-------|--------|
+| P2 | Public Projects (v2) board | "Tokade Roadmap" with columns: Backlog / Up Next / In Progress / Done. Seed with issues from the AUDIT findings. | github.com/users/bjamba/projects | S |
+| P2 | Milestones | `v0.2.0` (M1 leftovers + first user-requested features), `v1.0.0` (mature feature set), `Arcade Preview` | `gh api ... milestones` | S |
+| P2 | Discussions enabled | For "should we add X?" + Q&A. Link from README. | repo settings + README | S |
+| P2 | CODEOWNERS | Single-line `* @bjamba`. Useful when there are multiple contributors. | `.github/CODEOWNERS` | S |
+| P2 | Roadmap section in README | Replace the "Coming soon" bullets with a link to the Projects board | `README.md` | S |
+
+### Code quality + accessibility
+
+| P | Item | What | Where | Effort |
+|---|------|------|-------|--------|
+| P2 | swiftformat config + CI lint | `.swiftformat` config; CI runs `swiftformat --lint` and fails PRs that aren't formatted | `.swiftformat`, `ci.yml` | S |
+| P2 | Incremental JSONL parsing | Track file mtimes; only re-parse changed files. Falls back to archive on startup. | `ClaudeCodeReader.swift`, `UsageStore.swift` | M |
+| P2 | Colorblind-safe palette | Add a pattern overlay (stripes / dots / hatches) per model tier in addition to the hue. | `SharedComponents.swift`, all bar/area charts | M |
+| P2 | Chart VoiceOver labels | `accessibilityLabel` / `accessibilityValue` on every chart so VoiceOver users can navigate bars | all card files | M |
+| P2 | Pre-commit hook for "no LLM names in comments" | Optional polish; catches stray "claude code wrote this" notes before push | `scripts/check.sh` | S |
+
+### Beyond MVP — backlog only
+
+| P | Item | What | Notes |
+|---|------|------|-------|
+| P3 | Arcade tab | The big bet. Games whose state couples to real usage. Brainstorm-then-design before any code. | needs its own design doc |
+| P3 | Cost estimation | Optional `$` view per chart for API-key users | low complexity once designed |
+| P3 | Multi-account support | Switch between work/personal/API key | medium complexity |
+
+---
+
+## What I deliberately left out
+
+These came up in the audit but didn't make it into the milestones, and I want
+that to be explicit so we don't accidentally circle back:
+
+- **Apple notarization.** Tier 2 OSS doesn't need it — users opt into the
+  Gatekeeper warning by downloading from a known GitHub repo. Documenting
+  the right-click → Open workaround in the README is enough.
+- **SwiftLint.** Has a learning curve and a bikeshed-heavy default ruleset.
+  `swiftformat` is in M2 because it's enforcement-only (style, no rule debates).
+- **Coverage thresholds in CI.** Tier 2 bar is "tests exist on critical
+  math," not "≥80% line coverage." Coverage tooling adds noise without
+  proportional value at this size.
+- **Sentry / error tracking.** No telemetry pledge is too valuable to break.
+  `os_log` + macOS crash reports + GitHub Issues is the right loop.
+- **Dependabot.** Zero runtime dependencies makes it moot; revisit if/when
+  Tokade ever adds a SPM dependency.
+- **Sponsors / FUNDING.yml.** Premature. Add when there's real demand.
+- **A wiki or GitHub Pages site.** README + `docs/` are sufficient.
+- **Public roadmap voting (👍 reactions on issues).** Already a GitHub
+  primitive; no extra work needed.
+
+---
+
+## How I'd execute (preview)
+
+If you pick Path B (in-place), I'd do M0 → ask you to review → M1 → ask
+again. M2 is a true backlog; cherry-pick items as you feel like them.
+
+Concrete first hour of M0:
+1. `.github/workflows/ci.yml` — Swift build on macos-latest
+2. `Package.swift` test target + `Tests/TokadeTests/SmokeTests.swift`
+3. First batch of `ClaudeCodeReader` tests with fixture JSONL strings
+4. `.github/ISSUE_TEMPLATE/*` + `PULL_REQUEST_TEMPLATE.md`
+5. `SECURITY.md`
+6. `CLAUDE.md` skeleton
+7. `gh label create` for the curated label set
+8. PR to main, watch CI pass
+
+If you'd rather just take the plan and run, that's Path A and the plan
+files above are yours to execute on your own time.

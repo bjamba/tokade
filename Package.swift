@@ -11,6 +11,11 @@ let package = Package(
             resources: [
                 .process("Resources")
             ]
+        ),
+        .testTarget(
+            name: "TokadeTests",
+            dependencies: ["Tokade"],
+            path: "Tests/TokadeTests"
         )
     ]
 )

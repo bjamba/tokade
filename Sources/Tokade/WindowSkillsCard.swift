@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 
+@MainActor
 struct WindowSkillsCard: View {
     @Bindable var store: UsageStore
     @State private var hover: String?

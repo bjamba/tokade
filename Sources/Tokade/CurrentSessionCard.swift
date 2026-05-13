@@ -4,6 +4,7 @@ import Charts
 /// Budget-scoped window card. Plots `%` utilization over the current
 /// server-anchored 5-hour window using the snapshot archive — model-mix
 /// agnostic, weight-change-proof.
+@MainActor
 struct CurrentSessionCard: View {
     @Bindable var store: UsageStore
     @State private var hoverTime: Date?

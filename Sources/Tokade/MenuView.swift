@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 
+@MainActor
 struct MenuView: View {
     @Bindable var store: UsageStore
     @State private var tab: Tab = .budget
@@ -89,6 +90,7 @@ struct MenuView: View {
 
 // MARK: - Budget tab
 
+@MainActor
 struct BudgetTab: View {
     @Bindable var store: UsageStore
     @State private var range: BudgetRange = .sevenDays
@@ -179,6 +181,7 @@ struct BudgetTab: View {
 
 // MARK: - Trends tab
 
+@MainActor
 struct TrendsTab: View {
     @Bindable var store: UsageStore
     var body: some View {

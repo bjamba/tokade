@@ -1,0 +1,73 @@
+name: Bug report
+description: Something in Tokade is broken or behaving unexpectedly.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please include enough detail to reproduce it.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you see, and what did you expect to see instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Tokade
+        2. Click the Budget tab
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: tokade-version
+    attributes:
+      label: Tokade version
+      description: From the menu bar panel header, or the git tag/SHA you built from.
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: "e.g. 14.4 (Sonoma)"
+    validations:
+      required: true
+
+  - type: input
+    id: claude-code-version
+    attributes:
+      label: Claude Code version
+      description: Run `claude --version` in your terminal.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which tab is affected
+      multiple: true
+      options:
+        - Menu bar icon / label
+        - Budget tab
+        - Models tab
+        - Trends tab
+        - Build / install
+        - Statusline shim
+        - Other
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: |
+        macOS logs: `log show --predicate 'process == "Tokade"' --last 5m`.
+        Crash reports live in `~/Library/Logs/DiagnosticReports/`.
+        Don't paste your `~/.tokade/history/events.jsonl` contents (it contains
+        project paths) unless you've reviewed them first.

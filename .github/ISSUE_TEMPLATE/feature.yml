@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest a new capability for Tokade.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like Tokade to do
+      description: One paragraph, in plain language. Worth describing the situation that prompted the idea.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What problem does this solve, or what insight would it unlock?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area
+      multiple: true
+      options:
+        - Budget tab
+        - Models tab
+        - Trends tab
+        - Archive / data
+        - Build / install
+        - Arcade (future)
+        - Other
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Optional. Workarounds you tried; other tools that do this.

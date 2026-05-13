@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 
+@MainActor
 struct YTDCumulativeCard: View {
     @Bindable var store: UsageStore
     @State private var hoverDate: Date?
