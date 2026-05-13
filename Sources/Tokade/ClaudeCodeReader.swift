@@ -5,27 +5,67 @@ actor ClaudeCodeReader {
     let projectsURL: URL
     private let log = Logger(subsystem: "com.bjamba.tokade", category: "ClaudeCodeReader")
 
+    /// Per-file parse cache keyed by URL. Each entry stores the file's
+    /// last-known mtime and the events parsed from it. On poll, we only
+    /// re-parse files whose mtime has advanced past what we have cached.
+    private var cache: [URL: (mtime: Date, events: [UsageEvent])] = [:]
+
+    /// Telemetry for tests + diagnostics: number of files actually parsed
+    /// on the last `readAllEvents()` call. A cold start parses everything;
+    /// a steady-state poll should parse zero.
+    private(set) var lastParseCount: Int = 0
+
     init(projectsURL: URL = FileManager.default
             .homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude/projects")) {
+            .appendingPathComponent(".claude/projects"))
+    {
         self.projectsURL = projectsURL
     }
 
     func readAllEvents() -> [UsageEvent] {
         let fm = FileManager.default
         guard fm.fileExists(atPath: projectsURL.path),
-              let enumerator = fm.enumerator(at: projectsURL, includingPropertiesForKeys: nil) else {
+              let enumerator = fm.enumerator(
+                  at: projectsURL,
+                  includingPropertiesForKeys: [.contentModificationDateKey]
+              )
+        else {
             return []
         }
+
         var seen = Set<String>()
         var out: [UsageEvent] = []
+        var liveURLs = Set<URL>()
+        var parsedThisPass = 0
+
         for case let url as URL in enumerator where url.pathExtension == "jsonl" {
-            for event in parseFile(url) {
+            liveURLs.insert(url)
+            let mtime: Date = {
+                let values = try? url.resourceValues(forKeys: [.contentModificationDateKey])
+                return values?.contentModificationDate ?? .distantPast
+            }()
+
+            let events: [UsageEvent]
+            if let cached = cache[url], cached.mtime >= mtime {
+                events = cached.events
+            } else {
+                events = parseFile(url)
+                cache[url] = (mtime: mtime, events: events)
+                parsedThisPass += 1
+            }
+
+            for event in events {
                 let key = "\(event.sessionId ?? "")|\(event.messageId ?? UUID().uuidString)"
                 if event.messageId != nil, !seen.insert(key).inserted { continue }
                 out.append(event)
             }
         }
+
+        // Prune cache of files that have disappeared since the last poll.
+        for staleURL in cache.keys where !liveURLs.contains(staleURL) {
+            cache.removeValue(forKey: staleURL)
+        }
+        lastParseCount = parsedThisPass
         return out
     }
 
