@@ -6,19 +6,42 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-13
+
+The "productionize-me" release. No user-facing feature changes beyond the
+Erase-history button and the Claude-Code-not-detected banner; the rest of
+the work is infrastructure that makes the project safe to contribute to
+and easier to maintain.
+
 ### Added
 
-- Productionize-me M0: tests, CI, guardrails, templates, `CLAUDE.md`,
-  `.productionize-me/` artifacts (see PR #11)
-- Productionize-me M1: documentation foundation — `CONTRIBUTING.md`,
-  ADRs for non-obvious decisions, `docs/02-design/ARCHITECTURE.md`,
-  expanded Privacy section in README, README badges
-- 0600 permissions on `~/.tokade/history/*.jsonl`
-- "Erase history…" action in the menu bar panel footer
-- `os_log` warnings at file I/O boundaries (silent `try?` paths replaced)
-- Friendly banner when `~/.claude/projects/` is missing
-- Release workflow: pushing a `v*` tag builds `Tokade.app` and attaches
-  it to a GitHub Release
+- **Tests**: 32 XCTest cases covering the math that drives every chart —
+  JSONL parsing, sequence aggregations, model-tier palette, 5h-window
+  projection, and archive file permissions
+- **CI**: GitHub Actions workflow runs `swift build -c release`,
+  `swift test`, and `scripts/check.sh` on every PR and on `main`
+- **Release pipeline**: pushing a `v*` tag builds `Tokade.app`, zips it,
+  and attaches the zip + sha256 to a GitHub Release with auto-generated
+  notes
+- **Guardrails** (`scripts/check.sh` + `.pre-commit-config.yaml`): no
+  `Bundle.module` outside `SharedComponents.swift`, no network primitives
+  in `Sources/`, chart-stability modifiers stay in `StatsView.swift`,
+  every chart-driving `Models.swift` function has a test, archive sources
+  set `0o600`, no LLM-attribution noise in source/docs
+- **Documentation**: `CONTRIBUTING.md`, `docs/02-design/ARCHITECTURE.md`,
+  four ADRs covering server-`%`-as-truth, `Bundle.module` workaround,
+  fixed bar thickness, ad-hoc codesigning
+- **Issue/PR templates**: structured Issue Forms (bug + feature),
+  PR template with guardrail checklist, `SECURITY.md` with private
+  vulnerability reporting
+- **Privacy hardening**: `0600` permissions on `~/.tokade/history/*`,
+  "Erase history…" menu action with confirmation dialog, expanded
+  Privacy section in README
+- **Reliability**: `os_log` warnings at I/O boundaries (silent `try?`
+  paths replaced); friendly banner when `~/.claude/projects/` is missing
+- **`CLAUDE.md`**: enforceable rules paired 1:1 with their hooks/CI/script
+  enforcement and threaded back to `.productionize-me/AUDIT.md` findings
+- **README badges** for CI, latest Release, and license
 
 ## [0.1.0] — 2026-05-11
 
@@ -38,5 +61,6 @@ Initial public release. Path: `github.com/bjamba/tokade`.
 - Statusline shim + installer
 - MIT license, README, AppIcon + menu bar template glyph
 
-[Unreleased]: https://github.com/bjamba/tokade/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/bjamba/tokade/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/bjamba/tokade/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bjamba/tokade/releases/tag/v0.1.0
