@@ -1,0 +1,7 @@
+<!-- COSMETIC: sword — held in right hand, pointing up. -->
+<rect x="28" y="76" width="2" height="32" fill="{{WHITE}}"/>
+<rect x="27" y="76" width="1" height="32" fill="#B0B0B0"/>
+<rect x="28" y="76" width="2" height="2" fill="{{DARK}}"/>
+<rect x="25" y="106" width="8" height="2" fill="{{BELT}}"/>
+<rect x="27" y="106" width="4" height="6" fill="{{PANTS_DARK}}"/>
+<circle cx="29" cy="113" r="1.8" fill="{{BELT}}"/>

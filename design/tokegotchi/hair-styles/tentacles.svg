@@ -1,0 +1,14 @@
+<!-- HAIR STYLE: tentacles — squid hair, four arms dangle past the head. -->
+<rect x="34" y="14" width="32" height="6" rx="2" fill="#7A4C9F"/>
+<rect x="32" y="16" width="6" height="22" rx="2" fill="#7A4C9F"/>
+<rect x="42" y="16" width="6" height="26" rx="2" fill="#7A4C9F"/>
+<rect x="52" y="16" width="6" height="26" rx="2" fill="#7A4C9F"/>
+<rect x="62" y="16" width="6" height="22" rx="2" fill="#7A4C9F"/>
+<rect x="33" y="16" width="2" height="22" fill="#A878C8"/>
+<rect x="43" y="16" width="2" height="26" fill="#A878C8"/>
+<rect x="53" y="16" width="2" height="26" fill="#A878C8"/>
+<rect x="63" y="16" width="2" height="22" fill="#A878C8"/>
+<circle cx="35" cy="38" r="2" fill="#7A4C9F"/>
+<circle cx="45" cy="42" r="2" fill="#7A4C9F"/>
+<circle cx="55" cy="42" r="2" fill="#7A4C9F"/>
+<circle cx="65" cy="38" r="2" fill="#7A4C9F"/>

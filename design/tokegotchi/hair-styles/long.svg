@@ -1,0 +1,7 @@
+<!-- HAIR STYLE: long flowing — cascades down both sides of the head. -->
+<rect x="29" y="14" width="42" height="8" rx="3" fill="{{HAIR}}"/>
+<rect x="29" y="19" width="42" height="3" fill="{{HAIR_DARK}}"/>
+<rect x="24" y="20" width="7" height="40" rx="3" fill="{{HAIR}}"/>
+<rect x="25" y="22" width="3" height="38" fill="{{HAIR_DARK}}"/>
+<rect x="69" y="20" width="7" height="40" rx="3" fill="{{HAIR}}"/>
+<rect x="72" y="22" width="3" height="38" fill="{{HAIR_DARK}}"/>

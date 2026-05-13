@@ -1,0 +1,13 @@
+<!-- PANTS STYLE: shorts — knee-length, exposes lower legs. -->
+<g clip-path="url(#pants-clip-r)">
+  <rect x="36" y="106" width="11" height="14" fill="{{PANTS}}"/>
+  <rect x="36" y="106" width="4" height="14" fill="{{PANTS_LIGHT}}"/>
+  <rect x="43" y="106" width="4" height="14" fill="{{PANTS_DARK}}"/>
+  <rect x="36" y="116" width="11" height="4" fill="{{PANTS_DARK}}"/>
+</g>
+<g clip-path="url(#pants-clip-l)">
+  <rect x="53" y="106" width="11" height="14" fill="{{PANTS}}"/>
+  <rect x="53" y="106" width="4" height="14" fill="{{PANTS_LIGHT}}"/>
+  <rect x="60" y="106" width="4" height="14" fill="{{PANTS_DARK}}"/>
+  <rect x="53" y="116" width="11" height="4" fill="{{PANTS_DARK}}"/>
+</g>

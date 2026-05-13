@@ -1,0 +1,4 @@
+<!-- COSMETIC: eye-patch — covers the right eye (Tokegotchi's right). -->
+<rect x="34" y="32" width="14" height="14" rx="2" fill="{{DARK}}"/>
+<rect x="35" y="33" width="3" height="2" fill="{{PANTS_LIGHT}}"/>
+<rect x="26" y="36" width="48" height="2" fill="{{DARK}}"/>

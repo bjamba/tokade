@@ -1,0 +1,5 @@
+<!-- COSMETIC: magic-wand — thin stick with a 5-pointed gold star at the tip. -->
+<rect x="28" y="76" width="2" height="34" fill="#1A1A2E"/>
+<path d="M 29 66 L 32 73 L 39 73 L 33 78 L 35 85 L 29 81 L 23 85 L 25 78 L 19 73 L 26 73 Z" fill="#FFD700"/>
+<path d="M 29 66 L 30 73 L 33 73 L 31 78 L 32 85 L 29 81 L 28 85 L 27 78 L 25 73 L 28 73 Z" fill="#FFFFFF"/>
+<circle cx="29" cy="72" r="1.2" fill="#FFFFFF"/>

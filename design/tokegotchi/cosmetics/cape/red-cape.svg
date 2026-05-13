@@ -1,0 +1,5 @@
+<!-- COSMETIC: red-cape — drapes behind body from shoulders to mid-thigh. -->
+<path d="M 22 62 L 18 130 L 82 130 L 78 62 Z" fill="#A03030"/>
+<path d="M 22 62 L 20 130 L 50 130 L 50 62 Z" fill="#C04848"/>
+<path d="M 50 62 L 50 130 L 80 130 L 78 62 Z" fill="#702020"/>
+<rect x="22" y="60" width="56" height="4" fill="#7A2020"/>

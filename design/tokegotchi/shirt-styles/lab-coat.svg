@@ -1,0 +1,15 @@
+<!-- SHIRT STYLE: lab-coat — white button-up coat. -->
+<g clip-path="url(#shirt-clip)">
+  <rect x="32" y="64" width="36" height="42" fill="{{WHITE}}"/>
+  <rect x="32" y="64" width="8" height="42" fill="#E8E8E8"/>
+  <rect x="60" y="64" width="8" height="42" fill="#C8C8C8"/>
+  <rect x="48" y="64" width="4" height="42" fill="#B0B0B0"/>
+  <circle cx="50" cy="72" r="1.5" fill="{{DARK}}"/>
+  <circle cx="50" cy="82" r="1.5" fill="{{DARK}}"/>
+  <circle cx="50" cy="92" r="1.5" fill="{{DARK}}"/>
+  <rect x="34" y="90" width="6" height="6" fill="#E0E0E0"/>
+</g>
+<ellipse cx="30" cy="66" rx="8" ry="6" fill="{{WHITE}}"/>
+<ellipse cx="70" cy="66" rx="8" ry="6" fill="{{WHITE}}"/>
+<ellipse cx="27" cy="65" rx="3" ry="4" fill="#E8E8E8"/>
+<ellipse cx="73" cy="65" rx="3" ry="4" fill="#C8C8C8"/>

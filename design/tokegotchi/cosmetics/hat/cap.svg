@@ -1,0 +1,5 @@
+<!-- COSMETIC: cap — baseball-style cap with brim. -->
+<rect x="28" y="16" width="44" height="10" rx="6" fill="{{IRIS}}"/>
+<rect x="28" y="22" width="44" height="4" fill="#26396A"/>
+<rect x="48" y="22" width="32" height="3" fill="{{IRIS}}"/>
+<rect x="52" y="24" width="6" height="2" fill="{{WHITE}}"/>

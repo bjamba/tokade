@@ -1,0 +1,5 @@
+<!-- BELT STYLE: leather — default brown belt with dark buckle. -->
+<rect x="32" y="96" width="36" height="5" fill="{{BELT}}"/>
+<rect x="32" y="100" width="36" height="1" fill="{{DARK}}"/>
+<rect x="47" y="96" width="6" height="5" fill="{{DARK}}"/>
+<rect x="48" y="97" width="4" height="3" fill="{{BELT}}"/>

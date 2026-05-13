@@ -1,0 +1,5 @@
+<!-- COSMETIC: staff — held in right hand, tall wooden stick with crystal. -->
+<rect x="28" y="66" width="2" height="48" fill="{{PANTS}}"/>
+<rect x="27" y="66" width="1" height="48" fill="{{PANTS_LIGHT}}"/>
+<circle cx="29" cy="64" r="4" fill="{{IRIS}}"/>
+<circle cx="28" cy="63" r="1.5" fill="{{WHITE}}"/>

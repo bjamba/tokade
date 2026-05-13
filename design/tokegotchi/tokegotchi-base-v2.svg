@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="600" height="600" shape-rendering="geometricPrecision">
+
+  <!-- DRAFT v2 — chibi proportions, less Machamp. -->
+
+  <!-- Legs (smaller, more delicate) -->
+  <rect x="43" y="83" width="5" height="8" rx="1.5" fill="#5BA9BA"/>
+  <rect x="52" y="83" width="5" height="8" rx="1.5" fill="#5BA9BA"/>
+
+  <!-- Feet -->
+  <ellipse cx="45.5" cy="92" rx="4" ry="2" fill="#5BA9BA"/>
+  <ellipse cx="54.5" cy="92" rx="4" ry="2" fill="#5BA9BA"/>
+
+  <!-- Shoulders: bridge arms to torso -->
+  <ellipse cx="40" cy="65" rx="5" ry="4" fill="#5BA9BA"/>
+  <ellipse cx="60" cy="65" rx="5" ry="4" fill="#5BA9BA"/>
+
+  <!-- Body: small + round -->
+  <ellipse cx="50" cy="73" rx="11" ry="11" fill="#5BA9BA"/>
+
+  <!-- Arms: thin stubs hanging down -->
+  <ellipse cx="36" cy="72" rx="3" ry="8" fill="#5BA9BA"/>
+  <ellipse cx="64" cy="72" rx="3" ry="8" fill="#5BA9BA"/>
+
+  <!-- Head: BIG -->
+  <circle cx="50" cy="38" r="26" fill="#5BA9BA"/>
+
+  <!-- Belly highlight -->
+  <ellipse cx="50" cy="74" rx="6" ry="6" fill="#7FC1CE" opacity="0.55"/>
+
+  <!-- Hair: Claude-petal trio -->
+  <ellipse cx="36" cy="14" rx="3"   ry="6" fill="#D97757" transform="rotate(-22 36 14)"/>
+  <ellipse cx="50" cy="9"  rx="3"   ry="8" fill="#D97757"/>
+  <ellipse cx="64" cy="14" rx="3"   ry="6" fill="#D97757" transform="rotate(22 64 14)"/>
+
+  <!-- Eyes: exaggerated chibi/anime style — big vertical ellipse sclera, smaller pupil, sparkle highlight -->
+  <ellipse cx="40" cy="42" rx="6.5" ry="8.5" fill="#FFFFFF"/>
+  <ellipse cx="60" cy="42" rx="6.5" ry="8.5" fill="#FFFFFF"/>
+  <ellipse cx="40" cy="43" rx="3.5" ry="5"   fill="#1A1A2E"/>
+  <ellipse cx="60" cy="43" rx="3.5" ry="5"   fill="#1A1A2E"/>
+  <circle  cx="38.3" cy="41" r="1.5" fill="#FFFFFF"/>
+  <circle  cx="58.3" cy="41" r="1.5" fill="#FFFFFF"/>
+
+  <!-- Mouth -->
+  <path d="M 45 51 Q 50 55 55 51" stroke="#1A1A2E" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+</svg>

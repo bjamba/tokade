@@ -1,0 +1,7 @@
+<!-- COSMETIC: wizard-hat — tall pointed conical hat with brim + star. -->
+<!-- Tip uses negative y now that the canvas extends up. -->
+<rect x="22" y="14" width="56" height="4" rx="1" fill="{{DARK}}"/>
+<path d="M 50 -15 L 36 16 L 64 16 Z" fill="{{IRIS}}"/>
+<path d="M 50 -15 L 42 16 L 50 16 Z" fill="{{DARK}}"/>
+<circle cx="50" cy="2" r="2.2" fill="{{HAIR}}"/>
+<circle cx="50.5" cy="1.5" r="1" fill="{{HAIR_DARK}}"/>
