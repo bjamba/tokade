@@ -1,7 +1,9 @@
 import Foundation
+import os
 
 actor ClaudeCodeReader {
     let projectsURL: URL
+    private let log = Logger(subsystem: "com.bjamba.tokade", category: "ClaudeCodeReader")
 
     init(projectsURL: URL = FileManager.default
             .homeDirectoryForCurrentUser
@@ -28,8 +30,17 @@ actor ClaudeCodeReader {
     }
 
     private func parseFile(_ url: URL) -> [UsageEvent] {
-        guard let data = try? Data(contentsOf: url),
-              let text = String(data: data, encoding: .utf8) else { return [] }
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            log.warning("read failed \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            return []
+        }
+        guard let text = String(data: data, encoding: .utf8) else {
+            log.warning("non-utf8 JSONL: \(url.lastPathComponent, privacy: .public)")
+            return []
+        }
         let isoFrac = ISO8601DateFormatter()
         isoFrac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let isoPlain = ISO8601DateFormatter()

@@ -67,17 +67,41 @@ struct MenuView: View {
         .padding(.vertical, 8)
     }
 
+    @State private var showingEraseConfirm = false
+
     private var footer: some View {
         HStack {
             Text(store.lastUpdated.map { "Updated \(Self.timeFormatter.string(from: $0))" } ?? "—")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
+            Menu {
+                Button("Erase history…", role: .destructive) {
+                    showingEraseConfirm = true
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
             Button("Quit") { NSApp.terminate(nil) }
                 .keyboardShortcut("q")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+        .confirmationDialog(
+            "Erase all Tokade history?",
+            isPresented: $showingEraseConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Erase", role: .destructive) {
+                Task { await store.eraseHistory() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Deletes ~/.tokade/history/* and ~/.tokade/last-status.json. Cannot be undone. Does not touch ~/.claude/projects/ (that's Claude Code's data).")
+        }
     }
 
     static let timeFormatter: DateFormatter = {
@@ -111,6 +135,9 @@ struct BudgetTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if store.claudeCodeMissing {
+                claudeCodeMissingBanner
+            }
             if let snapshot = store.rateLimits {
                 rateLimitsSection(snapshot)
             } else {
@@ -131,6 +158,22 @@ struct BudgetTab: View {
                 }
             }
             PastWindowsBudgetCard(store: store, rangeSeconds: range.seconds)
+        }
+    }
+
+    @ViewBuilder
+    private var claudeCodeMissingBanner: some View {
+        Card {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Claude Code not detected").font(.subheadline).fontWeight(.semibold)
+                    Text("Tokade reads session logs from `~/.claude/projects/`. That directory doesn't exist on this machine. Install Claude Code and send at least one message; data will appear here on the next 30-second poll.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
     }
 

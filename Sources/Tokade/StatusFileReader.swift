@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 struct RateLimitWindow: Hashable {
     let usedPercentage: Double
@@ -16,6 +17,7 @@ struct RateLimitSnapshot: Hashable {
 
 actor StatusFileReader {
     let url: URL
+    private let log = Logger(subsystem: "com.bjamba.tokade", category: "StatusFileReader")
 
     init(url: URL = FileManager.default
             .homeDirectoryForCurrentUser
@@ -25,9 +27,16 @@ actor StatusFileReader {
 
     func read() -> RateLimitSnapshot? {
         let fm = FileManager.default
-        guard fm.fileExists(atPath: url.path),
-              let data = try? Data(contentsOf: url),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        guard fm.fileExists(atPath: url.path) else { return nil }
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            log.warning("read failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            log.warning("JSON parse failed for last-status.json")
             return nil
         }
 

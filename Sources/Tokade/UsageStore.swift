@@ -47,4 +47,33 @@ final class UsageStore {
 
     var fiveHourEvents: [UsageEvent] { events.within(Self.fiveHours) }
     var weeklyEvents: [UsageEvent] { events.within(Self.sevenDays) }
+
+    /// True when Claude Code's session-log directory is missing — i.e. the
+    /// user doesn't have Claude Code installed, or has never run it.
+    /// Used to surface a friendly banner instead of an empty-data state.
+    var claudeCodeMissing: Bool {
+        let path = FileManager.default
+            .homeDirectoryForCurrentUser
+            .appendingPathComponent(".claude/projects").path
+        return !FileManager.default.fileExists(atPath: path)
+    }
+
+    /// Erase the persisted archives plus the in-memory state. Triggered by
+    /// the "Erase history…" action in the UI. Does not touch
+    /// `~/.claude/projects/` — those belong to Claude Code, not us.
+    func eraseHistory() async {
+        await eventArchive.erase()
+        await archive.erase()
+        // Best-effort: also drop last-status.json so a stale snapshot
+        // doesn't survive the wipe.
+        let statusURL = FileManager.default
+            .homeDirectoryForCurrentUser
+            .appendingPathComponent(".tokade/last-status.json")
+        try? FileManager.default.removeItem(at: statusURL)
+
+        events = []
+        rateLimits = nil
+        snapshots = []
+        lastUpdated = Date()
+    }
 }

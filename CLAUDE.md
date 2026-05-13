@@ -107,6 +107,21 @@ pruned still has their archive as the source of truth.
 **Enforcement**: manual review. Document any schema change in
 `docs/adr/`. There's no automated check; that's an honest gap.
 
+### Archive file permissions
+
+**Rule**: every file `EventArchive` or `SnapshotArchive` writes must have
+mode `0600` (owner-only read/write).
+
+**Why**: archive files contain `cwd` paths from your sessions. The
+README's Privacy section promises 0600. A multi-user macOS could otherwise
+let another local account read your archive.
+
+**Enforcement**:
+- Source-side: `scripts/check.sh` greps `0o600` in
+  `Sources/Tokade/EventArchive.swift` and `SnapshotArchive.swift`.
+- Behavior-side: `Tests/TokadeTests/EventArchivePermissionsTests.swift`
+  writes a real file and asserts the mode.
+
 ### No LLM-attribution noise
 
 **Rule**: don't commit comments or docs that contain strings like
