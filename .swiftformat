@@ -1,0 +1,33 @@
+# Tokade swiftformat configuration. Conservative — only correctness-flavored
+# rules and a few style rules we agree on. CI runs `swiftformat --lint .` and
+# fails PRs that aren't formatted.
+
+--swiftversion 5.9
+--exclude .build,.swiftpm,Tokade.app
+
+--indent 4
+--linebreaks lf
+--trimwhitespace always
+
+# Disable everything that's purely stylistic / opinionated, line-wrapping
+# heuristics that touch too much code, and rules we deliberately don't follow.
+--disable wrap
+--disable wrapMultilineStatementBraces
+--disable wrapArguments
+--disable wrapConditionalBodies
+--disable indent
+--disable redundantSelf
+--disable redundantReturn
+--disable trailingCommas
+--disable consecutiveSpaces
+--disable consecutiveBlankLines
+--disable hoistPatternLet
+--disable spaceAroundOperators
+--disable redundantInit
+--disable redundantParens
+--disable redundantType
+--disable strongOutlets
+--disable unusedArguments
+--disable wrapPropertyBodies
+--disable wrapLoopBodies
+--disable wrapSingleLineComments

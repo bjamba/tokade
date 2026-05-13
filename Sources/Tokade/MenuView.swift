@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 @MainActor
 struct MenuView: View {
@@ -107,6 +107,7 @@ struct MenuView: View {
     static let timeFormatter: DateFormatter = {
         let f = DateFormatter(); f.timeStyle = .short; f.dateStyle = .none; return f
     }()
+
     static let shortDateTime: DateFormatter = {
         let f = DateFormatter(); f.timeStyle = .short; f.dateStyle = .short; return f
     }()
@@ -161,7 +162,6 @@ struct BudgetTab: View {
         }
     }
 
-    @ViewBuilder
     private var claudeCodeMissingBanner: some View {
         Card {
             HStack(alignment: .top, spacing: 10) {
@@ -177,7 +177,6 @@ struct BudgetTab: View {
         }
     }
 
-    @ViewBuilder
     private func rateLimitsSection(_ s: RateLimitSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Subscription limits").font(.subheadline).fontWeight(.semibold)
@@ -189,7 +188,6 @@ struct BudgetTab: View {
         }
     }
 
-    @ViewBuilder
     private func windowRow(label: String, window: RateLimitWindow) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack {

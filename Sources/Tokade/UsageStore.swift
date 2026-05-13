@@ -33,7 +33,7 @@ final class UsageStore {
         isLoading = true
         async let freshEvents = reader.readAllEvents()
         async let snapshot = statusReader.read()
-        events = (await freshEvents).sorted { $0.timestamp < $1.timestamp }
+        events = await (freshEvents).sorted { $0.timestamp < $1.timestamp }
         let snap = await snapshot
         rateLimits = snap
         if let snap {

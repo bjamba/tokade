@@ -8,6 +8,7 @@ follows [semver](https://semver.org/).
 
 ### Added
 
+- `.swiftformat` config (conservative ruleset) + CI lint step
 - README screenshots for each tab (Budget / Models / Trends)
 - README Roadmap section linking to the public Projects v2 board
 - README Questions section pointing to GitHub Discussions

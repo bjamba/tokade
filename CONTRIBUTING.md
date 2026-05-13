@@ -101,13 +101,22 @@ modifiers intact. CI verifies the first three for you.
 
 ## Code style
 
-There's no `swiftformat` config yet (see issue tracker for the M2 item).
-Match surrounding style:
+A conservative `.swiftformat` config lives at the repo root. CI runs
+`swiftformat --lint .` on every PR and fails if anything's unformatted.
+Run locally before pushing:
 
-- 4-space indent
-- Trailing commas in multi-line collection literals
-- Open braces on the same line
-- Documentation comments only where the *why* is non-obvious
+```
+brew install swiftformat   # one-time
+swiftformat .              # auto-fix
+swiftformat --lint .       # verify
+```
+
+The ruleset is intentionally narrow — it enforces indent, trimmed
+whitespace, sorted imports, etc., but skips most "wrap long lines"
+heuristics that fight Swift's natural line lengths. See `.swiftformat`
+for the disabled rules.
+
+Documentation comments only where the *why* is non-obvious.
 
 ## Architecture
 

@@ -1,12 +1,11 @@
-import XCTest
 @testable import Tokade
+import XCTest
 
 /// Sequence-extension aggregations on `[UsageEvent]` drive every chart.
 /// A regression here silently miscounts tokens in production. Tests are
 /// constructed against fixed event arrays so any change to grouping/sorting
 /// is caught.
 final class ModelsExtensionsTests: XCTestCase {
-
     private let fixedDate = Date(timeIntervalSince1970: 1_715_000_000)  // arbitrary
 
     private func event(model: String = "claude-opus-4-7",

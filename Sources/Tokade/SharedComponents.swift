@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 /// Search for a resource shipped with the app. We don't use `Bundle.module`
 /// because SPM's auto-generated accessor for executable targets only looks at
@@ -72,6 +72,7 @@ enum ModelTier: Int {
         case .other: return 0.0
         }
     }
+
     var baseSaturation: Double {
         switch self {
         case .haiku: return 0.42
@@ -80,6 +81,7 @@ enum ModelTier: Int {
         case .other: return 0.45
         }
     }
+
     var baseBrightness: Double {
         switch self {
         case .haiku: return 0.92
@@ -94,11 +96,10 @@ enum ModelTier: Int {
 /// Unknown formats land in `.other` at version (0,0).
 func modelRank(_ name: String) -> (tier: ModelTier, major: Int, minor: Int) {
     let lower = name.lowercased()
-    let tier: ModelTier
-    if lower.contains("haiku") { tier = .haiku }
-    else if lower.contains("sonnet") { tier = .sonnet }
-    else if lower.contains("opus") { tier = .opus }
-    else { tier = .other }
+    let tier: ModelTier = if lower.contains("haiku") { .haiku }
+    else if lower.contains("sonnet") { .sonnet }
+    else if lower.contains("opus") { .opus }
+    else { .other }
 
     let parts = lower.components(separatedBy: CharacterSet.decimalDigits.inverted)
         .compactMap { Int($0) }

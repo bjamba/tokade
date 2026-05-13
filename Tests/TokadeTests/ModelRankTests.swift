@@ -1,11 +1,10 @@
-import XCTest
 @testable import Tokade
+import XCTest
 
 /// Tier + version parsing drives the entire model color/sort palette.
 /// If `modelRank` mis-classifies a model name, the wrong tier color renders
 /// and the legend sort order is wrong. Lock the canonical model names down.
 final class ModelRankTests: XCTestCase {
-
     func testHaikuClassification() {
         let r = modelRank("claude-haiku-4-5")
         XCTAssertEqual(r.tier, .haiku)
