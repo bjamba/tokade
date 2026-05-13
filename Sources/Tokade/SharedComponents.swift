@@ -139,6 +139,21 @@ func isFiveHourDataStale(rateLimits: RateLimitSnapshot?, now: Date = Date()) -> 
     return now > server
 }
 
+/// Tier-shape glyph. Provides a second visual channel (shape) so colorblind
+/// users can distinguish tiers even when the blue-family palette compresses
+/// to similar values for them.
+///
+/// Haiku = circle, Sonnet = square, Opus = triangle, other = diamond.
+func modelGlyph(_ model: String) -> String {
+    let r = modelRank(model)
+    switch r.tier {
+    case .haiku: return "●"
+    case .sonnet: return "■"
+    case .opus: return "▲"
+    case .other: return "◆"
+    }
+}
+
 /// Deterministic per-model color. Whole palette sits in the blue family; tiers
 /// separate by brightness (Haiku light → Sonnet mid → Opus dark) plus a slight
 /// hue shift. Minor-version steps nudge brightness so multiple versions in the

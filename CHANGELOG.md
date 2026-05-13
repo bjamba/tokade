@@ -9,6 +9,14 @@ follows [semver](https://semver.org/).
 ### Added
 
 - `.swiftformat` config (conservative ruleset) + CI lint step
+- Incremental JSONL parsing: per-file mtime cache; steady-state polls
+  re-parse zero files instead of all of them. Major perf win for
+  long-term users with many session JSONLs.
+- Shape glyphs per model tier (Haiku ●, Sonnet ■, Opus ▲) in legends
+  and tooltips. Second visual channel for colorblind users since the
+  palette is blue-family.
+- VoiceOver labels on bar charts across Models tab, Past 5h windows,
+  and Window skills.
 - README screenshots for each tab (Budget / Models / Trends)
 - README Roadmap section linking to the public Projects v2 board
 - README Questions section pointing to GitHub Discussions

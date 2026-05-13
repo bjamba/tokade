@@ -157,7 +157,17 @@ struct PastWindowsBudgetCard: View {
             )
             .foregroundStyle(w.isApproximate ? Color.gray : Color.blue)
             .opacity(w.isCurrent ? 0.45 : (w.isApproximate ? 0.55 : 0.85))
+            .accessibilityLabel(accessibilityLabel(for: w))
+            .accessibilityValue(String(format: "%.0f percent", w.endPct))
         }
+    }
+
+    private func accessibilityLabel(for w: WindowEntry) -> String {
+        let f = Self.dateTimeFmt
+        let range = "\(f.string(from: w.start)) to \(f.string(from: w.end))"
+        if w.isCurrent { return "Current 5 hour window, \(range)" }
+        if w.isApproximate { return "Approximate window, \(range)" }
+        return "Window, \(range)"
     }
 
     @ChartContentBuilder

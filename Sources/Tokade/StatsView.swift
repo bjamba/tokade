@@ -89,24 +89,28 @@ struct ModelsTab: View {
                 Chart(ordered, id: \.model) { row in
                     BarMark(
                         x: .value("Tokens", row.total),
-                        y: .value("Model", row.model),
+                        y: .value("Model", "\(modelGlyph(row.model)) \(row.model)"),
                         height: .fixed(12)
                     )
                     .foregroundStyle(modelColor(row.model))
+                    .accessibilityLabel(row.model)
+                    .accessibilityValue("\(formatCount(row.total)) tokens, \(String(format: "%.1f", grand > 0 ? Double(row.total) / Double(grand) * 100 : 0)) percent of total")
                     .annotation(position: .trailing) {
                         Text(formatCount(row.total))
                             .font(.caption2).foregroundStyle(.secondary)
                     }
                 }
-                .chartYScale(domain: modelDomain)
+                .chartYScale(domain: modelDomain.map { "\(modelGlyph($0)) \($0)" })
                 .chartXAxis(.hidden)
                 .chartYSelection(value: $hoverModel)
                 .frame(height: CGFloat(modelDomain.count) * 24 + 16)
                 .overlay(alignment: .topTrailing) {
                     Group {
-                        if let m = hoverModel, let t = totalsDict[m] {
+                        if let hoveredLabel = hoverModel,
+                           let m = modelDomain.first(where: { hoveredLabel == "\(modelGlyph($0)) \($0)" }),
+                           let t = totalsDict[m] {
                             MiniTooltip(rows: [
-                                ("Model", m),
+                                ("Model", "\(modelGlyph(m)) \(m)"),
                                 ("Tokens", formatCount(t)),
                                 ("Share", String(format: "%.1f%%",
                                                   grand > 0 ? Double(t) / Double(grand) * 100 : 0))
@@ -202,6 +206,15 @@ struct ModelsTab: View {
         var categoryTotals: [String: Int] = [:]
         for r in rows { categoryTotals[r.category, default: 0] += r.value }
 
+        // Prepend the tier-shape glyph to model names in the legend so
+        // colorblind users have a second visual channel. Stored as a parallel
+        // domain (`modelLegendDomain`) so the legend renders glyph + name
+        // while underlying data still keys off the bare model id.
+        let modelLegendDomain = modelDomain.map { "\(modelGlyph($0)) \($0)" }
+        let glyphLookup: [String: String] = Dictionary(
+            uniqueKeysWithValues: zip(modelDomain, modelLegendDomain)
+        )
+
         return Chart {
             ForEach(sortedRows) { row in
                 BarMark(
@@ -209,7 +222,9 @@ struct ModelsTab: View {
                     y: .value("Category", row.category),
                     height: .fixed(12)
                 )
-                .foregroundStyle(by: .value("Model", row.model))
+                .foregroundStyle(by: .value("Model", glyphLookup[row.model] ?? row.model))
+                .accessibilityLabel("\(row.category), \(row.model)")
+                .accessibilityValue("\(formatCount(row.value)) \(xLabel.lowercased())")
             }
             ForEach(categoryOrder, id: \.self) { cat in
                 let total = categoryTotals[cat] ?? 0
@@ -224,7 +239,7 @@ struct ModelsTab: View {
                 }
             }
         }
-        .chartForegroundStyleScale(domain: modelDomain, range: modelRange)
+        .chartForegroundStyleScale(domain: modelLegendDomain, range: modelRange)
         .chartYScale(domain: categoryOrder)
         .chartLegend(position: .bottom, spacing: 6)
         .chartXAxis(.hidden)
@@ -259,7 +274,7 @@ struct ModelsTab: View {
             (valueLabel, f(total))
         ]
         for p in pieces.prefix(4) {
-            rows.append((p.model, f(p.value)))
+            rows.append(("\(modelGlyph(p.model)) \(p.model)", f(p.value)))
         }
         return rows
     }
