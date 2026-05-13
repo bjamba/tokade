@@ -1,13 +1,15 @@
-# Tokade tab — design
+# Token Gaiden — design
 
+> *The v1 game inside the new Tokade tab.*
+>
 > **Last reviewed**: 2026-05-13
 > **Owner**: @bjamba
 > **Status**: design (no implementation yet)
-> **Companion ADR**: [0005-tokade-tab-rpg-system.md](../adr/0005-tokade-tab-rpg-system.md)
+> **Companion ADR**: [0005-token-gaiden-rpg-system.md](../adr/0005-token-gaiden-rpg-system.md)
 
 ## Vision
 
-The Tokade tab is a small RPG that lives inside the Tokade menu bar app and is fueled by your real Claude Code telemetry. You raise a creature called a **Tokegotchi**, walking it through *regions* (your projects), fighting monsters, completing quests, and aging it through tokens you spend with Claude. The longer it lives, the better.
+**Token Gaiden** is a small RPG that lives inside the new Tokade tab and is fueled by your real Claude Code telemetry. You raise a creature called a **Tokegotchi**, walking it through *regions* (your projects), fighting monsters, completing quests, and aging it through tokens you spend with Claude. The longer each Tokegotchi lives, the better — but every Tokegotchi eventually dies, and a new generation hatches with partial inheritance. Token Gaiden is the multi-generation saga; Tokegotchi is the protagonist of any one chapter.
 
 It is not a Tamagotchi (passive observation). It is not Stardew Valley (active sim). It sits in between: telemetry generates events; the player makes light tactical choices at occasional encounters.
 

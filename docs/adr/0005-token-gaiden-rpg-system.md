@@ -1,15 +1,22 @@
-# ADR 0005 — Tokade tab RPG system architecture
+# ADR 0005 — Token Gaiden RPG system architecture
 
 - **Status**: Accepted (design — implementation TBD)
 - **Date**: 2026-05-13
 - **Deciders**: @bjamba
 - **Companion**: [docs/02-design/TOKADE_TAB.md](../02-design/TOKADE_TAB.md)
 
+## Terminology
+
+- **Tokade** — the macOS menu bar app (existing brand).
+- **Tokade tab** — the new tab in the app (the container; may host other games in the future).
+- **Token Gaiden** — the v1 game inside the Tokade tab. The subject of this ADR.
+- **Tokegotchi** — the creature the player raises in Token Gaiden. One per active save; ancestors live in the Hall of Fame.
+
 ## Context
 
-The Tokade tab adds a small RPG to the app — a Tokegotchi creature with stats, regions, encounters, and a death/inheritance loop, fed by real Claude Code telemetry. This ADR captures the architectural decisions made during the design discussion that produced the v1 spec.
+Token Gaiden is a small RPG inside the Tokade tab — a Tokegotchi creature with stats, regions, encounters, and a death/inheritance loop, fed by real Claude Code telemetry. This ADR captures the architectural decisions made during the design discussion that produced the v1 spec.
 
-The challenge is that the Tokade tab combines several distinct subsystems that all have to work together:
+The challenge is that Token Gaiden combines several distinct subsystems that all have to work together:
 - An RPG state machine driven by externally-observed events
 - A pixel-art rendering pipeline with per-character customization
 - An animation system that has to compose with cosmetics
@@ -112,9 +119,9 @@ enum TickResult {
 
 All state changes go through `consume(...)`. The UI subscribes to state changes; `TickResult` values surface as toasts, animations, or modals. This isolates game logic from UI logic.
 
-### 7. The game is single-tab, no nested abstractions
+### 7. Token Gaiden is the only game in the Tokade tab at v1; no game-registry abstraction
 
-The earlier draft of this ADR proposed a `Game` protocol with multiple games registered via a static `allGames` array. **That is dropped.** The Tokade tab is a single RPG, not a games library. If a second game is ever added, this ADR will be amended.
+The earlier draft of this ADR proposed a `Game` protocol with multiple games registered via a static `allGames` array. **That is dropped.** The Tokade tab at v1 hosts Token Gaiden and nothing else. If a second game is ever added, this ADR will be amended to introduce the registry shape at that time.
 
 This simplifies the code substantially — no protocol, no compositor for cross-game state, no game-state-store actor. State is just the Tokegotchi save file.
 
