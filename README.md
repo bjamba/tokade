@@ -1,5 +1,9 @@
 # Tokade
 
+[![CI](https://github.com/bjamba/tokade/actions/workflows/ci.yml/badge.svg)](https://github.com/bjamba/tokade/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/bjamba/tokade?include_prereleases&sort=semver)](https://github.com/bjamba/tokade/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A macOS menu bar app that shows your Claude usage and budget at a glance. Reads
 from Claude Code's local session logs and statusline output — no API key needed.
 
@@ -42,6 +46,44 @@ This adds a `statusLine` entry to `~/.claude/settings.json` pointing at
 
 To launch on login: System Settings → General → Login Items & Extensions →
 + → `/Applications/Tokade.app`.
+
+## Privacy
+
+Tokade is local-first by design. There are no network calls anywhere in the
+codebase — you can verify this with `grep -r URLSession Sources/` (and CI
+enforces it on every PR).
+
+Tokade reads:
+
+- `~/.claude/projects/**/*.jsonl` — Claude Code's session logs. Tokade
+  extracts only **metadata**: timestamps, model names, token counts, session
+  IDs, current-working-directory paths, tool names, and slash commands.
+  Tokade does **not** read prompt text, response text, or any auth material.
+- `~/.tokade/last-status.json` — written by our statusline shim with the
+  current `5h%` / `7d%` from Claude Code's view of Anthropic's rate limits.
+
+Tokade writes to `~/.tokade/`:
+
+- `last-status.json` — most recent statusline snapshot (overwritten each
+  Claude Code response)
+- `history/snapshots.jsonl` — append-only log of server-reported `%` over time
+- `history/events.jsonl` — every parsed Claude Code event (model, tokens,
+  session, **cwd**, tools, slash command). The `cwd` field reveals the
+  directory names of projects you've worked on; review before sharing your
+  archive.
+
+All files in `~/.tokade/history/` are created with `0600` permissions
+(owner-only read/write).
+
+**To wipe your archive**: use the "Erase history…" action in the menu bar
+panel footer, or `rm -rf ~/.tokade/` from the terminal. Neither touches
+`~/.claude/projects/` (that's Claude Code's, not ours).
+
+**Distribution model**: the `Tokade.app` released via GitHub Releases is
+**ad-hoc codesigned** but not Apple-notarized. macOS will show an
+"unidentified developer" warning on first launch — right-click → Open →
+confirm. See [ADR-0004](docs/adr/0004-ad-hoc-codesigning-no-notarization.md)
+for why.
 
 ## Data
 
