@@ -1,0 +1,5 @@
+# See https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# Single-maintainer project today; CODEOWNERS auto-requests review from
+# the right person and makes it explicit for future contributors.
+
+* @bjamba

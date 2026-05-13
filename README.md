@@ -17,6 +17,12 @@ from Claude Code's local session logs and statusline output — no API key neede
 - **Trends tab**: weekday × hour heatmap (all-time), YTD cumulative tokens
   with linear-rate projection wedge
 
+### Screenshots
+
+| Budget | Models | Trends |
+|:------:|:------:|:------:|
+| ![Budget tab](docs/screenshots/budget-tab.png) | ![Models tab](docs/screenshots/models-tab.png) | ![Trends tab](docs/screenshots/trends-tab.png) |
+
 ## Requirements
 
 - macOS 14 (Sonoma) or newer
@@ -194,6 +200,26 @@ boundaries of what's possible given what Anthropic exposes.
   "subscription" tag instead of a cost.
 - **Multi-account support.** Switch between accounts (work / personal / API
   key) and see separate budget views.
+
+## Roadmap
+
+Work in progress lives on the public [Tokade Roadmap board](https://github.com/users/bjamba/projects/2)
+and the [v0.3.0 milestone](https://github.com/bjamba/tokade/milestone/2).
+File a [feature request](https://github.com/bjamba/tokade/issues/new/choose)
+or open a [Discussion](https://github.com/bjamba/tokade/discussions) if
+you'd like to weigh in.
+
+Larger directions still in the brainstorm phase (no committed timeline):
+
+- **Arcade tab.** Small games whose state couples to your real Claude usage
+- **Cost estimation.** Optional dollar values per chart for API-key users
+- **Multi-account support.** Switch between work / personal / API-key views
+
+## Questions
+
+Use [Discussions](https://github.com/bjamba/tokade/discussions) for "how do
+I…?" or "should we…?" threads. Use [Issues](https://github.com/bjamba/tokade/issues/new/choose)
+for bugs and concrete feature requests.
 
 ## License
 

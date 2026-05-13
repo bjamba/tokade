@@ -6,6 +6,18 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- README screenshots for each tab (Budget / Models / Trends)
+- README Roadmap section linking to the public Projects v2 board
+- README Questions section pointing to GitHub Discussions
+- `.github/CODEOWNERS` (single-line, `* @bjamba`)
+- Xcode 15.4 pin on both CI and Release workflows so an Apple update can't
+  silently change Swift semantics
+- CONTRIBUTING.md Roadmap subsection documenting board column semantics
+- Discussions enabled at the repo level
+- Public Projects v2 board "Tokade Roadmap" with all open issues attached
+
 ## [0.2.0] — 2026-05-13
 
 The "productionize-me" release. No user-facing feature changes beyond the

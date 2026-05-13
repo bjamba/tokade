@@ -11,6 +11,16 @@ smoothly.
 - For "should we…?" or "how do I…?" questions, open a
   [Discussion](https://github.com/bjamba/tokade/discussions) instead
 
+## Roadmap
+
+Work in flight is visible on the
+[Tokade Roadmap board](https://github.com/users/bjamba/projects/2):
+
+- **Backlog** — accepted, not yet scheduled
+- **Up Next** — picked up for the active milestone
+- **In Progress** — has a PR open or branch in flight
+- **Done** — shipped in a release
+
 ## Local setup
 
 ```
