@@ -1,0 +1,17 @@
+# Pre-commit hooks for Tokade. Install once with:
+#   brew install pre-commit
+#   pre-commit install
+#
+# After install, scripts/check.sh runs on every commit. CI runs the same
+# script so contributors who skip pre-commit can't ship a guardrail
+# violation.
+
+repos:
+  - repo: local
+    hooks:
+      - id: guardrails
+        name: Tokade guardrail checks
+        entry: scripts/check.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
