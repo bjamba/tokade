@@ -52,6 +52,29 @@ final class TokenGaidenStore {
         await save.write(current)
     }
 
+    /// Consume one of `itemId` from the inventory and apply its effect. The
+    /// effect is recorded in `lastResults` for UI feedback.
+    func useItem(_ itemId: String) async {
+        guard let current = state else { return }
+        let (next, result) = ItemUsage.use(itemId, state: current)
+        guard next != current else { return }
+        state = next
+        switch result {
+        case let .healed(hp):
+            lastResults = [.hpChanged(delta: hp)]
+        case let .restoredSP(sp):
+            lastResults = [.spChanged(delta: sp)]
+        case let .statRaised(stat, delta):
+            lastResults = [.statBoost(stat: stat, delta: delta)]
+        case let .sold(gold):
+            // Surface as a plain ageAdvanced-style toast; gold change is in state.
+            lastResults = [.itemDropped(itemId: "sold-for-\(gold)g", count: 1)]
+        case .missing, .unknown:
+            break
+        }
+        await save.write(next)
+    }
+
     // MARK: - Tick
 
     /// Apply any new tokens in `events` to the pet. Idempotent across re-reads

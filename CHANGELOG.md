@@ -31,6 +31,17 @@ follows [semver](https://semver.org/).
   drives reputation (+1 per 50 events, cap 100). Current region + flavor
   + reputation surface in the Token Gaiden tab. Region-discovery
   thresholds, NPCs, shops, and fast-travel land in subsequent PRs.
+- **Playable loop**: usable inventory, passive encounters, achievements.
+  Items have an explicit catalog (food / SP potions / stat-boost
+  consumables / scrap) with effects on use; the Inventory card shows
+  counts + a Use button per stack. Every 25 events in a region triggers
+  a passive auto-resolve encounter against a region-flavored monster
+  (Granite Golem / Compile Beetle / Pickpocket / Steppe Wolf / …) that
+  awards EXP and gold on victory or flees if outmatched. 11 achievements
+  fire on natural milestones (First Light, First Million, stat-10
+  thresholds, Frequent Flyer, Well Known, Elder Status) and persist via
+  the existing save schema. File-edit tool calls now drop bread (HP food)
+  alongside their existing DEX item.
 - 22 XCTest cases covering matrix parsing, palette role resolution,
   Tokegotchi state derivation, TickProcessor model/tool mapping, and
   TokenGaidenStore tick idempotence.

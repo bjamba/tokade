@@ -10,6 +10,8 @@ enum TickResult: Equatable {
     case statBoost(stat: String, delta: Int)
     case enteredCritical
     case died(cause: TokegotchiState.CauseOfDeath)
+    case encounter(monsterName: String, outcome: EncounterEngine.Outcome)
+    case achievementEarned(id: String)
 }
 
 /// Translates UsageEvents into game effects. Pure-functional: takes the event +
@@ -51,14 +53,20 @@ enum TickProcessor {
             results.append(.ageAdvanced(byPoints: agePoints, fromModel: event.model))
         }
 
-        // ---- Tool calls → stat items (or scrap) ----
+        // ---- Tool calls → stat items + food on edit-like calls ----
         for tool in event.tools {
             let drop = toolDrop(tool: tool)
             s.inventory.items[drop.itemId, default: 0] += drop.count
             results.append(.itemDropped(itemId: drop.itemId, count: drop.count))
+            // Edit-flavored tools also drop bread (we don't have an LoC-delta
+            // signal yet, so every Edit/Write is a small bread).
+            if tool == "Edit" || tool == "Write" || tool == "NotebookEdit" {
+                s.inventory.items["bread", default: 0] += 1
+                results.append(.itemDropped(itemId: "bread", count: 1))
+            }
         }
 
-        // ---- Slash command → SP potion + restore some SP immediately ----
+        // ---- Slash command → SP potion ----
         if event.slashCommand != nil {
             let potion = "small-sp-potion"
             s.inventory.items[potion, default: 0] += 1
@@ -88,6 +96,21 @@ enum TickProcessor {
             }
         }
 
+        // ---- Encounter trigger (every 25 events in the same region) ----
+        if let region = s.world.currentRegion {
+            let count = s.world.eventCounts?[region] ?? 0
+            if count > 0, count % 25 == 0 {
+                let flavor = s.world.flavors?[region] ?? .wilderness
+                if let monster = EncounterEngine.choose(
+                    for: flavor, playerStats: s.vitals.stats, salt: count / 25
+                ) {
+                    let (afterFight, outcome) = EncounterEngine.resolve(monster, against: s)
+                    s = afterFight
+                    results.append(.encounter(monsterName: monster.monsterName, outcome: outcome))
+                }
+            }
+        }
+
         // ---- Vital clamping + death detection ----
         s.vitals.clamp()
         if s.isCritical, !state.isCritical {
@@ -95,6 +118,12 @@ enum TickProcessor {
         }
         if s.isAgedOut, !state.isAgedOut {
             results.append(.died(cause: .natural))
+        }
+
+        // ---- Achievements (check after all other effects) ----
+        for newId in AchievementCatalog.newlyEarned(in: s) {
+            s.inventory.items[AchievementCatalog.inventoryPrefix + newId] = 1
+            results.append(.achievementEarned(id: newId))
         }
 
         return (s, results)

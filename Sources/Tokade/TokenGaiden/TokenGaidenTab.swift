@@ -39,8 +39,73 @@ struct TokenGaidenTab: View {
             HStack {
                 Button("Wardrobe…") { showingWardrobe = true }
                 Spacer()
+                Text("EXP \(state.progress.exp) · 🪙 \(state.progress.gold)")
+                    .font(.caption).foregroundStyle(.secondary)
             }
+            inventoryCard(state)
+            achievementsCard(state)
             recentDropsCard
+        }
+    }
+
+    private func inventoryCard(_ state: TokegotchiState) -> some View {
+        Card(title: "Inventory") {
+            let entries: [(ItemDef, Int)] = ItemCatalog.all.compactMap { def in
+                let count = state.inventory.items[def.id] ?? 0
+                return count > 0 ? (def, count) : nil
+            }
+            if entries.isEmpty {
+                Text("Empty. Use Claude Code — items drop from tool calls and edits.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(entries, id: \.0.id) { def, count in
+                        HStack {
+                            Text("\(def.glyph) \(def.display) × \(count)")
+                                .font(.caption)
+                            Spacer()
+                            Text(effectDescription(def)).font(.caption2).foregroundStyle(.secondary)
+                            Button("Use") {
+                                Task { await gaiden.useItem(def.id) }
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func effectDescription(_ def: ItemDef) -> String {
+        switch def.kind {
+        case let .food(hp):           return "+\(hp) HP"
+        case let .spPotion(sp):       return "+\(sp) SP"
+        case let .statBoost(s, d):    return "+\(d) \(s)"
+        case let .scrap(g):           return "Sell for \(g)g"
+        case .keyItem:                return "Key item"
+        }
+    }
+
+    private func achievementsCard(_ state: TokegotchiState) -> some View {
+        let earned: [Achievement] = AchievementCatalog.all.filter { ach in
+            (state.inventory.items[AchievementCatalog.inventoryPrefix + ach.id] ?? 0) > 0
+        }
+        return Card(title: "Achievements (\(earned.count) / \(AchievementCatalog.all.count))") {
+            if earned.isEmpty {
+                Text("None yet. Achievements fire automatically as you play.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(earned, id: \.id) { a in
+                        HStack {
+                            Text("🏅 \(a.title)").font(.caption)
+                            Spacer()
+                            Text(a.description).font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -129,13 +194,19 @@ struct TokenGaidenTab: View {
 
     private func prettyResult(_ r: TickResult) -> String {
         switch r {
-        case let .itemDropped(id, count): return "+ \(count) × \(id)"
+        case let .itemDropped(id, count): return "+ \(count) × \(ItemCatalog.label(id))"
         case let .hpChanged(d): return "HP \(d >= 0 ? "+" : "")\(d)"
         case let .spChanged(d): return "SP \(d >= 0 ? "+" : "")\(d)"
         case let .ageAdvanced(p, model): return "aged +\(p) (\(model))"
         case let .statBoost(stat, d): return "\(stat) +\(d)"
         case .enteredCritical: return "entered CRITICAL"
         case let .died(cause): return "died (\(cause.rawValue))"
+        case let .encounter(name, outcome):
+            switch outcome {
+            case let .victory(exp, gold): return "⚔️ defeated \(name) (+\(exp) EXP, +\(gold)g)"
+            case .fled: return "🏃 fled from \(name)"
+            }
+        case let .achievementEarned(id): return "🏅 \(AchievementCatalog.byId[id]?.title ?? id)"
         }
     }
 }
