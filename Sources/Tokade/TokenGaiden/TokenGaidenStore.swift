@@ -43,6 +43,15 @@ final class TokenGaidenStore {
         lastResults = []
     }
 
+    /// Equip (or unequip — pass nil) a single cosmetic slot. Persists. Used by
+    /// the Wardrobe UI.
+    func equipCosmetic(slot: String, name: String?) async {
+        guard var current = state else { return }
+        current.inventory.equippedCosmetic[slot] = name
+        state = current
+        await save.write(current)
+    }
+
     // MARK: - Tick
 
     /// Apply any new tokens in `events` to the pet. Idempotent across re-reads

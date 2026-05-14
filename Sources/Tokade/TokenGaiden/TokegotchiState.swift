@@ -123,6 +123,10 @@ extension TokegotchiState {
         var vitals = Vitals(hp: 0, sp: 0, stats: stats)
         vitals.hp = vitals.hpMax
         vitals.sp = vitals.spMax
+        // Default cosmetic kit uses the appearance-chosen hair style. The rest
+        // of the slots get the basic starter outfit (tunic, long-pants, etc.).
+        var cosmetic = carriedCosmetic.isEmpty ? Self.defaultCosmetic : carriedCosmetic
+        cosmetic["hair"] = appearance.hairStyle
         return TokegotchiState(
             identity: Identity(
                 name: name,
@@ -137,7 +141,7 @@ extension TokegotchiState {
             world: World(currentRegion: nil, reputation: carriedReputation),
             inventory: Inventory(
                 items: carriedItems,
-                equippedCosmetic: carriedCosmetic.isEmpty ? Self.defaultCosmetic : carriedCosmetic,
+                equippedCosmetic: cosmetic,
                 equippedGear: [:],
                 skillsLearned: [],
                 activeQuests: []

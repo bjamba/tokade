@@ -9,6 +9,7 @@ import SwiftUI
 struct TokenGaidenTab: View {
     @Bindable var gaiden: TokenGaidenStore
     @Bindable var store: UsageStore
+    @State private var showingWardrobe = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -25,6 +26,9 @@ struct TokenGaidenTab: View {
         .onChange(of: store.events.count) { _, _ in
             Task { await gaiden.tick(against: store.events) }
         }
+        .sheet(isPresented: $showingWardrobe) {
+            WardrobeSheet(gaiden: gaiden, isPresented: $showingWardrobe)
+        }
     }
 
     // MARK: - Alive layout
@@ -32,6 +36,10 @@ struct TokenGaidenTab: View {
     private func aliveLayout(_ state: TokegotchiState) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             heroCard(state)
+            HStack {
+                Button("Wardrobe…") { showingWardrobe = true }
+                Spacer()
+            }
             recentDropsCard
         }
     }
@@ -40,7 +48,10 @@ struct TokenGaidenTab: View {
         Card {
             HStack(alignment: .top, spacing: 16) {
                 SpriteView(
-                    frames: BundledSprites.breathing,
+                    frames: BundledSprites.compose(
+                        base: BundledSprites.breathing,
+                        equipped: state.inventory.equippedCosmetic
+                    ),
                     palette: .boba,
                     scale: 5,
                     fps: 3
@@ -122,6 +133,66 @@ struct TokenGaidenTab: View {
         case let .statBoost(stat, d): return "\(stat) +\(d)"
         case .enteredCritical: return "entered CRITICAL"
         case let .died(cause): return "died (\(cause.rawValue))"
+        }
+    }
+}
+
+// MARK: - Wardrobe
+
+/// Sheet that lets the player swap each cosmetic slot from the v1 baked
+/// inventory. Picks persist to disk immediately. Items the player hasn't
+/// "owned" yet are still shown — the inventory-gating layer comes in a
+/// later PR once monsters/shops drop equipment.
+@MainActor
+struct WardrobeSheet: View {
+    @Bindable var gaiden: TokenGaidenStore
+    @Binding var isPresented: Bool
+
+    /// The cosmetics actually bundled into the app at v1. Slots not in this
+    /// list aren't yet swappable.
+    static let available: [(slot: String, names: [String])] = [
+        ("hair",  ["horns", "spiky", "cat-ears", "pigtails", "mohawk", "antennae", "long"]),
+        ("shirt", ["tunic"]),
+        ("pants", ["long-pants", "shorts"]),
+        ("belt",  ["leather"]),
+        ("hat",   ["beanie", "wizard-hat", "cap"]),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Wardrobe").font(.title3).fontWeight(.semibold)
+                Spacer()
+                Button("Done") { isPresented = false }
+                    .keyboardShortcut(.defaultAction)
+            }
+            ForEach(Self.available, id: \.slot) { entry in
+                slotRow(slot: entry.slot, options: entry.names)
+            }
+            Spacer()
+        }
+        .padding(20)
+        .frame(width: 360, height: 320)
+    }
+
+    private func slotRow(slot: String, options: [String]) -> some View {
+        let current = gaiden.state?.inventory.equippedCosmetic[slot] ?? nil
+        return HStack {
+            Text(slot.capitalized).frame(width: 70, alignment: .leading).font(.caption)
+            Picker("", selection: Binding(
+                get: { current ?? "—" },
+                set: { newValue in
+                    let stripped = (newValue == "—") ? nil : newValue
+                    Task { await gaiden.equipCosmetic(slot: slot, name: stripped) }
+                }
+            )) {
+                Text("—").tag("—")
+                ForEach(options, id: \.self) { name in
+                    Text(name).tag(name)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
         }
     }
 }

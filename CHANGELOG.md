@@ -18,6 +18,11 @@ follows [semver](https://semver.org/).
   idle-walk-A-walk-B animation cycle. Encounters, regions, quests, combat,
   and the death/inheritance loop land in subsequent PRs. See
   `docs/02-design/TOKADE_TAB.md`.
+- **Cosmetic composition.** Bundled 14 cosmetic matrices (7 hair styles, 1
+  shirt, 2 pants, 1 belt, 3 hats) layered over a "naked" base sprite at
+  runtime via `SpriteComposer`. The hair style chosen at character
+  creation is applied to the rendered sprite. A Wardrobe sheet lets the
+  player swap cosmetic slots live; choices persist.
 - 22 XCTest cases covering matrix parsing, palette role resolution,
   Tokegotchi state derivation, TickProcessor model/tool mapping, and
   TokenGaidenStore tick idempotence.

@@ -40,11 +40,55 @@ struct SpriteView: View {
     }
 }
 
-/// Loads the bundled animation matrices once and exposes them via a typed enum.
+/// Loads bundled matrices on demand. Caches once per app launch.
+///
+/// The "naked" base frames are the three idle/walk-A/walk-B frames with no
+/// hair, shirt, pants, or belt. Cosmetic matrices are layered on top per
+/// equipped slot.
 enum BundledSprites {
-    static let idle = loadFrames(["idle"])
-    static let walk = loadFrames(["walk-a", "walk-b"])
-    static let breathing = loadFrames(["idle", "walk-a", "idle", "walk-b"])
+    // MARK: - Base frames
+
+    static let idle: [SpriteMatrix] = loadFrames(["idle"])
+    static let walk: [SpriteMatrix] = loadFrames(["walk-a", "walk-b"])
+    /// Idle + slight alternation that reads as a breathing pet.
+    static let breathing: [SpriteMatrix] = loadFrames(["idle", "walk-a", "idle", "walk-b"])
+
+    // MARK: - Cosmetics
+
+    private static var cosmeticCache: [String: SpriteMatrix] = [:]
+
+    /// Look up a single cosmetic matrix by slot + name. Caches on first hit.
+    /// Returns nil if the matrix isn't bundled with the app (e.g. a cosmetic
+    /// authored but not yet baked). The bundle stores them flat with a
+    /// `tg-<slot>-<name>.matrix` convention because SwiftPM `.process`
+    /// resources don't preserve subdirectories.
+    static func cosmetic(slot: String, name: String) -> SpriteMatrix? {
+        let key = "tg-\(slot)-\(name)"
+        if let cached = cosmeticCache[key] { return cached }
+        guard let url = appBundledResource(named: key, ext: "matrix"),
+              let text = try? String(contentsOf: url, encoding: .utf8),
+              let parsed = try? SpriteMatrix.parse(text) else {
+            return nil
+        }
+        cosmeticCache[key] = parsed
+        return parsed
+    }
+
+    /// Compose a fully-equipped Tokegotchi from base frames + an equipment
+    /// map. Z-order matches ADR-0005:
+    /// cape → pants → belt → shirt → hair → eyewear → hat
+    static func compose(base: [SpriteMatrix], equipped: [String: String?]) -> [SpriteMatrix] {
+        let order: [String] = ["cape", "pants", "belt", "shirt", "hair", "eyewear", "hat"]
+        let layers: [SpriteMatrix?] = order.map { slot in
+            guard let name = equipped[slot] ?? nil else { return nil }
+            return cosmetic(slot: slot, name: name)
+        }
+        return base.map { frame in
+            SpriteComposer.compose(base: frame, orderedLayers: layers)
+        }
+    }
+
+    // MARK: - Internals
 
     private static func loadFrames(_ names: [String]) -> [SpriteMatrix] {
         names.compactMap { name in
