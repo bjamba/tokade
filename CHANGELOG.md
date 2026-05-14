@@ -23,6 +23,14 @@ follows [semver](https://semver.org/).
   runtime via `SpriteComposer`. The hair style chosen at character
   creation is applied to the rendered sprite. A Wardrobe sheet lets the
   player swap cosmetic slots live; choices persist.
+- **Region tracking (Layer 3 foundation).** Each Claude Code `cwd` maps
+  to a stable region identifier (home-relative path) seeded with a flavor
+  on first visit by sniffing project marker files (Swift → Stonework
+  Town, Rust → Iron Fortress, Python → Garden Village, JS/TS → Bazaar,
+  Go → Open Steppe, unknown → Wilderness). Per-region event counter
+  drives reputation (+1 per 50 events, cap 100). Current region + flavor
+  + reputation surface in the Token Gaiden tab. Region-discovery
+  thresholds, NPCs, shops, and fast-travel land in subsequent PRs.
 - 22 XCTest cases covering matrix parsing, palette role resolution,
   Tokegotchi state derivation, TickProcessor model/tool mapping, and
   TokenGaidenStore tick idempotence.

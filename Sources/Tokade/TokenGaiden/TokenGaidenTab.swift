@@ -63,7 +63,10 @@ struct TokenGaidenTab: View {
                     Text("Gen \(state.identity.generation) · age \(state.identity.ageTokens)/\(state.identity.lifespanTokens)")
                         .font(.caption).foregroundStyle(.secondary)
                     if let region = state.world.currentRegion {
-                        Text("Region: \(region)").font(.caption2).foregroundStyle(.secondary)
+                        let flavor = state.world.flavors?[region]
+                        let rep = state.world.reputation[region] ?? 0
+                        Text("Region: \(region) · \(flavor?.displayName ?? "Wilderness") · rep \(rep)")
+                            .font(.caption2).foregroundStyle(.secondary)
                     }
                     Spacer().frame(height: 4)
                     vitalsBar(label: "HP", value: state.vitals.hp, total: state.vitals.hpMax, tint: .red)

@@ -65,6 +65,29 @@ enum TickProcessor {
             results.append(.itemDropped(itemId: potion, count: 1))
         }
 
+        // ---- Region tracking ----
+        if let cwd = event.cwd {
+            let region = Region.identifier(for: cwd)
+            s.world.currentRegion = region
+
+            // Seed flavor on first visit (cheap; only does filesystem reads
+            // when the key isn't already present).
+            if s.world.flavors == nil { s.world.flavors = [:] }
+            if s.world.flavors?[region] == nil {
+                s.world.flavors?[region] = Region.flavor(for: cwd)
+            }
+
+            // Event counter; every 50 events grants +1 reputation (cap 100).
+            if s.world.eventCounts == nil { s.world.eventCounts = [:] }
+            s.world.eventCounts?[region, default: 0] += 1
+            let count = s.world.eventCounts?[region] ?? 0
+            let earnedRep = min(100, count / 50)
+            let priorRep = s.world.reputation[region, default: 0]
+            if earnedRep > priorRep {
+                s.world.reputation[region] = earnedRep
+            }
+        }
+
         // ---- Vital clamping + death detection ----
         s.vitals.clamp()
         if s.isCritical, !state.isCritical {

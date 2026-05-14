@@ -64,6 +64,11 @@ struct TokegotchiState: Codable, Equatable {
     struct World: Codable, Equatable {
         var currentRegion: String?            // cwd-prefix identifying current region
         var reputation: [String: Int]         // region → 0–100
+        var flavors: [String: Region.Flavor]? // region → seeded flavor (nil for legacy saves)
+        /// Running per-region count of consumed events; reputation ticks +1
+        /// per 50 events in a region (capped at 100). Optional for save-file
+        /// compatibility with the M0 schema.
+        var eventCounts: [String: Int]?
     }
 
     struct Inventory: Codable, Equatable {
@@ -138,7 +143,12 @@ extension TokegotchiState {
             ),
             vitals: vitals,
             progress: Progress(exp: 0, gold: 0),
-            world: World(currentRegion: nil, reputation: carriedReputation),
+            world: World(
+                currentRegion: nil,
+                reputation: carriedReputation,
+                flavors: [:],
+                eventCounts: [:]
+            ),
             inventory: Inventory(
                 items: carriedItems,
                 equippedCosmetic: cosmetic,
