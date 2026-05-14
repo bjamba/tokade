@@ -3,7 +3,7 @@
 # fails PRs that aren't formatted.
 
 --swiftversion 5.9
---exclude .build,.swiftpm,Tokade.app
+--exclude .build,.swiftpm,Tokade.app,design
 
 --indent 4
 --linebreaks lf

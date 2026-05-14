@@ -122,6 +122,23 @@ let another local account read your archive.
 - Behavior-side: `Tests/TokadeTests/EventArchivePermissionsTests.swift`
   writes a real file and asserts the mode.
 
+### Token Gaiden state file permissions
+
+**Rule**: `~/.tokade/games/tokegotchi.json` must be written with mode
+`0600` (owner-only read/write).
+
+**Why**: the save file contains every Tokegotchi name, every region
+(which is a `cwd` prefix), and reputation per project. Same threat model
+as `EventArchive` — a multi-user macOS could otherwise let another local
+account read it. The README promises 0600 for `~/.tokade/`.
+
+**Enforcement**:
+- Source-side: `scripts/check.sh` greps `0o600` in
+  `Sources/Tokade/TokenGaiden/TokegotchiSave.swift`.
+- Behavior-side: covered transitively by the existing archive-perms
+  pattern; a dedicated test will land when the save format gains a v2
+  schema.
+
 ### No LLM-attribution noise
 
 **Rule**: don't commit comments or docs that contain strings like

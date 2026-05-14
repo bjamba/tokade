@@ -4,12 +4,14 @@ import SwiftUI
 @MainActor
 struct MenuView: View {
     @Bindable var store: UsageStore
+    @Bindable var gaiden: TokenGaidenStore
     @State private var tab: Tab = .budget
 
     enum Tab: String, CaseIterable, Identifiable {
         case budget = "Budget"
         case models = "Models"
         case trends = "Trends"
+        case tokade = "Tokade"
         var id: String { rawValue }
     }
 
@@ -25,6 +27,7 @@ struct MenuView: View {
                     case .budget: BudgetTab(store: store)
                     case .models: ModelsTab(store: store)
                     case .trends: TrendsTab(store: store)
+                    case .tokade: TokenGaidenTab(gaiden: gaiden, store: store)
                     }
                 }
                 .padding(16)
@@ -96,7 +99,10 @@ struct MenuView: View {
             titleVisibility: .visible
         ) {
             Button("Erase", role: .destructive) {
-                Task { await store.eraseHistory() }
+                Task {
+                    await store.eraseHistory()
+                    await gaiden.eraseHistory()
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {

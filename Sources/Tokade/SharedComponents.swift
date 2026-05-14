@@ -6,7 +6,7 @@ import SwiftUI
 /// `Bundle.main.bundleURL/Tokade_Tokade.bundle` (top of the .app — wrong spot)
 /// and a hard-coded build-time path that dies if the project dir is renamed
 /// or the .app is run from `/Applications`.
-private func appBundledResource(named name: String, ext: String) -> URL? {
+func appBundledResource(named name: String, ext: String) -> URL? {
     let main = Bundle.main
     let candidates: [URL?] = [
         main.resourceURL?

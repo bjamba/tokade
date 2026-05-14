@@ -5,16 +5,22 @@ import SwiftUI
 @MainActor
 struct TokadeApp: App {
     @State private var store: UsageStore
+    @State private var gaiden: TokenGaidenStore
 
     init() {
         let s = UsageStore()
         _store = State(initialValue: s)
-        Task { @MainActor in s.startPolling(every: 30) }
+        let g = TokenGaidenStore()
+        _gaiden = State(initialValue: g)
+        Task { @MainActor in
+            s.startPolling(every: 30)
+            await g.load()
+        }
     }
 
     var body: some Scene {
         MenuBarExtra {
-            MenuView(store: store)
+            MenuView(store: store, gaiden: gaiden)
         } label: {
             Label {
                 Text(menuBarText)

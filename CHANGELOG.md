@@ -6,6 +6,30 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Token Gaiden tab (M0 foundation).** New tab in the Tokade panel that
+  houses a small RPG fed by Claude Code telemetry. v1 foundation lands the
+  character creator (6 skin × 6 iris × 6 hair-color × 11 hair-style), the
+  matrix-runtime sprite system (32×54 source res, role-parameterized
+  palette), the `TickProcessor` (token → HP drain, token → age advance,
+  tool → themed item drop, slash command → SP potion), persistent save at
+  `~/.tokade/games/tokegotchi.json` (0600), and the live sprite view with
+  idle-walk-A-walk-B animation cycle. Encounters, regions, quests, combat,
+  and the death/inheritance loop land in subsequent PRs. See
+  `docs/02-design/TOKADE_TAB.md`.
+- 22 XCTest cases covering matrix parsing, palette role resolution,
+  Tokegotchi state derivation, TickProcessor model/tool mapping, and
+  TokenGaidenStore tick idempotence.
+
+### Changed
+
+- `appBundledResource(_:ext:)` is now module-internal (was private) so the
+  Token Gaiden code can use the same Bundle.module workaround pattern.
+- `.swiftformat` excludes `design/` — the design folder's helper Swift
+  scripts (`pixelate.swift`, `bake.swift`, `render_matrix.swift`) are
+  authoring tools, not app code.
+
 ## [0.3.0] — 2026-05-13
 
 The M2 release. Perf + accessibility + repo-surface upgrades. No
