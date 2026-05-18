@@ -6,6 +6,20 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.2] — 2026-05-18
+
+### Fixed
+
+- **Wardrobe was missing four hair styles** (bald / flame / mushroom /
+  tentacles). They were selectable at hatch in the character creator and
+  the sprite matrices were baked + bundled, but `CosmeticCatalog`'s hair
+  slot only listed seven of the eleven styles, so the wardrobe carousel
+  silently dropped them. All eleven styles now appear and are starter
+  cosmetics (matching the existing pattern — hair is chosen at hatch).
+- New `CosmeticCatalogTests` guard against future drift in both
+  directions (hatch ⇄ catalog hair-style parity).
+- `CFBundleShortVersionString` → 0.4.2, `CFBundleVersion` → 6.
+
 ## [0.4.1] — 2026-05-18
 
 Small patch release moving the Reset Tokegotchi action into the game's
@@ -191,7 +205,8 @@ Initial public release. Path: `github.com/bjamba/tokade`.
 - Statusline shim + installer
 - MIT license, README, AppIcon + menu bar template glyph
 
-[Unreleased]: https://github.com/bjamba/tokade/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/bjamba/tokade/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/bjamba/tokade/releases/tag/v0.4.2
 [0.4.1]: https://github.com/bjamba/tokade/releases/tag/v0.4.1
 [0.4.0]: https://github.com/bjamba/tokade/releases/tag/v0.4.0
 [0.3.0]: https://github.com/bjamba/tokade/releases/tag/v0.3.0
