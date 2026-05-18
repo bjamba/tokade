@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32">
+  <!-- Steppe Wolf — silhouette of a wolf side-profile -->
+  <!-- Body -->
+  <path d="M 12 60 Q 20 50 38 55 L 70 55 Q 86 50 88 60 L 86 75 L 78 75 L 75 88 L 68 88 L 70 75 L 36 75 L 38 88 L 30 88 L 32 75 L 18 75 Z" fill="{{PANTS}}"/>
+  <!-- Body shading -->
+  <path d="M 12 60 Q 20 50 38 55 L 70 55 L 70 62 L 18 62 Z" fill="{{PANTS_LIGHT}}"/>
+  <!-- Head -->
+  <path d="M 70 50 Q 90 40 95 50 L 92 60 L 86 64 L 80 60 Z" fill="{{PANTS}}"/>
+  <!-- Ears -->
+  <path d="M 75 45 L 78 35 L 82 47 Z" fill="{{PANTS_DARK}}"/>
+  <path d="M 84 45 L 88 35 L 91 48 Z" fill="{{PANTS_DARK}}"/>
+  <!-- Eye -->
+  <circle cx="86" cy="52" r="2" fill="{{IRIS}}"/>
+  <!-- Mouth (fangs) -->
+  <path d="M 88 60 L 90 65 L 92 60 L 94 65 L 95 58" stroke="{{WHITE}}" stroke-width="1.5" fill="none"/>
+  <!-- Tail -->
+  <path d="M 12 60 Q 0 52 4 42" stroke="{{PANTS_DARK}}" stroke-width="6" fill="none" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32">
+  <!-- Rust Imp — small mischievous metal creature -->
+  <!-- Body -->
+  <ellipse cx="50" cy="58" rx="22" ry="26" fill="{{BELT}}"/>
+  <ellipse cx="44" cy="50" rx="10" ry="14" fill="{{HAIR}}"/>
+  <!-- Head -->
+  <circle cx="50" cy="32" r="18" fill="{{BELT}}"/>
+  <circle cx="44" cy="28" r="6" fill="{{HAIR}}"/>
+  <!-- Horns -->
+  <path d="M 38 18 L 35 6 L 42 14 Z" fill="{{DARK}}"/>
+  <path d="M 62 18 L 65 6 L 58 14 Z" fill="{{DARK}}"/>
+  <!-- Eyes -->
+  <circle cx="44" cy="32" r="3" fill="{{IRIS}}"/>
+  <circle cx="56" cy="32" r="3" fill="{{IRIS}}"/>
+  <circle cx="44" cy="32" r="1.2" fill="{{DARK}}"/>
+  <circle cx="56" cy="32" r="1.2" fill="{{DARK}}"/>
+  <!-- Mouth grin -->
+  <path d="M 44 42 L 56 42 L 54 46 L 46 46 Z" fill="{{DARK}}"/>
+  <!-- Rust spots -->
+  <circle cx="40" cy="65" r="2" fill="{{PANTS_DARK}}"/>
+  <circle cx="60" cy="70" r="2.5" fill="{{PANTS_DARK}}"/>
+  <circle cx="50" cy="75" r="2" fill="{{PANTS_DARK}}"/>
+  <!-- Arms -->
+  <ellipse cx="22" cy="60" rx="4" ry="10" fill="{{BELT}}"/>
+  <ellipse cx="78" cy="60" rx="4" ry="10" fill="{{BELT}}"/>
+</svg>

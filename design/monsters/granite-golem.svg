@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32">
+  <!-- Granite Golem — blocky stone humanoid -->
+  <!-- Body -->
+  <rect x="24" y="35" width="52" height="50" rx="3" fill="{{PANTS}}"/>
+  <rect x="24" y="35" width="14" height="50" fill="{{PANTS_LIGHT}}"/>
+  <rect x="62" y="35" width="14" height="50" fill="{{PANTS_DARK}}"/>
+  <!-- Head (a smaller rock on top) -->
+  <rect x="32" y="14" width="36" height="22" rx="2" fill="{{PANTS}}"/>
+  <rect x="32" y="14" width="10" height="22" fill="{{PANTS_LIGHT}}"/>
+  <rect x="58" y="14" width="10" height="22" fill="{{PANTS_DARK}}"/>
+  <!-- Glowing eyes -->
+  <rect x="40" y="22" width="6" height="4" fill="{{IRIS}}"/>
+  <rect x="54" y="22" width="6" height="4" fill="{{IRIS}}"/>
+  <!-- Mouth crack -->
+  <rect x="40" y="30" width="20" height="2" fill="{{DARK}}"/>
+  <!-- Cracks on body -->
+  <path d="M 30 50 L 38 60 L 32 70" stroke="{{DARK}}" stroke-width="1.5" fill="none"/>
+  <path d="M 60 45 L 65 55 L 60 65" stroke="{{DARK}}" stroke-width="1.5" fill="none"/>
+</svg>

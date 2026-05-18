@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32">
+  <!-- Stray Slime — translucent green blob with two beady eyes -->
+  <path d="M 18 75 Q 14 35 50 28 Q 86 35 82 75 Q 86 90 50 90 Q 14 90 18 75 Z" fill="{{SHIRT}}"/>
+  <path d="M 22 75 Q 18 40 40 32 Q 30 50 32 75 Z" fill="{{SHIRT_LIGHT}}"/>
+  <path d="M 65 50 Q 80 60 80 80 L 75 80 Q 75 65 60 60 Z" fill="{{SHIRT_DARK}}"/>
+  <!-- Eyes (sclera + pupil + sparkle) -->
+  <circle cx="38" cy="58" r="6" fill="{{WHITE}}"/>
+  <circle cx="62" cy="58" r="6" fill="{{WHITE}}"/>
+  <circle cx="38" cy="60" r="3.5" fill="{{DARK}}"/>
+  <circle cx="62" cy="60" r="3.5" fill="{{DARK}}"/>
+  <circle cx="40" cy="56" r="1.2" fill="{{WHITE}}"/>
+  <circle cx="64" cy="56" r="1.2" fill="{{WHITE}}"/>
+</svg>

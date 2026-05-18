@@ -56,6 +56,13 @@ for f in Sources/Tokade/EventArchive.swift Sources/Tokade/SnapshotArchive.swift;
     fi
 done
 
+# Rule: Token Gaiden save file must also be 0600.
+if [ -f Sources/Tokade/TokenGaiden/TokegotchiSave.swift ]; then
+    if ! grep -q "0o600" Sources/Tokade/TokenGaiden/TokegotchiSave.swift; then
+        fail "TokegotchiSave.swift missing 0o600 permission assignment. See CLAUDE.md § Token Gaiden state file permissions."
+    fi
+fi
+
 # Rule: no LLM-attribution strings sneaking into committed code or comments.
 # (Exclude this script itself, which has to mention the pattern to grep for it.)
 if grep -RIn --include='*.swift' --include='*.md' \

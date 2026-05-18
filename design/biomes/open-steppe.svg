@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges">
+  <!-- Open Steppe: rolling hills + lone tree + sun -->
+  <rect width="32" height="32" fill="{{SKIN_LIGHT}}"/>
+  <!-- Sun -->
+  <circle cx="26" cy="6" r="3" fill="{{HAIR}}"/>
+  <!-- Distant hills -->
+  <path d="M 0 18 Q 8 14 16 18 T 32 18 L 32 22 L 0 22 Z" fill="{{HAIR}}"/>
+  <!-- Foreground hills -->
+  <path d="M 0 24 Q 10 20 18 24 T 32 24 L 32 32 L 0 32 Z" fill="{{HAIR_DARK}}"/>
+  <!-- Ground -->
+  <rect x="0" y="22" width="32" height="10" fill="{{HAIR_DARK}}"/>
+  <path d="M 0 22 Q 10 20 18 22 T 32 22 L 32 26 L 0 26 Z" fill="{{HAIR_DARK}}"/>
+  <!-- Lone tree -->
+  <rect x="16" y="14" width="1" height="8" fill="{{PANTS}}"/>
+  <circle cx="16.5" cy="13" r="3" fill="{{SHIRT_DARK}}"/>
+  <!-- Grass blades -->
+  <rect x="4" y="27" width="1" height="2" fill="{{SHIRT_DARK}}"/>
+  <rect x="9" y="29" width="1" height="2" fill="{{SHIRT_DARK}}"/>
+  <rect x="22" y="28" width="1" height="2" fill="{{SHIRT_DARK}}"/>
+  <rect x="27" y="29" width="1" height="2" fill="{{SHIRT_DARK}}"/>
+</svg>

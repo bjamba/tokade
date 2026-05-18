@@ -15,7 +15,8 @@
   </defs>
 
   <!-- ============ CAPE (cosmetic — z-behind everything) ============ -->
-  <g id="cape">
+  <!-- Attached at the shoulders, so it bobs with HEAD_TRANSFORM. -->
+  <g id="cape" transform="translate(0,1.5)">
     
   </g>
 
@@ -33,31 +34,18 @@
 
   <!-- ============ PANTS (swappable) ============ -->
   <g id="pants">
-    <!-- PANTS STYLE: long-pants — default long brown trousers with shading. -->
-<g clip-path="url(#pants-clip-r)">
-  <rect x="36" y="106" width="11" height="32" fill="#5C4033"/>
-  <rect x="36" y="106" width="4" height="32" fill="#7C5C45"/>
-  <rect x="43" y="106" width="4" height="32" fill="#3D2920"/>
-  <rect x="36" y="134" width="11" height="4" fill="#3D2920"/>
-</g>
-<g clip-path="url(#pants-clip-l)">
-  <rect x="53" y="106" width="11" height="32" fill="#5C4033"/>
-  <rect x="53" y="106" width="4" height="32" fill="#7C5C45"/>
-  <rect x="60" y="106" width="4" height="32" fill="#3D2920"/>
-  <rect x="53" y="134" width="11" height="4" fill="#3D2920"/>
-</g>
-
+    
   </g>
 
   <!-- ============ ARMS (with shading) ============ -->
   <!-- Arms animatable via _ARM_TRANSFORM (pivot at shoulder). Clip-paths removed so rotation works cleanly. -->
-  <g id="r-arm" transform="rotate(-8 32 65)">
+  <g id="r-arm" transform="rotate(-15 32 65)">
     <ellipse cx="32" cy="65" rx="7" ry="5" fill="#C7A5D9"/>
     <rect x="25" y="65" width="9" height="40" rx="4" fill="#C7A5D9"/>
     <rect x="25" y="65" width="3" height="40" fill="#DBC1E8"/>
     <rect x="31" y="65" width="3" height="40" fill="#A07AB8"/>
   </g>
-  <g id="l-arm" transform="rotate(-8 68 65)">
+  <g id="l-arm" transform="rotate(-15 68 65)">
     <ellipse cx="68" cy="65" rx="7" ry="5" fill="#C7A5D9"/>
     <rect x="66" y="65" width="9" height="40" rx="4" fill="#C7A5D9"/>
     <rect x="66" y="65" width="3" height="40" fill="#DBC1E8"/>
@@ -71,30 +59,12 @@
 
   <!-- ============ SHIRT (swappable) ============ -->
   <g id="shirt">
-    <!-- SHIRT STYLE: tunic — default forest-green tunic with shading. -->
-<g clip-path="url(#shirt-clip)">
-  <rect x="32" y="64" width="36" height="42" fill="#5A7F3F"/>
-  <rect x="32" y="64" width="10" height="42" fill="#7DA055"/>
-  <rect x="58" y="64" width="10" height="42" fill="#3F5A2A"/>
-  <rect x="32" y="64" width="36" height="5" fill="#3F5A2A"/>
-</g>
-<ellipse cx="30" cy="66" rx="8" ry="6" fill="#5A7F3F"/>
-<ellipse cx="70" cy="66" rx="8" ry="6" fill="#5A7F3F"/>
-<ellipse cx="27" cy="65" rx="3" ry="4" fill="#7DA055"/>
-<ellipse cx="73" cy="65" rx="3" ry="4" fill="#3F5A2A"/>
-<rect x="22" y="70" width="8" height="2" fill="#3F5A2A"/>
-<rect x="70" y="70" width="8" height="2" fill="#3F5A2A"/>
-
+    
   </g>
 
   <!-- ============ BELT (swappable, drawn on top of shirt) ============ -->
   <g id="belt">
-    <!-- BELT STYLE: leather — default brown belt with dark buckle. -->
-<rect x="32" y="96" width="36" height="5" fill="#8B6F47"/>
-<rect x="32" y="100" width="36" height="1" fill="#1A1A2E"/>
-<rect x="47" y="96" width="6" height="5" fill="#1A1A2E"/>
-<rect x="48" y="97" width="4" height="3" fill="#8B6F47"/>
-
+    
   </g>
 
   <!-- ============ HEAD + HAIR + HAT (animated as a single unit via HEAD_TRANSFORM) ============ -->
@@ -128,12 +98,7 @@
 
     <!-- Hair (swappable via HAIR_STYLE) -->
     <g id="hair">
-      <!-- HAIR STYLE: horns — two curved ivory horns rising from head. Default. -->
-<ellipse cx="40" cy="10" rx="3.5" ry="9" fill="#E8DCC4" transform="rotate(-15 40 10)"/>
-<ellipse cx="41.5" cy="11" rx="1.8" ry="7.5" fill="#A89473" transform="rotate(-15 41.5 11)"/>
-<ellipse cx="60" cy="10" rx="3.5" ry="9" fill="#E8DCC4" transform="rotate(15 60 10)"/>
-<ellipse cx="61.5" cy="11" rx="1.8" ry="7.5" fill="#A89473" transform="rotate(15 61.5 11)"/>
-
+      
     </g>
 
     <!-- Hat (cosmetic — z-above hair) -->
@@ -143,10 +108,17 @@
   </g>
 
   <!-- ============ HELD ITEMS (front of everything) ============ -->
-  <g id="held-r">
-    
+  <!-- Wrapped in the matching arm transforms so they swing with the hand. -->
+  <g id="held-r" transform="rotate(-15 32 65)">
+    <!-- COSMETIC: rubber-duck — small yellow duck in right hand. -->
+<ellipse cx="29" cy="103" rx="6" ry="4" fill="#FFD040"/>
+<circle cx="28" cy="98" r="3.5" fill="#FFD040"/>
+<path d="M 30 96 L 35 97 L 30 99 Z" fill="#F09030"/>
+<circle cx="27" cy="97" r="0.9" fill="#1A1A2E"/>
+<ellipse cx="29" cy="103" rx="4" ry="1.5" fill="#FFE070"/>
+
   </g>
-  <g id="held-l">
+  <g id="held-l" transform="rotate(-15 68 65)">
     
   </g>
 
