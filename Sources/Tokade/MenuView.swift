@@ -97,16 +97,14 @@ struct MenuView: View {
                 // Usage alerts watch Claude API budget thresholds and 5-minute
                 // token bursts — they're a Tokade concern, not a Tokegotchi
                 // gameplay setting.
+                // "Reset Tokegotchi" used to live here but is now scoped to
+                // its game's own Settings panel; only app-wide destructive
+                // actions remain on this menu.
                 Toggle("Usage alerts", isOn: Binding(
                     get: { notifier.usageAlerts },
                     set: { notifier.setUsageAlerts($0) }
                 ))
                 Divider()
-                Menu("Reset Tokegotchi…") {
-                    Button("Confirm reset (cannot be undone)", role: .destructive) {
-                        Task { await gaiden.eraseHistory() }
-                    }
-                }
                 Menu("Erase Tokade budget history…") {
                     Button("Confirm erase (cannot be undone)", role: .destructive) {
                         Task { await store.eraseHistory() }

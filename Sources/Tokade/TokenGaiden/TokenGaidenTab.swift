@@ -819,6 +819,8 @@ struct TokenGaidenTab: View {
                 // aging + HP drain, so the player can see why their pet is
                 // wearing down at the rate it is.
                 debugPanel
+                Divider().padding(.vertical, 2)
+                resetTokegotchiRow
                 if let onExitGame {
                     Divider().padding(.vertical, 2)
                     HStack {
@@ -828,6 +830,41 @@ struct TokenGaidenTab: View {
                         }
                         .help("Return to the games launcher.")
                     }
+                }
+            }
+        }
+    }
+
+    /// Two-click reset control: the first click reveals a confirm button so
+    /// destructive resets need a deliberate second tap. Mirrors the nested-
+    /// menu confirmation pattern the Tokade app menu used before this moved
+    /// into the game's own Settings.
+    @State private var resetConfirming: Bool = false
+    private var resetTokegotchiRow: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Reset Tokegotchi").gameFont(.small).fontWeight(.semibold)
+                Text(resetConfirming
+                     ? "This will erase your current pet, ancestors, and progress. Cannot be undone."
+                     : "Erase the current pet and start a fresh bloodline.")
+                    .gameFont(.xsmall)
+                    .foregroundStyle(resetConfirming ? .red : .secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            if resetConfirming {
+                PixelButton(label: "Cancel") {
+                    resetConfirming = false
+                }
+                PixelButton(label: "Reset") {
+                    Task {
+                        await gaiden.eraseHistory()
+                        resetConfirming = false
+                    }
+                }
+            } else {
+                PixelButton(label: "Reset…") {
+                    resetConfirming = true
                 }
             }
         }
