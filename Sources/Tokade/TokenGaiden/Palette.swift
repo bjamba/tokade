@@ -69,8 +69,7 @@ struct Palette: Equatable {
             colors[.skinDark]  = NSColor.fromHex(s.dark)
         }
         if let i = CharacterCreatorSwatches.iris.first(where: { $0.name == iris }),
-           let c = NSColor.fromHex(i.hex)
-        {
+           let c = NSColor.fromHex(i.hex) {
             colors[.iris] = c
         }
         if let h = CharacterCreatorSwatches.hair.first(where: { $0.name == hair }) {

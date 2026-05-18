@@ -141,7 +141,7 @@ enum TickProcessor {
             let now = Date()
             let cooldownOK = (s.world.lastEncounterAt
                 .map { now.timeIntervalSince($0) >= Self.encounterCooldown }) ?? true
-            if count >= target && cooldownOK {
+            if count >= target, cooldownOK {
                 let flavor = s.world.flavors?[region] ?? .wilderness
                 if let monster = EncounterEngine.choose(
                     for: flavor, playerStats: s.vitals.stats, salt: count
@@ -273,7 +273,7 @@ enum TickProcessor {
         if s.deathState == nil, agePoints > 0 {
             let lifespan = Double(max(s.identity.lifespanTokens, 1))
             let ageRatio = Double(s.identity.ageTokens) / lifespan
-            if ageRatio > 0.60 && ageRatio < 1.0 {
+            if ageRatio > 0.60, ageRatio < 1.0 {
                 let danger = min(1.0, (ageRatio - 0.60) / 0.40)
                 let perPointRate = 3.0 * danger * danger / (lifespan * 0.40)
                 let dieChance = 1.0 - pow(1.0 - perPointRate, Double(agePoints))
@@ -315,7 +315,7 @@ enum TickProcessor {
         let m = model.lowercased()
         if m.contains("haiku") { return tokens / 200_000 }
         if m.contains("sonnet") { return tokens / 100_000 }
-        if m.contains("opus") { return tokens / 40_000 }
+        if m.contains("opus") { return tokens / 40000 }
         return tokens / 160_000     // default for unknown / future models
     }
 

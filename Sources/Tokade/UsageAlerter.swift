@@ -108,7 +108,7 @@ final class UsageAlerter {
 
     private func formatTokens(_ n: Int) -> String {
         if n >= 1_000_000 { return String(format: "%.1fM", Double(n) / 1_000_000) }
-        if n >= 1_000     { return String(format: "%.0fK", Double(n) / 1_000) }
+        if n >= 1000     { return String(format: "%.0fK", Double(n) / 1000) }
         return "\(n)"
     }
 }

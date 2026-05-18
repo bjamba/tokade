@@ -132,15 +132,15 @@ enum Region {
     /// without needing to persist a separate seed. The hash uses a 32-bit
     /// FNV-1a so the result is identical across machines.
     static func position(for region: String) -> (x: Double, y: Double) {
-        var hash: UInt64 = 0xCBF29CE484222325
+        var hash: UInt64 = 0xCBF2_9CE4_8422_2325
         for byte in region.utf8 {
             hash ^= UInt64(byte)
-            hash = hash &* 0x100000001B3
+            hash = hash &* 0x100_0000_01B3
         }
         // Split hash into two coordinates and bring them into [0.07, 0.93]
         // so points don't smash against the canvas border.
-        let xRaw = Double((hash >> 32) & 0xFFFFFFFF) / Double(UInt32.max)
-        let yRaw = Double(hash & 0xFFFFFFFF) / Double(UInt32.max)
+        let xRaw = Double((hash >> 32) & 0xFFFF_FFFF) / Double(UInt32.max)
+        let yRaw = Double(hash & 0xFFFF_FFFF) / Double(UInt32.max)
         return (0.07 + xRaw * 0.86, 0.07 + yRaw * 0.86)
     }
 

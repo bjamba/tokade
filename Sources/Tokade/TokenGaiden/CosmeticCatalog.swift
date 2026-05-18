@@ -114,7 +114,9 @@ enum CosmeticCatalog {
     /// Slot display order in the wardrobe (also matches sprite z-order).
     static let slotOrder: [String] = ["hair", "eyewear", "hat", "shirt", "pants", "belt", "cape", "held"]
 
-    static func find(_ id: String) -> Cosmetic? { byId[id] }
+    static func find(_ id: String) -> Cosmetic? {
+        byId[id]
+    }
 
     /// Cosmetics in a slot — used by the wardrobe carousel to list options.
     static func bySlot(_ slot: String) -> [Cosmetic] {

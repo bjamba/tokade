@@ -10,10 +10,10 @@ final class QuestTests: XCTestCase {
         return TokegotchiState.newStarter(name: "Boba", appearance: app)
     }
 
-    func testAcceptThenEvaluateBashQuest() {
+    func testAcceptThenEvaluateBashQuest() throws {
         var s = freshState()
         // Real catalog quest: "stone-50-bash" — Bash 50 times.
-        let q = QuestCatalog.byId("stone-50-bash")!
+        let q = try XCTUnwrap(QuestCatalog.byId("stone-50-bash"))
         let (accepted, accResult) = QuestEngine.accept(q, state: s)
         XCTAssertEqual(accResult, .accepted)
         XCTAssertEqual(QuestEngine.active(state: accepted).count, 1)
@@ -30,9 +30,9 @@ final class QuestTests: XCTestCase {
         XCTAssertEqual(QuestEngine.active(state: s).first?.completed, true)
     }
 
-    func testClaimPaysReward() {
+    func testClaimPaysReward() throws {
         var s = freshState()
-        let q = QuestCatalog.byId("garden-wise")!   // reach INT 8
+        let q = try XCTUnwrap(QuestCatalog.byId("garden-wise"))   // reach INT 8
         let (accepted, _) = QuestEngine.accept(q, state: s)
         s = accepted
         s.vitals.stats.int = 8

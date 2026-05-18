@@ -57,11 +57,10 @@ struct TokadeApp: App {
     }
 
     private var menuBarText: String {
-        let base: String
-        if let five = store.rateLimits?.fiveHour {
-            base = String(format: "%.0f%%", five.usedPercentage)
+        let base: String = if let five = store.rateLimits?.fiveHour {
+            String(format: "%.0f%%", five.usedPercentage)
         } else {
-            base = formatCount(store.fiveHourEvents.grandTotal())
+            formatCount(store.fiveHourEvents.grandTotal())
         }
         return base + notifier.menuBarSuffix
     }

@@ -112,7 +112,9 @@ enum MonsterArt {
         return .boba
     }
 
-    private static func hex(_ s: String) -> NSColor { NSColor.fromHex(s) ?? .black }
+    private static func hex(_ s: String) -> NSColor {
+        NSColor.fromHex(s) ?? .black
+    }
 }
 
 import AppKit

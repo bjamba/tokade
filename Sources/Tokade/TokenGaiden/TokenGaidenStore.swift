@@ -692,10 +692,21 @@ final class TokenGaidenStore {
     // MARK: - Active combat
 
     /// Combat actions used by the in-panel ActiveBattleCard.
-    func combatAttack() async { await runCombat(.attack) }
-    func combatUseItem(_ itemId: String) async { await runCombat(.useItem(itemId)) }
-    func combatFlee() async { await runCombat(.flee) }
-    func combatCastSkill(_ skillId: String) async { await runCombat(.skill(skillId)) }
+    func combatAttack() async {
+        await runCombat(.attack)
+    }
+
+    func combatUseItem(_ itemId: String) async {
+        await runCombat(.useItem(itemId))
+    }
+
+    func combatFlee() async {
+        await runCombat(.flee)
+    }
+
+    func combatCastSkill(_ skillId: String) async {
+        await runCombat(.skill(skillId))
+    }
 
     private enum CombatAction {
         case attack
@@ -769,8 +780,8 @@ final class TokenGaidenStore {
         await save.write(saved)
     }
 
-    /// Test seam — let tests stage a known state without going through the
-    /// public API. Not exposed in user-facing code paths.
+    // Test seam — let tests stage a known state without going through the
+    // public API. Not exposed in user-facing code paths.
     #if DEBUG
         func setStateForTesting(_ s: TokegotchiState) {
             state = s

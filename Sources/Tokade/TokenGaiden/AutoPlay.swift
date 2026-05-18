@@ -59,7 +59,7 @@ enum AutoPlay {
             if hpPct < 0.35, let healId = bestHealItem(in: state.inventory.items) {
                 return .combatHeal(healId)
             }
-            if hpPct < 0.15 && bestHealItem(in: state.inventory.items) == nil {
+            if hpPct < 0.15, bestHealItem(in: state.inventory.items) == nil {
                 return .combatFlee
             }
             if let skillId = bestCombatSkill(state: state, battle: battle) {
@@ -113,8 +113,7 @@ enum AutoPlay {
         let spPct = Double(state.vitals.sp) / Double(max(state.vitals.spMax, 1))
         if !state.inventory.skillsLearned.isEmpty, spPct < 0.4,
            let spOffer = cheapestSPPotionOffer(state: state),
-           state.progress.gold >= spOffer.priceGold * 2
-        {
+           state.progress.gold >= spOffer.priceGold * 2 {
             return .buyOffer(itemId: spOffer.itemId, priceGold: spOffer.priceGold)
         }
         // Strategic travel: if the current region has no unclaimed quests
@@ -147,8 +146,7 @@ enum AutoPlay {
         let needFoodSoon = foodCount < minFoodStock
         if needFoodNow || needFoodSoon,
            let offer = cheapestAvailableHealOffer(state: state),
-           state.progress.gold >= offer.priceGold
-        {
+           state.progress.gold >= offer.priceGold {
             return .buyOffer(itemId: offer.itemId, priceGold: offer.priceGold)
         }
 
@@ -198,8 +196,7 @@ enum AutoPlay {
         for slot in Gear.Slot.allCases {
             let currentScore: Int = {
                 if let id = state.inventory.equippedGear[slot.rawValue] ?? nil,
-                   let g = GearCatalog.find(id)
-                {
+                   let g = GearCatalog.find(id) {
                     return gearScore(g)
                 }
                 return 0
@@ -207,7 +204,7 @@ enum AutoPlay {
             for (g, _) in owned where g.slot == slot {
                 let s = gearScore(g)
                 let delta = s - currentScore
-                if delta > 0 && (bestUpgrade.map { delta > $0.1 } ?? true) {
+                if delta > 0, (bestUpgrade.map { delta > $0.1 } ?? true) {
                     bestUpgrade = (g, delta)
                 }
             }
@@ -315,8 +312,7 @@ enum AutoPlay {
                 for o in offerings {
                     if case let .learnSkill(id) = o.effect,
                        !learned.contains(id),
-                       exp >= o.priceExp * 2
-                    {
+                       exp >= o.priceExp * 2 {
                         return o
                     }
                 }
@@ -354,8 +350,7 @@ enum AutoPlay {
                     guard let g = GearCatalog.find(offer.itemId) else { continue }
                     let cur: Int = {
                         if let id = state.inventory.equippedGear[g.slot.rawValue] ?? nil,
-                           let eg = GearCatalog.find(id)
-                        {
+                           let eg = GearCatalog.find(id) {
                             return gearOfferScore(eg)
                         }
                         return 0
@@ -363,8 +358,7 @@ enum AutoPlay {
                     let delta = gearOfferScore(g) - cur
                     if delta > 0,
                        state.progress.gold - offer.priceGold >= reserve,
-                       (best.map { delta > $0.1 } ?? true)
-                    {
+                       (best.map { delta > $0.1 } ?? true) {
                         best = (offer, delta)
                     }
                 }

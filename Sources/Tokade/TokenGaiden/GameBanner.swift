@@ -31,5 +31,7 @@ enum GameBanner {
         }
     }
 
-    private static func hex(_ s: String) -> NSColor { NSColor.fromHex(s) ?? .black }
+    private static func hex(_ s: String) -> NSColor {
+        NSColor.fromHex(s) ?? .black
+    }
 }

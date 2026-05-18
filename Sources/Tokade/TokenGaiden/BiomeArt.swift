@@ -8,14 +8,13 @@ enum BiomeArt {
 
     static func tile(for flavor: Region.Flavor) -> SpriteMatrix? {
         if let cached = cache[flavor] { return cached }
-        let name: String
-        switch flavor {
-        case .stonework:     name = "biome-stonework"
-        case .ironFortress:  name = "biome-iron-fortress"
-        case .gardenVillage: name = "biome-garden-village"
-        case .bazaar:        name = "biome-bazaar"
-        case .openSteppe:    name = "biome-open-steppe"
-        case .wilderness:    name = "biome-wilderness"
+        let name: String = switch flavor {
+        case .stonework:     "biome-stonework"
+        case .ironFortress:  "biome-iron-fortress"
+        case .gardenVillage: "biome-garden-village"
+        case .bazaar:        "biome-bazaar"
+        case .openSteppe:    "biome-open-steppe"
+        case .wilderness:    "biome-wilderness"
         }
         guard let url = appBundledResource(named: name, ext: "matrix"),
               let text = try? String(contentsOf: url, encoding: .utf8),
@@ -83,5 +82,7 @@ enum BiomeArt {
         }
     }
 
-    private static func hex(_ s: String) -> NSColor { NSColor.fromHex(s) ?? .black }
+    private static func hex(_ s: String) -> NSColor {
+        NSColor.fromHex(s) ?? .black
+    }
 }

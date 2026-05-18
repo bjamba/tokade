@@ -16,9 +16,11 @@ struct GamesTab: View {
         var bannerId: String {
             switch self { case .tokenGaidenRPG: return "token-gaiden-rpg" }
         }
+
         var title: String {
             switch self { case .tokenGaidenRPG: return "Token Gaiden RPG" }
         }
+
         var subtitle: String {
             switch self {
             case .tokenGaidenRPG:

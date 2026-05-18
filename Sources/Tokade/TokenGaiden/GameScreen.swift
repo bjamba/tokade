@@ -195,6 +195,7 @@ struct PixelButton: View {
         @unknown default:   return 10
         }
     }
+
     private var hPad: CGFloat {
         switch size {
         case .mini:  return 4
@@ -204,6 +205,7 @@ struct PixelButton: View {
         @unknown default: return 6
         }
     }
+
     private var vPad: CGFloat {
         switch size {
         case .mini:  return 2
@@ -229,6 +231,7 @@ struct PixelArrowButton: View {
             }
         }
     }
+
     let direction: Direction
     var disabled: Bool = false
     let action: () -> Void

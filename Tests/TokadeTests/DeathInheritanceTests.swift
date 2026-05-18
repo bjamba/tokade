@@ -72,11 +72,11 @@ final class DeathInheritanceTests: XCTestCase {
         XCTAssertEqual(after.deathState?.cause, .natural)
     }
 
-    func testInheritanceCarriesThirtyPercentAndItems() async {
+    func testInheritanceCarriesThirtyPercentAndItems() async throws {
         let g = TokenGaidenStore(notifier: nil)
         await g.startNewLineage(name: "Boba", appearance: appearance())
         // Stage a "dead" predecessor with substantial state.
-        var pet = g.state!
+        var pet = try XCTUnwrap(g.state)
         pet.vitals.stats = TokegotchiState.Stats(str: 20, dex: 10, int: 30, agi: 40, cha: 50)
         pet.progress.gold = 1000
         pet.inventory.items = ["bread": 5, "scroll": 2]
@@ -91,7 +91,7 @@ final class DeathInheritanceTests: XCTestCase {
         // Stuff it directly into the store, then hatch next.
         g.setStateForTesting(pet)
         await g.hatchNextGeneration(name: "Boba II", appearance: appearance())
-        let fresh = g.state!
+        let fresh = try XCTUnwrap(g.state)
         XCTAssertEqual(fresh.identity.generation, 2)
         // Inheritance is now baseline + ceil(peak/4). Baseline is random in
         // [3, 10] so we check the bonus magnitude rather than an exact match.

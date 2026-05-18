@@ -13,7 +13,7 @@ struct TokenGaidenTab: View {
     /// Called when the player picks "Exit" from Settings — wired by the
     /// host (GamesTab) to return to the launcher. Optional so previews and
     /// tests can render the tab standalone.
-    var onExitGame: (() -> Void)? = nil
+    var onExitGame: (() -> Void)?
     @State private var wardrobeOpen = false
     @State private var settingsOpen = false
     /// Draft equipment used while previewing in the wardrobe. nil means "no
@@ -77,6 +77,7 @@ struct TokenGaidenTab: View {
             case .map:  return "🗺"
             }
         }
+
         var label: String {
             switch self {
             case .menu: return "MENU"
@@ -102,6 +103,7 @@ struct TokenGaidenTab: View {
             case .settings:     return "⚙"
             }
         }
+
         var label: String {
             switch self {
             case .profile:      return "PROFILE"
@@ -507,7 +509,9 @@ struct TokenGaidenTab: View {
         return parts.joined(separator: " · ")
     }
 
-    private func gearSig(_ n: Int) -> String { n > 0 ? "+\(n)" : "\(n)" }
+    private func gearSig(_ n: Int) -> String {
+        n > 0 ? "+\(n)" : "\(n)"
+    }
 
     // MARK: - Town (NPCs, shops, trainers, quests)
 
@@ -854,9 +858,8 @@ struct TokenGaidenTab: View {
         }
     }
 
-    @ViewBuilder
-    private func settingsRow<Control: View>(
-        label: String, help: String, @ViewBuilder control: () -> Control
+    private func settingsRow(
+        label: String, help: String, @ViewBuilder control: () -> some View
     ) -> some View {
         HStack(spacing: 8) {
             Text(label)
@@ -1176,7 +1179,7 @@ struct TokenGaidenTab: View {
     /// Compact age display — 12_345_678 → "12.3M" so the line doesn't wrap.
     private func ageShort(_ n: Int) -> String {
         if n >= 1_000_000 { return String(format: "%.1fM", Double(n) / 1_000_000) }
-        if n >= 1_000     { return String(format: "%.0fK", Double(n) / 1_000) }
+        if n >= 1000     { return String(format: "%.0fK", Double(n) / 1000) }
         return "\(n)"
     }
 

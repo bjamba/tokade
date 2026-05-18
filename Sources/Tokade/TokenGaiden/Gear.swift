@@ -90,7 +90,9 @@ enum GearCatalog {
         return d
     }()
 
-    static func find(_ id: String) -> Gear? { byId[id] }
+    static func find(_ id: String) -> Gear? {
+        byId[id]
+    }
 
     /// Random gear drop pool for an encounter — picks something appropriate
     /// for the given player strength.

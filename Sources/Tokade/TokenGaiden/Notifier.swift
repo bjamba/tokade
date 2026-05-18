@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
 import Observation
-import UserNotifications
 import os.log
+import UserNotifications
 
 /// Combat resolution mode. Passive auto-resolves encounters; Active opens a
 /// modal where the player picks Attack / Item / Run each turn.

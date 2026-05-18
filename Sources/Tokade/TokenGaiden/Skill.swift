@@ -73,7 +73,9 @@ enum SkillCatalog {
         return d
     }()
 
-    static func find(_ id: String) -> Skill? { byId[id] }
+    static func find(_ id: String) -> Skill? {
+        byId[id]
+    }
 }
 
 /// Compute the immediate effect of a skill against the player + current
