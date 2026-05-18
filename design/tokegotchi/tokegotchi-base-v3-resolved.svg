@@ -15,7 +15,8 @@
   </defs>
 
   <!-- ============ CAPE (cosmetic — z-behind everything) ============ -->
-  <g id="cape">
+  <!-- Attached at the shoulders, so it bobs with HEAD_TRANSFORM. -->
+  <g id="cape" transform="translate(0,1.5)">
     
   </g>
 
@@ -38,13 +39,13 @@
 
   <!-- ============ ARMS (with shading) ============ -->
   <!-- Arms animatable via _ARM_TRANSFORM (pivot at shoulder). Clip-paths removed so rotation works cleanly. -->
-  <g id="r-arm" transform="rotate(-8 32 65)">
+  <g id="r-arm" transform="rotate(-15 32 65)">
     <ellipse cx="32" cy="65" rx="7" ry="5" fill="#C7A5D9"/>
     <rect x="25" y="65" width="9" height="40" rx="4" fill="#C7A5D9"/>
     <rect x="25" y="65" width="3" height="40" fill="#DBC1E8"/>
     <rect x="31" y="65" width="3" height="40" fill="#A07AB8"/>
   </g>
-  <g id="l-arm" transform="rotate(-8 68 65)">
+  <g id="l-arm" transform="rotate(-15 68 65)">
     <ellipse cx="68" cy="65" rx="7" ry="5" fill="#C7A5D9"/>
     <rect x="66" y="65" width="9" height="40" rx="4" fill="#C7A5D9"/>
     <rect x="66" y="65" width="3" height="40" fill="#DBC1E8"/>
@@ -107,10 +108,17 @@
   </g>
 
   <!-- ============ HELD ITEMS (front of everything) ============ -->
-  <g id="held-r">
-    
+  <!-- Wrapped in the matching arm transforms so they swing with the hand. -->
+  <g id="held-r" transform="rotate(-15 32 65)">
+    <!-- COSMETIC: rubber-duck — small yellow duck in right hand. -->
+<ellipse cx="29" cy="103" rx="6" ry="4" fill="#FFD040"/>
+<circle cx="28" cy="98" r="3.5" fill="#FFD040"/>
+<path d="M 30 96 L 35 97 L 30 99 Z" fill="#F09030"/>
+<circle cx="27" cy="97" r="0.9" fill="#1A1A2E"/>
+<ellipse cx="29" cy="103" rx="4" ry="1.5" fill="#FFE070"/>
+
   </g>
-  <g id="held-l">
+  <g id="held-l" transform="rotate(-15 68 65)">
     
   </g>
 

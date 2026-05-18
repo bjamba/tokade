@@ -6,53 +6,95 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-05-18
+
+The **Token Gaiden RPG** release. A pixel-art roguelike inside the Tokade
+menu bar, fed by your Claude Code telemetry. New `Games` tab, full
+gameplay loop, plan-normalized aging, app-level usage alerts.
+
 ### Added
 
-- **Token Gaiden tab (M0 foundation).** New tab in the Tokade panel that
-  houses a small RPG fed by Claude Code telemetry. v1 foundation lands the
-  character creator (6 skin × 6 iris × 6 hair-color × 11 hair-style), the
-  matrix-runtime sprite system (32×54 source res, role-parameterized
-  palette), the `TickProcessor` (token → HP drain, token → age advance,
-  tool → themed item drop, slash command → SP potion), persistent save at
-  `~/.tokade/games/tokegotchi.json` (0600), and the live sprite view with
-  idle-walk-A-walk-B animation cycle. Encounters, regions, quests, combat,
-  and the death/inheritance loop land in subsequent PRs. See
-  `docs/02-design/TOKADE_TAB.md`.
-- **Cosmetic composition.** Bundled 14 cosmetic matrices (7 hair styles, 1
-  shirt, 2 pants, 1 belt, 3 hats) layered over a "naked" base sprite at
-  runtime via `SpriteComposer`. The hair style chosen at character
-  creation is applied to the rendered sprite. A Wardrobe sheet lets the
-  player swap cosmetic slots live; choices persist.
-- **Region tracking (Layer 3 foundation).** Each Claude Code `cwd` maps
-  to a stable region identifier (home-relative path) seeded with a flavor
-  on first visit by sniffing project marker files (Swift → Stonework
-  Town, Rust → Iron Fortress, Python → Garden Village, JS/TS → Bazaar,
-  Go → Open Steppe, unknown → Wilderness). Per-region event counter
-  drives reputation (+1 per 50 events, cap 100). Current region + flavor
-  + reputation surface in the Token Gaiden tab. Region-discovery
-  thresholds, NPCs, shops, and fast-travel land in subsequent PRs.
-- **Playable loop**: usable inventory, passive encounters, achievements.
-  Items have an explicit catalog (food / SP potions / stat-boost
-  consumables / scrap) with effects on use; the Inventory card shows
-  counts + a Use button per stack. Every 25 events in a region triggers
-  a passive auto-resolve encounter against a region-flavored monster
-  (Granite Golem / Compile Beetle / Pickpocket / Steppe Wolf / …) that
-  awards EXP and gold on victory or flees if outmatched. 11 achievements
-  fire on natural milestones (First Light, First Million, stat-10
-  thresholds, Frequent Flyer, Well Known, Elder Status) and persist via
-  the existing save schema. File-edit tool calls now drop bread (HP food)
-  alongside their existing DEX item.
-- 22 XCTest cases covering matrix parsing, palette role resolution,
-  Tokegotchi state derivation, TickProcessor model/tool mapping, and
-  TokenGaidenStore tick idempotence.
+- **Games tab + Token Gaiden RPG launcher.** New top-level tab in the
+  Tokade panel listing playable games as pixel-art cartridges. Selecting
+  a game enters its emulator-screen view; exit lives in the in-game
+  Settings panel.
+- **Token Gaiden v1: full gameplay loop.** The RPG now plays start to
+  finish — character creation, persistent Tokegotchi with stats and
+  inventory, age-and-die lifecycle, multi-generation inheritance, and a
+  bloodline Hall of Fame. Fed by real Claude Code usage:
+  - **Regions** seeded by project type (Swift → Stonework Town,
+    Rust → Iron Fortress, Python → Garden Village, JS/TS → Bazaar,
+    Go → Open Steppe, unknown → Wilderness). Project-root detection
+    walks up from each `cwd` to find a `.git` / `Package.swift` /
+    `package.json` / etc. marker, so sub-folders of the same project
+    collapse into one region. Map caps to the 10 most-recently-active
+    regions (current + pinned always pinned).
+  - **Encounters + active combat.** Every 10–20 events in a region
+    triggers a passive or active fight against one of 5 flavor-specific
+    monsters (30 total). Active mode opens a turn-based panel with
+    Attack / Skill / Item / Run. Real-time encounter cooldown (90s)
+    prevents heavy-plan users from being drowned in fights.
+  - **NPCs, shops, trainers, quests.** Each region has a merchant
+    (food / SP potions / gear) with CHA-driven haggling, a trainer
+    (stat boosts + skill grants in exchange for EXP), and a curated
+    quest line. Quest rewards include gold, EXP, items, and unlockable
+    cosmetics.
+  - **Gear system.** 12-piece gear catalog across 4 slots (weapon /
+    armor / accessory / boots) with ATK/DEF/stat bonuses; drops from
+    encounter victories, sold at merchants, equip in the Equip panel.
+  - **Skills + SP.** 9 combat skills cost SP to use mid-fight, scale
+    with stats, learnable from trainers. Inspire / Power Strike / Mend
+    / Fireball / Block / Pierce / Weaken / Escape / Bash.
+  - **Death + inheritance.** Critical-HP grace period and
+    probabilistic elder-death past 60% lifespan. On death, a new pet
+    inherits a fraction of peak stats, all items, equipped cosmetics,
+    town reputation, 10% of gold, and the full cosmetic collection.
+- **Cosmetic unlock system.** 45-entry catalog across 8 slots (hair /
+  hat / eyewear / cape / shirt / pants / belt / held). Unlocks come
+  from a balanced mix of achievement grants, quest rewards, and
+  weighted random encounter drops. Locked cosmetics render in the
+  Wardrobe as dark silhouettes; an unlock-hints panel below the
+  carousel explains how to earn each one.
+- **Auto-play mode.** Optional autopilot that plays the pet on the
+  user's behalf: feeds + heals when HP dips, claims and accepts quests,
+  upgrades gear, trains with banked EXP, buys SP potions and gear from
+  merchants, attacks / casts skills / flees in combat, wanders for
+  EXP, enters dungeons when overpowered, fast-travels between regions
+  when quest content is exhausted.
+- **Plan-normalized aging + HP drain.** Aging and HP drain are now
+  keyed off **Δ% of the 5-hour rate-limit budget**, not raw tokens —
+  so a Pro user and a Max-5× user see similar wall-clock lifespans.
+  Background-tick loop in `TokadeApp` keeps the pet ticking with the
+  menu bar panel closed.
+- **Usage alerts (app-level).** Tokade now surfaces Claude API budget
+  milestones independent of the game: rate-limit threshold crossings
+  (50% / 75% / 90%) and 5-minute token bursts (>500K). Toggle lives in
+  the app's hamburger menu next to Reset / Quit, not inside the game.
+- **CRT post-effect.** Scanlines / phosphor / soft / dot-matrix / edge-
+  fade overlays applied to the whole game screen (every sprite, every
+  text element, the launcher banner, the map). Chosen in game settings.
+- **Pixel-art UI primitives.** `PixelButton`, `PixelArrowButton`,
+  `PixelBar`, `PixelPanel`, `PixelTextFrame`, `GameScreen` bezel, and
+  a monospaced `gameFont` modifier. Every interactive element inside
+  the game uses these, not native macOS controls.
+- **Sprite system extensions.** Per-slot animated cosmetics (idle /
+  walk-a / walk-b) with held items wrapped in arm transforms and capes
+  wrapped in the head transform so they animate with body movement.
+  Baked 49 cosmetics × 3 frames = ~147 sprite matrices. Tokegotchi base
+  SVG, 30 monster SVGs, 6 biome tile SVGs, world overworld matrix.
+- **77 new XCTest cases** covering Tokegotchi state derivation, tick
+  idempotence, encounter math, quest engine, NPC shop / trainer
+  interactions, gear / item / skill resolution, death + inheritance,
+  and the budget-wear pathway. Total test count: 99.
 
 ### Changed
 
-- `appBundledResource(_:ext:)` is now module-internal (was private) so the
-  Token Gaiden code can use the same Bundle.module workaround pattern.
+- `appBundledResource(_:ext:)` is module-internal (was private) so
+  Token Gaiden code can use the same `Bundle.module` workaround pattern.
 - `.swiftformat` excludes `design/` — the design folder's helper Swift
-  scripts (`pixelate.swift`, `bake.swift`, `render_matrix.swift`) are
-  authoring tools, not app code.
+  scripts (`pixelate.swift`, `bake.swift`, `render_matrix.swift`,
+  `diff-matrices.swift`) are authoring tools, not app code.
+- `CFBundleShortVersionString` → 0.4.0, `CFBundleVersion` → 4.
 
 ## [0.3.0] — 2026-05-13
 
@@ -135,7 +177,8 @@ Initial public release. Path: `github.com/bjamba/tokade`.
 - Statusline shim + installer
 - MIT license, README, AppIcon + menu bar template glyph
 
-[Unreleased]: https://github.com/bjamba/tokade/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/bjamba/tokade/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/bjamba/tokade/releases/tag/v0.4.0
 [0.3.0]: https://github.com/bjamba/tokade/releases/tag/v0.3.0
 [0.2.0]: https://github.com/bjamba/tokade/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bjamba/tokade/releases/tag/v0.1.0

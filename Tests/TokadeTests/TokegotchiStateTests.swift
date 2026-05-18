@@ -25,7 +25,10 @@ final class TokegotchiStateTests: XCTestCase {
         XCTAssertEqual(s.identity.ageTokens, 0)
         XCTAssertEqual(s.vitals.hp, s.vitals.hpMax)
         XCTAssertEqual(s.vitals.sp, s.vitals.spMax)
-        XCTAssertEqual(s.vitals.stats, .starter)
+        // First-gen stats are now random in [3, 10]; sum should be in [15, 50].
+        let total = s.vitals.stats.str + s.vitals.stats.dex + s.vitals.stats.int
+            + s.vitals.stats.agi + s.vitals.stats.cha
+        XCTAssertTrue(total >= 15 && total <= 50, "starter stats out of range: \(total)")
         XCTAssertEqual(s.inventory.equippedCosmetic["hair"], "horns")
     }
 

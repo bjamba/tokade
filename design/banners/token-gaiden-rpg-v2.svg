@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 48" width="128" height="48" shape-rendering="crispEdges">
+  <!-- TITLE CARD style — large logo, "PRESS START" feel -->
+  <!-- Starfield -->
+  <rect width="128" height="48" fill="{{DARK}}"/>
+  <circle cx="10" cy="6" r="0.5" fill="{{WHITE}}"/>
+  <circle cx="22" cy="3" r="0.5" fill="{{WHITE}}"/>
+  <circle cx="38" cy="8" r="0.5" fill="{{WHITE}}"/>
+  <circle cx="48" cy="4" r="0.5" fill="{{WHITE}}"/>
+  <circle cx="62" cy="6" r="0.5" fill="{{WHITE}}"/>
+  <circle cx="74" cy="3" r="0.5" fill="{{WHITE}}"/>
+  <circle cx="86" cy="7" r="0.5" fill="{{WHITE}}"/>
+  <circle cx="100" cy="4" r="0.5" fill="{{WHITE}}"/>
+  <circle cx="116" cy="6" r="0.5" fill="{{WHITE}}"/>
+  <circle cx="14" cy="42" r="0.5" fill="{{WHITE}}"/>
+  <circle cx="50" cy="44" r="0.5" fill="{{WHITE}}"/>
+  <circle cx="90" cy="42" r="0.5" fill="{{WHITE}}"/>
+  <!-- Large diagonal logo plate -->
+  <rect x="4" y="14" width="120" height="22" fill="{{IRIS}}"/>
+  <rect x="4" y="14" width="120" height="22" fill="none" stroke="{{HAIR}}" stroke-width="0.8"/>
+  <rect x="4" y="14" width="120" height="3" fill="{{HAIR}}" opacity="0.5"/>
+  <rect x="4" y="33" width="120" height="3" fill="{{DARK}}" opacity="0.5"/>
+  <!-- Title text -->
+  <text x="64" y="24" font-family="monospace" font-size="9" font-weight="bold"
+        text-anchor="middle" fill="{{HAIR}}">TOKEN GAIDEN</text>
+  <text x="64" y="32" font-family="monospace" font-size="5" font-weight="bold"
+        text-anchor="middle" fill="{{WHITE}}">★  RPG  ★</text>
+  <!-- Press start blinker hint -->
+  <text x="64" y="44" font-family="monospace" font-size="4"
+        text-anchor="middle" fill="{{WHITE}}" opacity="0.7">▼  PRESS PLAY  ▼</text>
+</svg>

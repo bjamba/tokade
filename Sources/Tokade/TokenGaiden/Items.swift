@@ -21,14 +21,14 @@ struct ItemDef: Equatable {
 /// the catalog still appear in the inventory but can't be used.
 enum ItemCatalog {
     static let all: [ItemDef] = [
-        // Food (HP recovery)
-        ItemDef(id: "bread",        display: "Bread",        glyph: "🍞", kind: .food(hp: 5)),
-        ItemDef(id: "hearty-meat",  display: "Hearty meat",  glyph: "🍖", kind: .food(hp: 25)),
-        ItemDef(id: "feast",        display: "Feast",        glyph: "🍱", kind: .food(hp: 75)),
+        // Food (HP recovery) — fewer drops, much higher per-item value.
+        ItemDef(id: "bread",       display: "Bread",       glyph: "🍞", kind: .food(hp: 25)),
+        ItemDef(id: "hearty-meat", display: "Hearty meat", glyph: "🍖", kind: .food(hp: 75)),
+        ItemDef(id: "feast",       display: "Feast",       glyph: "🍱", kind: .food(hp: 250)),
 
         // SP potions
-        ItemDef(id: "small-sp-potion",  display: "Small SP potion",  glyph: "🧪", kind: .spPotion(sp: 20)),
-        ItemDef(id: "medium-sp-potion", display: "Medium SP potion", glyph: "🧪", kind: .spPotion(sp: 50)),
+        ItemDef(id: "small-sp-potion",  display: "Small SP potion",  glyph: "🧪", kind: .spPotion(sp: 25)),
+        ItemDef(id: "medium-sp-potion", display: "Medium SP potion", glyph: "🧪", kind: .spPotion(sp: 75)),
 
         // Stat-boost items (consumed for permanent stat bump)
         ItemDef(id: "dumbbell", display: "Dumbbell", glyph: "🏋",  kind: .statBoost(stat: "STR", delta: 1)),
@@ -55,6 +55,20 @@ enum ItemCatalog {
     static func label(_ id: String) -> String {
         if let def = byId[id] { return "\(def.glyph) \(def.display)" }
         return id
+    }
+
+    /// Gold value when the player sells one of this item from inventory.
+    /// Food/SP recover a fraction of their "use" value, stat boosts are flat,
+    /// and key items aren't sellable.
+    static func sellValue(_ id: String) -> Int {
+        guard let def = byId[id] else { return 0 }
+        switch def.kind {
+        case let .food(hp):     return max(1, hp / 4)
+        case let .spPotion(sp): return max(1, sp / 4)
+        case .statBoost:        return 5
+        case let .scrap(g):     return g
+        case .keyItem:          return 0
+        }
     }
 }
 

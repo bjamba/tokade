@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32">
+  <!-- Pickpocket — hooded figure -->
+  <!-- Cloak shadow -->
+  <path d="M 22 90 L 28 40 Q 50 28 72 40 L 78 90 Z" fill="{{DARK}}"/>
+  <!-- Cloak inner -->
+  <path d="M 30 88 L 34 50 Q 50 40 66 50 L 70 88 Z" fill="{{PANTS_DARK}}"/>
+  <!-- Hood -->
+  <path d="M 28 42 Q 50 8 72 42 L 68 50 Q 50 30 32 50 Z" fill="{{DARK}}"/>
+  <!-- Face in shadow -->
+  <ellipse cx="50" cy="44" rx="14" ry="10" fill="{{PANTS_DARK}}"/>
+  <!-- Glowing eyes -->
+  <circle cx="44" cy="44" r="2" fill="{{IRIS}}"/>
+  <circle cx="56" cy="44" r="2" fill="{{IRIS}}"/>
+  <!-- Coin in hand -->
+  <circle cx="68" cy="70" r="6" fill="{{HAIR}}"/>
+  <circle cx="68" cy="70" r="3" fill="{{BELT}}"/>
+</svg>

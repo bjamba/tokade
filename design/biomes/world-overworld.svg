@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 96" width="128" height="96" shape-rendering="crispEdges">
+  <!-- World overworld map. Hand-authored "Earth-like" backdrop with biomes,
+       water, mountains, forests, plains, and a desert. Regions get plotted
+       on top at their persisted positions. Palette uses {{...}} placeholders
+       so it gets baked through the same pipeline as everything else. -->
+
+  <!-- Ocean (entire backdrop) -->
+  <rect width="128" height="96" fill="{{IRIS}}"/>
+
+  <!-- Continent silhouette: irregular landmass filling the middle. -->
+  <path d="M 8 22
+           L 22 14 L 36 12 L 52 16 L 70 12 L 88 14 L 102 18 L 116 24 L 120 36
+           L 122 50 L 118 62 L 110 72 L 100 78 L 88 82 L 72 84 L 56 80 L 42 82
+           L 28 78 L 14 70 L 8 56 L 6 40 Z"
+        fill="{{HAIR}}"/>
+
+  <!-- Beach edge a couple pixels inside the continent -->
+  <path d="M 10 24
+           L 22 16 L 36 14 L 52 18 L 70 14 L 88 16 L 100 20 L 114 26 L 118 38
+           L 120 50 L 116 60 L 108 70 L 98 76 L 86 80 L 72 82 L 56 78 L 42 80
+           L 30 76 L 16 68 L 10 56 L 8 42 Z"
+        fill="{{SKIN_LIGHT}}" opacity="0.4"/>
+
+  <!-- Northern forest band -->
+  <path d="M 22 18 L 56 16 L 70 20 L 80 18 L 90 20 L 96 28 L 84 32 L 70 30 L 56 28 L 38 30 L 24 26 Z"
+        fill="{{SHIRT_DARK}}"/>
+  <!-- Forest trees (small dots) -->
+  <circle cx="30" cy="22" r="1.5" fill="{{PANTS_DARK}}"/>
+  <circle cx="38" cy="20" r="1.5" fill="{{PANTS_DARK}}"/>
+  <circle cx="46" cy="22" r="1.5" fill="{{PANTS_DARK}}"/>
+  <circle cx="54" cy="20" r="1.5" fill="{{PANTS_DARK}}"/>
+  <circle cx="62" cy="22" r="1.5" fill="{{PANTS_DARK}}"/>
+  <circle cx="70" cy="24" r="1.5" fill="{{PANTS_DARK}}"/>
+  <circle cx="78" cy="22" r="1.5" fill="{{PANTS_DARK}}"/>
+  <circle cx="86" cy="24" r="1.5" fill="{{PANTS_DARK}}"/>
+
+  <!-- Central plains (grass) -->
+  <path d="M 26 32 L 100 32 L 102 50 L 28 50 Z" fill="{{SHIRT}}"/>
+
+  <!-- Mountains running through center-south -->
+  <path d="M 32 50 L 38 38 L 44 50 Z" fill="{{PANTS_DARK}}"/>
+  <path d="M 42 52 L 50 36 L 58 52 Z" fill="{{PANTS}}"/>
+  <path d="M 56 52 L 64 38 L 70 52 Z" fill="{{PANTS_DARK}}"/>
+  <path d="M 68 52 L 76 36 L 84 52 Z" fill="{{PANTS}}"/>
+  <path d="M 82 50 L 90 40 L 96 50 Z" fill="{{PANTS_DARK}}"/>
+  <!-- Snowy mountain caps -->
+  <path d="M 36 42 L 38 38 L 40 42 Z" fill="{{WHITE}}"/>
+  <path d="M 48 40 L 50 36 L 52 40 Z" fill="{{WHITE}}"/>
+  <path d="M 62 42 L 64 38 L 66 42 Z" fill="{{WHITE}}"/>
+  <path d="M 74 40 L 76 36 L 78 40 Z" fill="{{WHITE}}"/>
+  <path d="M 88 44 L 90 40 L 92 44 Z" fill="{{WHITE}}"/>
+
+  <!-- Southern desert -->
+  <path d="M 28 52 L 102 52 L 100 70 L 30 68 Z" fill="{{SKIN_DARK}}"/>
+  <!-- Cactus / dune dots -->
+  <circle cx="40" cy="60" r="1" fill="{{PANTS}}"/>
+  <circle cx="56" cy="62" r="1" fill="{{PANTS}}"/>
+  <circle cx="74" cy="60" r="1" fill="{{PANTS}}"/>
+  <circle cx="90" cy="62" r="1" fill="{{PANTS}}"/>
+
+  <!-- Southern lake (inside desert) -->
+  <ellipse cx="64" cy="64" rx="10" ry="3" fill="{{IRIS}}"/>
+
+  <!-- River (winding from north forest through plains into lake) -->
+  <path d="M 50 22 Q 52 32 50 42 Q 48 52 56 60 Q 60 63 64 64"
+        stroke="{{IRIS}}" stroke-width="2" fill="none"/>
+
+  <!-- Compass rose top-right corner -->
+  <circle cx="118" cy="10" r="6" fill="{{HAIR_DARK}}" opacity="0.7"/>
+  <path d="M 118 5 L 119 10 L 118 15 L 117 10 Z" fill="{{WHITE}}"/>
+  <path d="M 113 10 L 118 9 L 123 10 L 118 11 Z" fill="{{WHITE}}"/>
+  <text x="118" y="3" font-family="monospace" font-size="3" text-anchor="middle" fill="{{WHITE}}">N</text>
+</svg>

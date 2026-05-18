@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges">
+  <!-- Stonework Town: mountains + small stone tower -->
+  <rect width="32" height="32" fill="{{SHIRT_LIGHT}}"/>
+  <!-- Mountains in back -->
+  <path d="M 2 22 L 8 10 L 14 22 Z" fill="{{PANTS_DARK}}"/>
+  <path d="M 12 22 L 18 6 L 24 22 Z" fill="{{PANTS}}"/>
+  <path d="M 20 22 L 26 12 L 30 22 Z" fill="{{PANTS_DARK}}"/>
+  <!-- Snow caps -->
+  <path d="M 6 13 L 8 10 L 10 13 Z" fill="{{WHITE}}"/>
+  <path d="M 16 10 L 18 6 L 20 10 Z" fill="{{WHITE}}"/>
+  <path d="M 24 15 L 26 12 L 28 15 Z" fill="{{WHITE}}"/>
+  <!-- Ground -->
+  <rect x="0" y="22" width="32" height="10" fill="{{HAIR}}"/>
+  <!-- Stone tower in front -->
+  <rect x="13" y="14" width="6" height="14" fill="{{PANTS}}"/>
+  <rect x="13" y="14" width="6" height="2" fill="{{PANTS_DARK}}"/>
+  <rect x="13" y="20" width="6" height="1" fill="{{PANTS_DARK}}"/>
+  <rect x="15" y="22" width="2" height="3" fill="{{DARK}}"/>
+</svg>

@@ -58,6 +58,41 @@ struct Palette: Equatable {
         return nil
     }
 
+    /// Build a palette from character-creator picks. Looks up the swatch
+    /// definitions in `CharacterCreatorSwatches` and substitutes their RGB.
+    /// Falls back to Boba defaults for any swatch name not in the catalog.
+    static func from(skin: String, iris: String, hair: String) -> Palette {
+        var colors = Palette.boba.colors
+        if let s = CharacterCreatorSwatches.skin.first(where: { $0.name == skin }) {
+            colors[.skin]      = NSColor.fromHex(s.mid)
+            colors[.skinLight] = NSColor.fromHex(s.light)
+            colors[.skinDark]  = NSColor.fromHex(s.dark)
+        }
+        if let i = CharacterCreatorSwatches.iris.first(where: { $0.name == iris }),
+           let c = NSColor.fromHex(i.hex)
+        {
+            colors[.iris] = c
+        }
+        if let h = CharacterCreatorSwatches.hair.first(where: { $0.name == hair }) {
+            if let c = NSColor.fromHex(h.hex)     { colors[.hair]     = c }
+            if let c = NSColor.fromHex(h.darkHex) { colors[.hairDark] = c }
+        }
+        return Palette(colors: colors)
+    }
+
+    /// Silhouette palette — every non-transparent role rendered as a single
+    /// dark-grey tone. Used by the wardrobe preview to show locked cosmetics
+    /// as a shadow shape so the player can see what they'd look like
+    /// without giving away the actual colors.
+    static let silhouette: Palette = {
+        let dark = NSColor(srgbRed: 0.18, green: 0.18, blue: 0.22, alpha: 1)
+        var c: [PaletteRole: NSColor] = [:]
+        for role in PaletteRole.allCases where role != .transparent {
+            c[role] = dark
+        }
+        return Palette(colors: c)
+    }()
+
     /// Default "Boba" preset — the starter Tokegotchi the design folder bakes.
     static let boba = Palette(colors: [
         .outline:     NSColor(srgbRed: 0x1A / 255, green: 0x1A / 255, blue: 0x2E / 255, alpha: 1),

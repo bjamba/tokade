@@ -5,13 +5,14 @@ import SwiftUI
 struct MenuView: View {
     @Bindable var store: UsageStore
     @Bindable var gaiden: TokenGaidenStore
+    @Bindable var notifier: Notifier
     @State private var tab: Tab = .budget
 
     enum Tab: String, CaseIterable, Identifiable {
         case budget = "Budget"
         case models = "Models"
         case trends = "Trends"
-        case tokade = "Tokade"
+        case games  = "Games"
         var id: String { rawValue }
     }
 
@@ -21,21 +22,32 @@ struct MenuView: View {
             Divider()
             tabPicker
             Divider()
-            ScrollView {
-                Group {
-                    switch tab {
-                    case .budget: BudgetTab(store: store)
-                    case .models: ModelsTab(store: store)
-                    case .trends: TrendsTab(store: store)
-                    case .tokade: TokenGaidenTab(gaiden: gaiden, store: store)
-                    }
+            // Games tab manages its own layout (emulator screen + internal
+            // scroll regions); the other tabs are vertical lists and want the
+            // outer ScrollView. Special-casing the Games tab is what keeps
+            // the bottom nav buttons from being clipped under the footer.
+            Group {
+                switch tab {
+                case .budget:
+                    ScrollView { BudgetTab(store: store).padding(16) }
+                case .models:
+                    ScrollView { ModelsTab(store: store).padding(16) }
+                case .trends:
+                    ScrollView { TrendsTab(store: store).padding(16) }
+                case .games:
+                    GamesTab(gaiden: gaiden, store: store, notifier: notifier)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
                 }
-                .padding(16)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             Divider()
             footer
         }
         .frame(width: 580, height: 660)
+        .onChange(of: tab) { _, new in
+            if new == .games { gaiden.acknowledgeUnseen() }
+        }
     }
 
     private var header: some View {
@@ -70,17 +82,35 @@ struct MenuView: View {
         .padding(.vertical, 8)
     }
 
-    @State private var showingEraseConfirm = false
-
     private var footer: some View {
         HStack {
             Text(store.lastUpdated.map { "Updated \(Self.timeFormatter.string(from: $0))" } ?? "—")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
+            // Destructive actions live in nested submenus rather than
+            // external confirmation dialogs — the latter steal focus from
+            // MenuBarExtra's window and dismiss the whole panel. The submenu
+            // requires a second deliberate click, which is the confirmation.
             Menu {
-                Button("Erase history…", role: .destructive) {
-                    showingEraseConfirm = true
+                // App-level preferences live here, not inside the game.
+                // Usage alerts watch Claude API budget thresholds and 5-minute
+                // token bursts — they're a Tokade concern, not a Tokegotchi
+                // gameplay setting.
+                Toggle("Usage alerts", isOn: Binding(
+                    get: { notifier.usageAlerts },
+                    set: { notifier.setUsageAlerts($0) }
+                ))
+                Divider()
+                Menu("Reset Tokegotchi…") {
+                    Button("Confirm reset (cannot be undone)", role: .destructive) {
+                        Task { await gaiden.eraseHistory() }
+                    }
+                }
+                Menu("Erase Tokade budget history…") {
+                    Button("Confirm erase (cannot be undone)", role: .destructive) {
+                        Task { await store.eraseHistory() }
+                    }
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
@@ -93,21 +123,6 @@ struct MenuView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .confirmationDialog(
-            "Erase all Tokade history?",
-            isPresented: $showingEraseConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Erase", role: .destructive) {
-                Task {
-                    await store.eraseHistory()
-                    await gaiden.eraseHistory()
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Deletes ~/.tokade/history/* and ~/.tokade/last-status.json. Cannot be undone. Does not touch ~/.claude/projects/ (that's Claude Code's data).")
-        }
     }
 
     static let timeFormatter: DateFormatter = {

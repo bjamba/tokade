@@ -12,12 +12,14 @@ final class ItemsTests: XCTestCase {
 
     func testFoodHealsWithClamp() {
         var s = freshState()
-        s.vitals.hp = 50
+        // Heal target below hpMax (which is 80 for the starter stats), then
+        // confirm a 75 HP hearty-meat actually adds 75 (capped by hpMax).
+        s.vitals.hp = 1
         s.inventory.items["hearty-meat"] = 2
         let (next, result) = ItemUsage.use("hearty-meat", state: s)
-        XCTAssertEqual(next.vitals.hp, 75)
+        XCTAssertEqual(next.vitals.hp, 76)
         XCTAssertEqual(next.inventory.items["hearty-meat"], 1)
-        if case let .healed(hp) = result { XCTAssertEqual(hp, 25) } else { XCTFail() }
+        if case let .healed(hp) = result { XCTAssertEqual(hp, 75) } else { XCTFail() }
     }
 
     func testFoodCantOverhealOverMax() {
@@ -46,8 +48,9 @@ final class ItemsTests: XCTestCase {
     func testScrapSellsForGold() {
         var s = freshState()
         s.inventory.items["scrap"] = 5
+        let goldBefore = s.progress.gold
         let (next, result) = ItemUsage.use("scrap", state: s)
-        XCTAssertEqual(next.progress.gold, 2)
+        XCTAssertEqual(next.progress.gold, goldBefore + 2)
         XCTAssertEqual(next.inventory.items["scrap"], 4)
         XCTAssertEqual(result, .sold(gold: 2))
     }
@@ -89,10 +92,12 @@ final class EncounterTests: XCTestCase {
         var s = TokegotchiState.newStarter(name: "Boba", appearance: app)
         s.vitals.stats.str = 20
         s.vitals.stats.dex = 20
+        let goldBefore = s.progress.gold
+        let expBefore = s.progress.exp
         let m = Encounter(monsterName: "Slime", hp: 10, attack: 1, defense: 0, expReward: 5, goldReward: 3)
         let (after, outcome) = EncounterEngine.resolve(m, against: s)
-        XCTAssertEqual(after.progress.exp, 5)
-        XCTAssertEqual(after.progress.gold, 3)
+        XCTAssertEqual(after.progress.exp, expBefore + 5)
+        XCTAssertEqual(after.progress.gold, goldBefore + 3)
         XCTAssertEqual(outcome, .victory(expGained: 5, goldGained: 3))
     }
 
@@ -104,8 +109,8 @@ final class EncounterTests: XCTestCase {
         let s = TokegotchiState.newStarter(name: "Boba", appearance: app)
         let bigMonster = Encounter(monsterName: "Worldeater", hp: 1000, attack: 20, defense: 99, expReward: 9999, goldReward: 9999)
         let (after, outcome) = EncounterEngine.resolve(bigMonster, against: s)
-        XCTAssertEqual(after.progress.exp, 0)
-        XCTAssertEqual(after.progress.gold, 0)
+        XCTAssertEqual(after.progress.exp, s.progress.exp)
+        XCTAssertEqual(after.progress.gold, s.progress.gold)
         XCTAssertEqual(outcome, .fled)
     }
 

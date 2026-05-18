@@ -15,7 +15,8 @@
   </defs>
 
   <!-- ============ CAPE (cosmetic — z-behind everything) ============ -->
-  <g id="cape">
+  <!-- Attached at the shoulders, so it bobs with HEAD_TRANSFORM. -->
+  <g id="cape" transform="{{HEAD_TRANSFORM}}">
     {{CAPE_BODY}}
   </g>
 
@@ -107,10 +108,11 @@
   </g>
 
   <!-- ============ HELD ITEMS (front of everything) ============ -->
-  <g id="held-r">
+  <!-- Wrapped in the matching arm transforms so they swing with the hand. -->
+  <g id="held-r" transform="{{R_ARM_TRANSFORM}}">
     {{HELD_R_BODY}}
   </g>
-  <g id="held-l">
+  <g id="held-l" transform="{{L_ARM_TRANSFORM}}">
     {{HELD_L_BODY}}
   </g>
 

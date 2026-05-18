@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 48" width="128" height="48" shape-rendering="crispEdges">
+  <!-- TOKEN GAIDEN RPG cartridge banner -->
+  <!-- Sky -->
+  <rect width="128" height="48" fill="{{IRIS}}"/>
+  <!-- Sun -->
+  <circle cx="98" cy="14" r="6" fill="{{HAIR}}"/>
+  <circle cx="98" cy="14" r="3" fill="{{WHITE}}"/>
+
+  <!-- Distant mountains -->
+  <path d="M 0 30 L 14 18 L 28 30 Z" fill="{{PANTS_DARK}}"/>
+  <path d="M 22 30 L 36 14 L 50 30 Z" fill="{{PANTS}}"/>
+  <path d="M 44 30 L 58 20 L 72 30 Z" fill="{{PANTS_DARK}}"/>
+  <path d="M 30 17 L 36 14 L 42 17 Z" fill="{{WHITE}}"/>
+
+  <!-- Ground / grass -->
+  <rect x="0" y="28" width="128" height="20" fill="{{SHIRT_DARK}}"/>
+  <rect x="0" y="30" width="128" height="18" fill="{{SHIRT}}"/>
+
+  <!-- Tree -->
+  <rect x="12" y="32" width="2" height="6" fill="{{PANTS}}"/>
+  <circle cx="13" cy="30" r="4" fill="{{SHIRT_DARK}}"/>
+
+  <!-- Hero Tokegotchi silhouette -->
+  <rect x="62" y="30" width="6" height="12" fill="{{SKIN}}"/>
+  <circle cx="65" cy="28" r="4" fill="{{SKIN}}"/>
+  <!-- Horns -->
+  <path d="M 62 26 L 64 22 L 65 26 Z" fill="{{HAIR}}"/>
+  <path d="M 66 26 L 67 22 L 69 26 Z" fill="{{HAIR}}"/>
+  <!-- Eyes -->
+  <circle cx="64" cy="28" r="0.5" fill="{{DARK}}"/>
+  <circle cx="66" cy="28" r="0.5" fill="{{DARK}}"/>
+
+  <!-- Monster silhouette -->
+  <ellipse cx="86" cy="38" rx="6" ry="4" fill="{{PANTS_DARK}}"/>
+  <circle cx="84" cy="35" r="1" fill="{{IRIS}}"/>
+  <circle cx="88" cy="35" r="1" fill="{{IRIS}}"/>
+
+  <!-- TITLE plate -->
+  <rect x="6" y="3" width="68" height="14" fill="{{DARK}}"/>
+  <rect x="6" y="3" width="68" height="14" fill="none" stroke="{{HAIR}}" stroke-width="0.6"/>
+  <text x="40" y="10" font-family="monospace" font-size="6" font-weight="bold"
+        text-anchor="middle" fill="{{HAIR}}">TOKEN GAIDEN</text>
+  <text x="40" y="15" font-family="monospace" font-size="5" font-weight="bold"
+        text-anchor="middle" fill="{{WHITE}}">- RPG -</text>
+</svg>
