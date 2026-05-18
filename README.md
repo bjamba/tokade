@@ -7,6 +7,11 @@
 A macOS menu bar app that shows your Claude usage and budget at a glance. Reads
 from Claude Code's local session logs and statusline output — no API key needed.
 
+Now ships with **Token Gaiden RPG** — a pixel-art roguelike whose state is
+coupled to your real Claude Code usage. Your pet ages with your plan
+consumption, encounters monsters as you work, and unlocks cosmetics from
+achievements + quest rewards + rare drops.
+
 ## What it shows
 
 - **Menu bar**: current 5-hour rate-limit window utilization (server-truth %)
@@ -16,12 +21,31 @@ from Claude Code's local session logs and statusline output — no API key neede
   tool calls, all broken down by model
 - **Trends tab**: weekday × hour heatmap (all-time), YTD cumulative tokens
   with linear-rate projection wedge
+- **Games tab** *(new in v0.4)*: launcher for Tokade's pixel-art games.
+  Currently hosts **Token Gaiden RPG** — full RPG loop with regions, NPCs,
+  quests, gear, skills, and multi-generation inheritance.
+- **Usage alerts** *(new in v0.4)*: notifications when your 5-hour budget
+  crosses 50% / 75% / 90% or a 5-minute window burns >500K tokens.
 
 ### Screenshots
 
 | Budget | Models | Trends |
 |:------:|:------:|:------:|
-| ![Budget tab](docs/screenshots/budget-tab.png) | ![Models tab](docs/screenshots/models-tab.png) | ![Trends tab](docs/screenshots/trends-tab.png) |
+| ![Budget tab](docs/screenshots/tokade-budget.png) | ![Models tab](docs/screenshots/tokade-models.png) | ![Trends tab](docs/screenshots/tokade-trends.png) |
+
+### Token Gaiden RPG
+
+A roguelike fed by your Claude Code usage. Project root = region, project
+language = region flavor, tool calls = item drops, plan consumption =
+pet aging. Plays itself on autopilot if you want — toggle Auto-play in the
+in-game Settings and the pet will heal, fight, train, equip gear, and
+travel between regions on its own.
+
+![Token Gaiden RPG cover](docs/screenshots/tg-rpg-cover.png)
+
+| Menu | Region | Map |
+|:------:|:------:|:------:|
+| ![Token Gaiden menu](docs/screenshots/tg-rpg-menu.png) | ![Token Gaiden region](docs/screenshots/tg-rpg-region.png) | ![Token Gaiden map](docs/screenshots/tg-rpg-map.png) |
 
 ## Requirements
 
@@ -188,32 +212,19 @@ boundaries of what's possible given what Anthropic exposes.
 - **No network. No telemetry.** Everything stays on your machine, archived
   under `~/.tokade/`.
 
-## Coming soon
-
-- **Arcade tab.** Small games whose state is coupled to your real Claude
-  usage — your rate-limit `%`, your model mix, your session pace. Idea sketch
-  rather than a roadmap: think difficulty that ramps with your 5h burn,
-  unlockables tied to weekly milestones, leaderboards keyed to cache-hit
-  efficiency. Brainstorm in progress.
-- **Cost estimation.** Optional dollar values per chart using published API
-  token rates. Useful only for API-key users; Pro/Max subscribers will see a
-  "subscription" tag instead of a cost.
-- **Multi-account support.** Switch between accounts (work / personal / API
-  key) and see separate budget views.
-
 ## Roadmap
 
-Work in progress lives on the public [Tokade Roadmap board](https://github.com/users/bjamba/projects/2)
-and the [v0.3.0 milestone](https://github.com/bjamba/tokade/milestone/2).
+Work in progress lives on the public [Tokade Roadmap board](https://github.com/users/bjamba/projects/2).
 File a [feature request](https://github.com/bjamba/tokade/issues/new/choose)
 or open a [Discussion](https://github.com/bjamba/tokade/discussions) if
 you'd like to weigh in.
 
 Larger directions still in the brainstorm phase (no committed timeline):
 
-- **Arcade tab.** Small games whose state couples to your real Claude usage
-- **Cost estimation.** Optional dollar values per chart for API-key users
-- **Multi-account support.** Switch between work / personal / API-key views
+- **More games in the Games tab.** Token Gaiden RPG is the first; more
+  small games that couple to your Claude usage will land alongside it.
+- **Cost estimation.** Optional dollar values per chart for API-key users.
+- **Multi-account support.** Switch between work / personal / API-key views.
 
 ## Questions
 
