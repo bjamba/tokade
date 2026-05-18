@@ -6,6 +6,20 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-05-18
+
+Small patch release moving the Reset Tokegotchi action into the game's
+own Settings panel so all per-game options live in one place.
+
+### Changed
+
+- **Reset Tokegotchi** moved from the Tokade app's hamburger menu into
+  Token Gaiden's in-game Settings. The Tokade hamburger menu still hosts
+  app-wide controls (Usage alerts, Erase Tokade budget history). The
+  reset uses an in-place two-click confirmation (`Reset…` reveals
+  `Cancel` / `Reset`) so it can't be triggered by accident.
+- `CFBundleShortVersionString` → 0.4.1, `CFBundleVersion` → 5.
+
 ## [0.4.0] — 2026-05-18
 
 The **Token Gaiden RPG** release. A pixel-art roguelike inside the Tokade
@@ -177,7 +191,8 @@ Initial public release. Path: `github.com/bjamba/tokade`.
 - Statusline shim + installer
 - MIT license, README, AppIcon + menu bar template glyph
 
-[Unreleased]: https://github.com/bjamba/tokade/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/bjamba/tokade/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/bjamba/tokade/releases/tag/v0.4.1
 [0.4.0]: https://github.com/bjamba/tokade/releases/tag/v0.4.0
 [0.3.0]: https://github.com/bjamba/tokade/releases/tag/v0.3.0
 [0.2.0]: https://github.com/bjamba/tokade/releases/tag/v0.2.0
