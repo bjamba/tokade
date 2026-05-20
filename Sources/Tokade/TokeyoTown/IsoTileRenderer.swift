@@ -165,9 +165,31 @@ struct IsoTileRenderer: View {
                 }
             }
 
-            // Townsfolk (cardinal interpolation: current → nextStep only)
+            // Townsfolk (cardinal interpolation: current → nextStep only).
+            // Vanish when entering a building tile or while paused inside
+            // one, so they "go inside" rather than visibly crossing the
+            // tile's center along an iso diagonal.
             for npc in state.townsfolk {
-                let next = npc.nextStep ?? (Int(npc.tileX.rounded()), Int(npc.tileY.rounded()))
+                let curX = Int(npc.tileX.rounded())
+                let curY = Int(npc.tileY.rounded())
+
+                func isBuildingTile(_ x: Int, _ y: Int) -> Bool {
+                    state.buildings.contains { b in
+                        (x >= b.tileX) && (x < b.tileX + b.width) &&
+                            (y >= b.tileY) && (y < b.tileY + b.height)
+                    }
+                }
+                let insideBuilding = isBuildingTile(curX, curY)
+                let isPaused = npc.pauseRemaining > 0
+                if insideBuilding, isPaused { continue }
+
+                let next = npc.nextStep ?? (curX, curY)
+                // If we're about to step into a building tile, fade out
+                // partway through the step (the townsfolk "ducks inside"
+                // before reaching the destination's center).
+                let approachingBuilding = isBuildingTile(next.0, next.1) && !insideBuilding
+                if approachingBuilding, phase > 0.5 { continue }
+
                 let dx = Double(next.0) - npc.tileX
                 let dy = Double(next.1) - npc.tileY
                 let interpX = npc.tileX + dx * phase
@@ -540,122 +562,104 @@ struct IsoTileRenderer: View {
         let sidewalk = sidewalkColor(for: biome)
         let asphalt = asphaltColor(for: biome)
 
+        // Roads run along the iso axes — between *edge midpoints* of the
+        // tile, not between tile corners. So in screen-space a straight
+        // road appears as a single diagonal stripe running parallel to
+        // the tile's edges (NW↔SE or NE↔SW depending on direction).
+        //
+        // For each direction the tile connects in (N/E/S/W in tile space,
+        // which corresponds to the four edge midpoints on screen), we
+        // draw one road "arm" from the tile center to that edge midpoint.
+        // Two opposite arms form a straight road; perpendicular arms form
+        // a T or cross. Width is perpendicular to the arm.
         let connectsN = (mask & 1) != 0
         let connectsE = (mask & 2) != 0
         let connectsS = (mask & 4) != 0
         let connectsW = (mask & 8) != 0
 
-        // Sidewalk strip half-thickness > asphalt strip half-thickness
-        // so the lighter band frames the dark band. v3.1 — tighter than
-        // before so roads read as roads, not as fat blobs.
-        let sidewalkHalf: CGFloat = tw * 0.30
-        let sidewalkHalfTh: CGFloat = th * 0.30
-        let asphaltHalf: CGFloat = tw * 0.20
-        let asphaltHalfTh: CGFloat = th * 0.20
+        // Edge-midpoint offsets from tile center, in screen px.
+        let nMid = CGPoint(x:  tw / 2, y: -th / 2)
+        let eMid = CGPoint(x:  tw / 2, y:  th / 2)
+        let sMid = CGPoint(x: -tw / 2, y:  th / 2)
+        let wMid = CGPoint(x: -tw / 2, y: -th / 2)
 
-        // Stop points: extend fully to tile edge in any connecting direction,
-        // otherwise stop just at the inner edge of the cross-direction's
-        // strip. This produces clean Ts, crosses, dead-ends without overrun.
-        let nSidewalk = connectsN ? -th : -sidewalkHalfTh
-        let sSidewalk = connectsS ?  th :  sidewalkHalfTh
-        let eSidewalk = connectsE ?  tw :  sidewalkHalf
-        let wSidewalk = connectsW ? -tw : -sidewalkHalf
+        // Half-widths perpendicular to the road direction.
+        let asphaltHalf: CGFloat = tw * 0.22
+        let sidewalkHalf: CGFloat = tw * 0.32
 
-        let nAsphalt = connectsN ? -th : -asphaltHalfTh
-        let sAsphalt = connectsS ?  th :  asphaltHalfTh
-        let eAsphalt = connectsE ?  tw :  asphaltHalf
-        let wAsphalt = connectsW ? -tw : -asphaltHalf
+        // Cap fill at the tile center so when only one direction connects
+        // (a dead-end) or no direction connects, we still get a clean center
+        // circle of road.
+        let capR: CGFloat = asphaltHalf
+        let sidewalkCapR: CGFloat = sidewalkHalf
 
-        // NS strip (sidewalk under, asphalt over)
-        if connectsN || connectsS || (!connectsE && !connectsW) {
-            drawDiamondStrip(
-                context: context, center: center,
-                halfW: sidewalkHalf, halfH: sidewalkHalfTh,
-                nStop: nSidewalk, sStop: sSidewalk,
-                eStop: 0, wStop: 0,
-                axis: .ns,
-                color: sidewalk
-            )
-            drawDiamondStrip(
-                context: context, center: center,
-                halfW: asphaltHalf, halfH: asphaltHalfTh,
-                nStop: nAsphalt, sStop: sAsphalt,
-                eStop: 0, wStop: 0,
-                axis: .ns,
-                color: asphalt
-            )
-        }
-        // EW strip
-        if connectsE || connectsW || (!connectsN && !connectsS) {
-            drawDiamondStrip(
-                context: context, center: center,
-                halfW: sidewalkHalf, halfH: sidewalkHalfTh,
-                nStop: 0, sStop: 0,
-                eStop: eSidewalk, wStop: wSidewalk,
-                axis: .ew,
-                color: sidewalk
-            )
-            drawDiamondStrip(
-                context: context, center: center,
-                halfW: asphaltHalf, halfH: asphaltHalfTh,
-                nStop: 0, sStop: 0,
-                eStop: eAsphalt, wStop: wAsphalt,
-                axis: .ew,
-                color: asphalt
-            )
-        }
+        // Pass 1: sidewalk arms + cap (lighter, wider underlay).
+        drawRoadCap(context: context, center: center, radius: sidewalkCapR, color: sidewalk)
+        if connectsN { drawRoadArm(context: context, center: center, to: nMid, halfWidth: sidewalkHalf, color: sidewalk) }
+        if connectsE { drawRoadArm(context: context, center: center, to: eMid, halfWidth: sidewalkHalf, color: sidewalk) }
+        if connectsS { drawRoadArm(context: context, center: center, to: sMid, halfWidth: sidewalkHalf, color: sidewalk) }
+        if connectsW { drawRoadArm(context: context, center: center, to: wMid, halfWidth: sidewalkHalf, color: sidewalk) }
 
-        // Yellow lane stripe on straight runs.
-        let isStraightNS = connectsN && connectsS && !connectsE && !connectsW
-        let isStraightEW = connectsE && connectsW && !connectsN && !connectsS
-        if isStraightNS {
+        // Pass 2: asphalt arms + cap (darker, narrower).
+        drawRoadCap(context: context, center: center, radius: capR, color: asphalt)
+        if connectsN { drawRoadArm(context: context, center: center, to: nMid, halfWidth: asphaltHalf, color: asphalt) }
+        if connectsE { drawRoadArm(context: context, center: center, to: eMid, halfWidth: asphaltHalf, color: asphalt) }
+        if connectsS { drawRoadArm(context: context, center: center, to: sMid, halfWidth: asphaltHalf, color: asphalt) }
+        if connectsW { drawRoadArm(context: context, center: center, to: wMid, halfWidth: asphaltHalf, color: asphalt) }
+
+        // Yellow dashed lane stripe down the centerline of straight runs.
+        if connectsN, connectsS, !connectsE, !connectsW {
             var line = Path()
-            line.move(to: CGPoint(x: center.x, y: center.y + nAsphalt + 2))
-            line.addLine(to: CGPoint(x: center.x, y: center.y + sAsphalt - 2))
+            line.move(to: CGPoint(x: center.x + nMid.x * 0.85, y: center.y + nMid.y * 0.85))
+            line.addLine(to: CGPoint(x: center.x + sMid.x * 0.85, y: center.y + sMid.y * 0.85))
             context.stroke(line, with: .color(laneStripeColor),
-                           style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+                           style: StrokeStyle(lineWidth: 1.2, dash: [3.5, 2.5]))
         }
-        if isStraightEW {
+        if connectsE, connectsW, !connectsN, !connectsS {
             var line = Path()
-            line.move(to: CGPoint(x: center.x + wAsphalt + 2, y: center.y))
-            line.addLine(to: CGPoint(x: center.x + eAsphalt - 2, y: center.y))
+            line.move(to: CGPoint(x: center.x + eMid.x * 0.85, y: center.y + eMid.y * 0.85))
+            line.addLine(to: CGPoint(x: center.x + wMid.x * 0.85, y: center.y + wMid.y * 0.85))
             context.stroke(line, with: .color(laneStripeColor),
-                           style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+                           style: StrokeStyle(lineWidth: 1.2, dash: [3.5, 2.5]))
         }
     }
 
-    private enum RoadAxis { case ns, ew }
-
-    /// Draws a thin iso-diamond strip from one tile edge to the other,
-    /// stopping short of the tile edge when the corresponding side
-    /// doesn't connect. Used for both the sidewalk and the asphalt layer.
-    private func drawDiamondStrip(
+    /// Filled quadrilateral from the tile's center to an edge midpoint,
+    /// with the given perpendicular half-width. This is one "arm" of a
+    /// road — straight roads draw two opposite arms, junctions draw
+    /// three or four.
+    private func drawRoadArm(
         context: GraphicsContext,
         center: CGPoint,
-        halfW: CGFloat,
-        halfH: CGFloat,
-        nStop: CGFloat,
-        sStop: CGFloat,
-        eStop: CGFloat,
-        wStop: CGFloat,
-        axis: RoadAxis,
+        to endOffset: CGPoint,
+        halfWidth: CGFloat,
         color: Color
     ) {
+        let endPoint = CGPoint(x: center.x + endOffset.x, y: center.y + endOffset.y)
+        // Unit vector along the arm.
+        let len = (endOffset.x * endOffset.x + endOffset.y * endOffset.y).squareRoot()
+        guard len > 0 else { return }
+        let ux = endOffset.x / len
+        let uy = endOffset.y / len
+        // Perpendicular vector (rotated 90°).
+        let px = -uy
+        let py = ux
         var path = Path()
-        switch axis {
-        case .ns:
-            path.move(to: CGPoint(x: center.x - halfW, y: center.y))
-            path.addLine(to: CGPoint(x: center.x, y: center.y + nStop))
-            path.addLine(to: CGPoint(x: center.x + halfW, y: center.y))
-            path.addLine(to: CGPoint(x: center.x, y: center.y + sStop))
-        case .ew:
-            path.move(to: CGPoint(x: center.x, y: center.y - halfH))
-            path.addLine(to: CGPoint(x: center.x + eStop, y: center.y))
-            path.addLine(to: CGPoint(x: center.x, y: center.y + halfH))
-            path.addLine(to: CGPoint(x: center.x + wStop, y: center.y))
-        }
+        path.move(to: CGPoint(x: center.x + px * halfWidth, y: center.y + py * halfWidth))
+        path.addLine(to: CGPoint(x: endPoint.x + px * halfWidth, y: endPoint.y + py * halfWidth))
+        path.addLine(to: CGPoint(x: endPoint.x - px * halfWidth, y: endPoint.y - py * halfWidth))
+        path.addLine(to: CGPoint(x: center.x - px * halfWidth, y: center.y - py * halfWidth))
         path.closeSubpath()
         context.fill(path, with: .color(color))
+    }
+
+    /// Filled square at the tile's center so arms meet cleanly.
+    private func drawRoadCap(
+        context: GraphicsContext, center: CGPoint, radius: CGFloat, color: Color
+    ) {
+        let rect = CGRect(x: center.x - radius, y: center.y - radius,
+                          width: radius * 2, height: radius * 2)
+        context.fill(Path(rect), with: .color(color))
     }
 
     /// Roads are roads, not biome-themed planks. Dark asphalt + light
@@ -744,11 +748,166 @@ struct IsoTileRenderer: View {
                          zoom: zoom, alpha: alpha)
         }
 
-        // Glyph badge sits above the roof apex — back to the v1 approach
-        // but bigger and with a soft drop shadow for legibility against
-        // light or dark walls.
+        // Per-archetype extra detail (planks, windows, sails, bell, slats).
+        if alpha >= 0.99, let detail = shape.detail {
+            drawBuildingDetail(
+                context: context, detail: detail,
+                center: center, halfW: halfWBase, halfH: halfHBase,
+                topCenter: topCenter, halfWTop: halfWTop, halfHTop: halfHTop,
+                zoom: zoom
+            )
+        }
+
+        // Glyph above the roof apex with a soft halo so the meaning is
+        // readable against any roof color.
         if alpha >= 0.99 {
             drawRoofGlyph(context: context, glyph: building.glyph, at: topCenter)
+        }
+    }
+
+    private func drawBuildingDetail(
+        context: GraphicsContext,
+        detail: BuildingShape.Detail,
+        center: CGPoint,
+        halfW: CGFloat,
+        halfH: CGFloat,
+        topCenter: CGPoint,
+        halfWTop: CGFloat,
+        halfHTop: CGFloat,
+        zoom: Double
+    ) {
+        switch detail {
+        case let .planks(plankColor, postColor):
+            // Horizontal plank lines across the top face (iso-aligned).
+            for f in stride(from: -0.7, through: 0.7, by: 0.18) {
+                let frac = CGFloat(f)
+                var line = Path()
+                line.move(to: CGPoint(x: topCenter.x - halfWTop, y: topCenter.y + halfHTop * frac))
+                line.addLine(to: CGPoint(x: topCenter.x + halfWTop, y: topCenter.y + halfHTop * frac))
+                context.stroke(line, with: .color(plankColor.opacity(0.5)), lineWidth: 0.6)
+            }
+            // Posts dropping from each tile-corner under the building down
+            // to the tile base (gives the "pier on stilts" silhouette).
+            for corner in [
+                CGPoint(x: center.x - halfW, y: center.y),
+                CGPoint(x: center.x + halfW, y: center.y),
+                CGPoint(x: center.x, y: center.y + halfH),
+                CGPoint(x: center.x, y: center.y - halfH),
+            ] {
+                let post = CGRect(x: corner.x - 1.2, y: corner.y,
+                                  width: 2.4, height: 4 * CGFloat(zoom))
+                context.fill(Path(post), with: .color(postColor))
+            }
+
+        case let .windows(rows, columns, color):
+            // Small dark squares on the front-left and front-right walls,
+            // arranged as a grid. Front-left runs along the southwest wall,
+            // front-right along the southeast wall.
+            let storyTop = topCenter
+            let leftBaseA = CGPoint(x: center.x - halfW, y: center.y)
+            let leftBaseB = CGPoint(x: center.x, y: center.y + halfH)
+            let rightBaseA = CGPoint(x: center.x + halfW, y: center.y)
+            let rightBaseB = leftBaseB
+            let leftTopA = CGPoint(x: leftBaseA.x, y: storyTop.y)
+            let leftTopB = CGPoint(x: leftBaseB.x, y: storyTop.y)
+            let rightTopA = CGPoint(x: rightBaseA.x, y: storyTop.y)
+            let rightTopB = CGPoint(x: rightBaseB.x, y: storyTop.y)
+            drawWindowGrid(context: context,
+                           topA: leftTopA, topB: leftTopB,
+                           baseA: leftBaseA, baseB: leftBaseB,
+                           rows: rows, columns: columns, color: color)
+            drawWindowGrid(context: context,
+                           topA: rightTopA, topB: rightTopB,
+                           baseA: rightBaseA, baseB: rightBaseB,
+                           rows: rows, columns: columns, color: color)
+
+        case let .sails(color):
+            // Cross-shaped sails: 4 thin planks pivoted around the
+            // building's center, anchored on top of the roof.
+            let pivot = CGPoint(x: topCenter.x, y: topCenter.y - 6 * CGFloat(zoom))
+            let armLen = max(halfWTop, halfHTop) * 1.05
+            let armHalfWidth: CGFloat = 1.6 * CGFloat(zoom)
+            for angle in stride(from: 0.0, through: 3 * .pi / 2, by: .pi / 2) {
+                let ux = CGFloat(cos(angle + .pi / 6))
+                let uy = CGFloat(sin(angle + .pi / 6))
+                let px = -uy
+                let py = ux
+                var sail = Path()
+                sail.move(to: CGPoint(x: pivot.x + px * armHalfWidth,
+                                      y: pivot.y + py * armHalfWidth))
+                sail.addLine(to: CGPoint(x: pivot.x + ux * armLen + px * armHalfWidth,
+                                         y: pivot.y + uy * armLen + py * armHalfWidth))
+                sail.addLine(to: CGPoint(x: pivot.x + ux * armLen - px * armHalfWidth,
+                                         y: pivot.y + uy * armLen - py * armHalfWidth))
+                sail.addLine(to: CGPoint(x: pivot.x - px * armHalfWidth,
+                                         y: pivot.y - py * armHalfWidth))
+                sail.closeSubpath()
+                context.fill(sail, with: .color(color.opacity(0.92)))
+                context.stroke(sail, with: .color(.black.opacity(0.4)), lineWidth: 0.6)
+            }
+
+        case let .bell(color):
+            // A small bell suspended over the roof apex.
+            let cx = topCenter.x
+            let cy = topCenter.y - 6 * CGFloat(zoom)
+            let r = 5 * CGFloat(zoom)
+            var bell = Path()
+            bell.addArc(center: CGPoint(x: cx, y: cy), radius: r,
+                        startAngle: .degrees(180), endAngle: .degrees(0),
+                        clockwise: false)
+            bell.addLine(to: CGPoint(x: cx + r, y: cy + r * 0.3))
+            bell.addLine(to: CGPoint(x: cx - r, y: cy + r * 0.3))
+            bell.closeSubpath()
+            context.fill(bell, with: .color(color))
+            context.stroke(bell, with: .color(.black.opacity(0.5)), lineWidth: 0.7)
+            // Hanging cord up to the spire
+            var cord = Path()
+            cord.move(to: CGPoint(x: cx, y: cy - r * 0.4))
+            cord.addLine(to: CGPoint(x: cx, y: cy - r * 1.5))
+            context.stroke(cord, with: .color(.black.opacity(0.5)), lineWidth: 0.7)
+
+        case let .slats(color):
+            // Two or three horizontal stripes across the front face.
+            for f in [0.28, 0.5, 0.72] {
+                let frac = CGFloat(f)
+                let leftBase = CGPoint(x: center.x - halfW, y: center.y)
+                let rightBase = CGPoint(x: center.x, y: center.y + halfH)
+                let topLine = CGPoint(x: leftBase.x, y: leftBase.y - halfH * (1 - frac))
+                let bottomLine = CGPoint(x: rightBase.x, y: rightBase.y - halfH * (1 - frac))
+                var line = Path()
+                line.move(to: topLine)
+                line.addLine(to: bottomLine)
+                context.stroke(line, with: .color(color.opacity(0.55)), lineWidth: 0.6)
+            }
+        }
+    }
+
+    private func drawWindowGrid(
+        context: GraphicsContext,
+        topA: CGPoint, topB: CGPoint,
+        baseA: CGPoint, baseB: CGPoint,
+        rows: Int, columns: Int, color: Color
+    ) {
+        // Each window is a small rect placed by bilinearly interpolating
+        // between the 4 face corners and shrinking slightly. Reads as a
+        // 2D grid on the iso face.
+        let r = max(1, rows)
+        let c = max(1, columns)
+        for row in 0..<r {
+            for col in 0..<c {
+                let u = (CGFloat(col) + 0.5) / CGFloat(c)
+                let v = (CGFloat(row) + 0.5) / CGFloat(r)
+                let topPt = CGPoint(x: topA.x + (topB.x - topA.x) * u,
+                                    y: topA.y + (topB.y - topA.y) * u)
+                let baseP = CGPoint(x: baseA.x + (baseB.x - baseA.x) * u,
+                                    y: baseA.y + (baseB.y - baseA.y) * u)
+                let p = CGPoint(x: topPt.x + (baseP.x - topPt.x) * v,
+                                y: topPt.y + (baseP.y - topPt.y) * v)
+                let w: CGFloat = 2.2
+                let h: CGFloat = 3.0
+                let rect = CGRect(x: p.x - w / 2, y: p.y - h / 2, width: w, height: h)
+                context.fill(Path(rect), with: .color(color.opacity(0.85)))
+            }
         }
     }
 

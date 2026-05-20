@@ -72,8 +72,10 @@ final class TokeyoTownStore {
     static let levelRockCost = TokeyoTownState.Resources(industry: 10)
     static let plantFlowerCost = TokeyoTownState.Resources(growth: 3)
     static let lanternCost = TokeyoTownState.Resources(coin: 12)
-    static let raiseCost = TokeyoTownState.Resources(industry: 6)
-    static let lowerCost = TokeyoTownState.Resources(industry: 6)
+    // v3.2 — terrain shaping now costs coin so it's accessible from day
+    // one (industry is one of the slowest-earning resources).
+    static let raiseCost = TokeyoTownState.Resources(coin: 30)
+    static let lowerCost = TokeyoTownState.Resources(coin: 30)
 
     // MARK: - Undo / redo
 

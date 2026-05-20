@@ -48,11 +48,18 @@ enum BuildingCatalog {
         Building(
             id: "plain-cottage", displayName: "Cottage", biome: .plain,
             cost: .init(coin: 50, lumber: 18),
-            shape: .cottage(
-                wall: Color(red: 0.94, green: 0.85, blue: 0.62),
-                roof: Color(red: 0.78, green: 0.30, blue: 0.30),
-                trim: trimWarm
-            ),
+            // Walls + roof tuned to match the 🏠 glyph (yellow walls, red roof).
+            shape: {
+                var s = BuildingShape.cottage(
+                    wall: Color(red: 0.96, green: 0.82, blue: 0.36),
+                    roof: Color(red: 0.86, green: 0.26, blue: 0.24),
+                    trim: Color(red: 0.42, green: 0.20, blue: 0.16),
+                    accent: Color(red: 0.42, green: 0.22, blue: 0.16)
+                )
+                s.detail = .windows(rows: 1, columns: 1,
+                                    color: Color(red: 0.30, green: 0.42, blue: 0.55))
+                return s
+            }(),
             glyph: "🏠", blurb: "A small home. Houses one townsfolk.", isHome: true
         ),
         Building(
@@ -191,10 +198,14 @@ enum BuildingCatalog {
         Building(
             id: "desert-windmill", displayName: "Windmill", biome: .desert,
             cost: .init(coin: 90, lumber: 14, industry: 18),
-            shape: .windmill(
-                wall: Color(red: 0.86, green: 0.78, blue: 0.55),
-                sail: trimWarm
-            ),
+            shape: {
+                var s = BuildingShape.windmill(
+                    wall: Color(red: 0.86, green: 0.78, blue: 0.55),
+                    sail: trimWarm
+                )
+                s.detail = .sails(color: Color(red: 0.95, green: 0.95, blue: 0.92))
+                return s
+            }(),
             glyph: "🪁", blurb: "Catches what little wind there is."
         ),
         Building(
@@ -256,11 +267,15 @@ enum BuildingCatalog {
         Building(
             id: "tundra-icefishing", displayName: "Ice Fishing Hut", biome: .tundra,
             cost: .init(coin: 65, lumber: 10, industry: 6),
-            shape: .cottage(
-                wall: Color(red: 0.55, green: 0.78, blue: 0.92),
-                roof: Color(red: 0.32, green: 0.50, blue: 0.62),
-                trim: trimDark
-            ),
+            shape: {
+                var s = BuildingShape.cottage(
+                    wall: Color(red: 0.55, green: 0.78, blue: 0.92),
+                    roof: Color(red: 0.32, green: 0.50, blue: 0.62),
+                    trim: trimDark
+                )
+                s.detail = .slats(color: trimDark)
+                return s
+            }(),
             glyph: "🎣", blurb: "Peaceful, except for the wind."
         ),
         Building(
@@ -470,14 +485,18 @@ enum BuildingCatalog {
             cost: .init(coin: 90, lumber: 22, industry: 10),
             shape: BuildingShape(
                 footprint: .init(2, 1),
-                stories: [.init(height: 8, inset: 0,
-                                wallColor: Color(red: 0.55, green: 0.42, blue: 0.30),
+                stories: [.init(height: 5, inset: 0,
+                                wallColor: Color(red: 0.62, green: 0.48, blue: 0.32),
                                 trimColor: trimDark)],
                 roof: .flat,
-                ornament: .spire(height: 12, color: trimDark),
-                accent: nil
+                ornament: nil,
+                accent: nil,
+                detail: .planks(
+                    plankColor: Color(red: 0.30, green: 0.20, blue: 0.14),
+                    postColor: trimDark
+                )
             ),
-            glyph: "🛥", blurb: "Long boards. Long shadows at sunset."
+            glyph: "🛥", blurb: "Long boards. Long shadows at sunset. Must touch water."
         ),
         Building(
             id: "beach-icecream", displayName: "Ice Cream Stand", biome: .beach,

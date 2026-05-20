@@ -14,6 +14,25 @@ struct BuildingShape: Hashable {
     let ornament: Ornament?
     /// Optional shutter / door / window accent color for the front face.
     let accent: Color?
+    /// Optional per-archetype extra detail drawn over the building —
+    /// gives different building types visually distinct silhouettes.
+    var detail: Detail?
+
+    enum Detail: Hashable {
+        /// Visible plank rows across the top face + posts dropping into
+        /// the tile base. For piers, bridges, boardwalks.
+        case planks(plankColor: Color, postColor: Color)
+        /// Small dark window squares on the front faces. For cottages,
+        /// row houses, lodges.
+        case windows(rows: Int, columns: Int, color: Color)
+        /// Crossed sails on top of the building. For windmills.
+        case sails(color: Color)
+        /// Bell shape suspended over the roof. For shrines.
+        case bell(color: Color)
+        /// A few thin horizontal slat lines on the wall. For ice fishing
+        /// huts and other plank-sided buildings.
+        case slats(color: Color)
+    }
 
     struct Footprint: Hashable {
         let w: Int
@@ -161,8 +180,9 @@ struct BuildingShape: Hashable {
             footprint: .init(1, 1),
             stories: [.init(height: 14, inset: 0, wallColor: wall, trimColor: nil)],
             roof: .gable(ridgeAxis: .x, height: 16, color: roof),
-            ornament: .spire(height: 8, color: roof),
-            accent: nil
+            ornament: .spire(height: 10, color: roof),
+            accent: nil,
+            detail: .bell(color: Color(red: 0.82, green: 0.65, blue: 0.30))
         )
     }
 
