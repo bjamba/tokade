@@ -6,25 +6,35 @@ import SwiftUI
 @MainActor
 struct GamesTab: View {
     @Bindable var gaiden: TokenGaidenStore
+    @Bindable var town: TokeyoTownStore
     @Bindable var store: UsageStore
     @Bindable var notifier: Notifier
     @State private var selectedGame: Game?
 
-    enum Game: String, Identifiable, Hashable {
+    enum Game: String, Identifiable, Hashable, CaseIterable {
         case tokenGaidenRPG
+        case tokeyoTown
         var id: String { rawValue }
         var bannerId: String {
-            switch self { case .tokenGaidenRPG: return "token-gaiden-rpg" }
+            switch self {
+            case .tokenGaidenRPG: return "token-gaiden-rpg"
+            case .tokeyoTown: return "tokeyo-town"
+            }
         }
 
         var title: String {
-            switch self { case .tokenGaidenRPG: return "Token Gaiden RPG" }
+            switch self {
+            case .tokenGaidenRPG: return "Token Gaiden RPG"
+            case .tokeyoTown: return "Tokeyo Town"
+            }
         }
 
         var subtitle: String {
             switch self {
             case .tokenGaidenRPG:
                 return "A roguelike fed by your Claude Code usage."
+            case .tokeyoTown:
+                return "Cozy isometric sandbox. One town per repo."
             }
         }
     }
@@ -34,6 +44,10 @@ struct GamesTab: View {
             switch game {
             case .tokenGaidenRPG:
                 TokenGaidenTab(gaiden: gaiden, store: store, notifier: notifier, onExitGame: {
+                    selectedGame = nil
+                })
+            case .tokeyoTown:
+                TokeyoTownTab(town: town, notifier: notifier, onExitGame: {
                     selectedGame = nil
                 })
             }
@@ -52,7 +66,7 @@ struct GamesTab: View {
                 Rectangle().fill(Color(white: 0.3)).frame(height: 1)
                 ScrollView {
                     VStack(spacing: 10) {
-                        ForEach([Game.tokenGaidenRPG]) { game in
+                        ForEach(Game.allCases) { game in
                             gameCard(game)
                         }
                         comingSoonCard

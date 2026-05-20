@@ -6,6 +6,42 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Tokeyo Town** — a second game in the Arcade tab. Cozy isometric
+  sandbox city-builder where each town is themed after a real local
+  repo on your machine. Pick a folder; the scanner derives biome
+  (Swift/Kotlin/Dart → beach, Rust/C → tundra, Python/Ruby → forest,
+  JS/TS → plain, Go/Java/C# → desert), era from repo age, and map size
+  from LOC. Place buildings from a per-biome catalog (8 buildings per
+  biome × 5 biomes = 40 total) that cost resources accrued from your
+  Claude Code usage:
+  - 💰 coin from tokens (1 / 1,000)
+  - 📜 knowledge from `Read` calls (1 / 5)
+  - 🔨 lumber from `Edit`/`Write` (1 / 3)
+  - ⚙️ industry from `Bash` (1 / 5)
+  - 🛡 stability from heavy bashing (1 / 25)
+  - ✨ inspiration from slash commands (1 / 1)
+  - 🌱 growth from sessions (1 / 1)
+- **Active-session bonus** — when the most recent Claude Code session
+  is working inside the town's repo, that town earns at 2× while the
+  session is active. ADR-0006 §6.
+- **Townsfolk** wander autonomously across the iso grid, with names
+  drawn from a per-biome pool. New townsfolk chance-spawn when you
+  place new buildings.
+- **One-town MVP**. Starting a new town archives the previous save to
+  `~/.tokade/games/tokeyotown/archive/` rather than deleting it.
+- **100% local repo scanning**. No Claude calls, no network requests —
+  enforced by `scripts/check.sh` grep over `Sources/Tokade/TokeyoTown/`.
+- Procedural placeholder sprites for MVP (colored isometric diamonds +
+  glyph labels). Kenney.nl CC0 packs are the planned upgrade — the
+  renderer is structured so swapping in real sprites doesn't touch the
+  game logic.
+- ADR-0006: Tokeyo Town architecture (`docs/adr/0006-tokeyo-town-architecture.md`).
+- 18 new tests in `TokeyoTownTests` covering biome mapping, resource
+  accrual, idempotent ticking, iso-math round trip, and building
+  catalog drift guards.
+
 ## [0.4.2] — 2026-05-18
 
 ### Fixed

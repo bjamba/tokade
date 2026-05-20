@@ -5,6 +5,7 @@ import SwiftUI
 struct MenuView: View {
     @Bindable var store: UsageStore
     @Bindable var gaiden: TokenGaidenStore
+    @Bindable var town: TokeyoTownStore
     @Bindable var notifier: Notifier
     @State private var tab: Tab = .budget
 
@@ -35,7 +36,7 @@ struct MenuView: View {
                 case .trends:
                     ScrollView { TrendsTab(store: store).padding(16) }
                 case .games:
-                    GamesTab(gaiden: gaiden, store: store, notifier: notifier)
+                    GamesTab(gaiden: gaiden, town: town, store: store, notifier: notifier)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 6)
                 }
