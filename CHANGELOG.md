@@ -6,6 +6,19 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed (Tokeyo Town v3 — second iteration on the v1 MVP)
+
+- **Cardinal-only townsfolk movement**. The renderer used to interpolate npc position toward the *ultimate goal*, producing visible diagonal motion. AI now commits to a single cardinal `nextStep`; renderer interpolates only between current and next, so motion is strictly N/E/S/W.
+- **Undo + redo** (cap 50). Every player action (build, demolish, road, terraform, raise, lower) snapshots state first. Buttons in the header.
+- **Building badges**. Small white-and-color circle with the catalog glyph drawn beside each building — silhouette stays clean, meaning stays readable.
+- **Per-tile sub-detail**. Grass tiles get 3 tiny green strokes; sand tiles get 2 short ripple arcs. Seeded by `townId ⊕ tile coords` so variation is stable per town.
+- **Zoom + pan**. Discrete zoom (0.75 / 1.0 / 1.5). Pan toggle in the header — when on, drags move the camera; off, drags hover/place.
+- **Roads look like roads now**. Narrow asphalt strip with a sidewalk underlay; neighbor-aware so straights, curves, Ts, crosses, and dead-ends emerge automatically. Roads extend into adjacent building edges. Straight tiles get a center dash.
+- **More home variants** — each biome now has 9 buildings (was 8): added Row House (plain), Yurt (desert), Stone Lodge (tundra), Forest Cabin (forest), Bungalow (beach). `Building.isHome` flag replaces hardcoded id lists.
+- **Pier must touch water** — `canPlaceBuilding` rejects `beach-pier` unless a footprint tile is orthogonally adjacent to water.
+- **Terrain elevation** in tiers (-1 / 0 / 1 / 2). Renderer lifts tiles + draws cliff side-faces. `canBuild` requires flat footprints. New tools: ⛰ Raise / 🕳 Lower (industry 6 each).
+- **Universal removal tool** — Hand is now Remove and also clears road / flower / decor (not just buildings).
+
 ### Changed (Tokeyo Town v2 — major overhaul of the v1 MVP)
 
 - **Save schema → v2**. Adds `terrain`, footprint fields on placed buildings, and AI fields on townsfolk. v1 saves decode cleanly — terrain regenerates from the (deterministic) townId seed.

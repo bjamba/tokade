@@ -45,6 +45,10 @@ struct TokeyoTownGameView: View {
     var onStartNewTown: () -> Void
 
     @State private var hoverTile: (x: Int, y: Int)?
+    /// When true, drags pan the camera instead of applying the tool.
+    @State private var panMode = false
+    @State private var dragStartPan: (x: CGFloat, y: CGFloat)?
+    @State private var dragStartLocation: CGPoint?
 
     var body: some View {
         GameScreen(crtMode: notifier.crtMode) {
@@ -63,11 +67,19 @@ struct TokeyoTownGameView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Button("← Arcade") { onExitGame() }
                 .buttonStyle(.plain)
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.7))
+            iconButton(town.canUndo ? "↶ Undo" : "↶") {
+                Task { await town.undo() }
+            }
+            .disabled(!town.canUndo)
+            iconButton(town.canRedo ? "↷ Redo" : "↷") {
+                Task { await town.redo() }
+            }
+            .disabled(!town.canRedo)
             Spacer()
             if let s = town.state {
                 Text(s.repo.displayName.uppercased())
@@ -78,11 +90,33 @@ struct TokeyoTownGameView: View {
                     .foregroundStyle(.white.opacity(0.5))
             }
             Spacer()
+            cameraControls
             Button("New…") { onStartNewTown() }
                 .buttonStyle(.plain)
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.7))
         }
+    }
+
+    private var cameraControls: some View {
+        HStack(spacing: 2) {
+            iconButton("−") { town.zoomOut() }
+            iconButton("\(Int(town.view.zoom * 100))%") { town.recenterCamera() }
+            iconButton("+") { town.zoomIn() }
+            iconButton(panMode ? "🖐" : "✥") { panMode.toggle() }
+        }
+    }
+
+    private func iconButton(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5).padding(.vertical, 2)
+                .background(Color(red: 0.12, green: 0.12, blue: 0.16))
+                .overlay(Rectangle().stroke(Color(white: 0.25), lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
     }
 
     private var resourceBar: some View {
@@ -112,29 +146,38 @@ struct TokeyoTownGameView: View {
     }
 
     private var toolSidebar: some View {
-        VStack(spacing: 4) {
-            toolButton(.hand, icon: "✋", label: "Hand")
-            toolButton(.road, icon: "🛣", label: "Road",
-                       cost: TokeyoTownStore.roadCost, costPrefix: "/tile")
-            toolButton(.plantTree, icon: "🌱", label: "Plant",
-                       cost: TokeyoTownStore.plantTreeCost)
-            toolButton(.clearTree, icon: "🪓", label: "Clear",
-                       cost: TokeyoTownStore.clearTreeCost,
-                       refund: TokeyoTownStore.clearTreeRefund)
-            toolButton(.levelRock, icon: "⛏", label: "Level",
-                       cost: TokeyoTownStore.levelRockCost)
-            toolButton(.plantFlower, icon: "🌸", label: "Flower",
-                       cost: TokeyoTownStore.plantFlowerCost)
-            toolButton(.lantern, icon: "🏮", label: "Lantern",
-                       cost: TokeyoTownStore.lanternCost)
+        ScrollView {
+            VStack(spacing: 4) {
+                toolButton(.hand, icon: "🗑", label: "Remove",
+                           subtitle: "any tile")
+                toolButton(.road, icon: "🛣", label: "Road",
+                           cost: TokeyoTownStore.roadCost, costPrefix: "/tile")
+                toolButton(.plantTree, icon: "🌱", label: "Plant",
+                           cost: TokeyoTownStore.plantTreeCost)
+                toolButton(.clearTree, icon: "🪓", label: "Fell",
+                           cost: TokeyoTownStore.clearTreeCost,
+                           refund: TokeyoTownStore.clearTreeRefund)
+                toolButton(.levelRock, icon: "⛏", label: "Level",
+                           cost: TokeyoTownStore.levelRockCost)
+                toolButton(.raise, icon: "⛰", label: "Raise",
+                           cost: TokeyoTownStore.raiseCost)
+                toolButton(.lower, icon: "🕳", label: "Lower",
+                           cost: TokeyoTownStore.lowerCost)
+                toolButton(.plantFlower, icon: "🌸", label: "Flower",
+                           cost: TokeyoTownStore.plantFlowerCost)
+                toolButton(.lantern, icon: "🏮", label: "Lantern",
+                           cost: TokeyoTownStore.lanternCost)
+            }
+            .padding(.bottom, 2)
         }
-        .frame(width: 64)
+        .frame(width: 66)
     }
 
     private func toolButton(
         _ tool: TokeyoTownStore.Tool,
         icon: String,
         label: String,
+        subtitle: String? = nil,
         cost: TokeyoTownState.Resources? = nil,
         refund: TokeyoTownState.Resources? = nil,
         costPrefix: String? = nil
@@ -148,6 +191,11 @@ struct TokeyoTownGameView: View {
                 Text(label.uppercased())
                     .font(.system(size: 7, design: .monospaced))
                     .foregroundStyle(.white.opacity(0.7))
+                if let subtitle {
+                    Text(subtitle.uppercased())
+                        .font(.system(size: 6, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.5))
+                }
                 if let cost {
                     Text(compactCostText(cost) + (costPrefix ?? ""))
                         .font(.system(size: 6, design: .monospaced))
@@ -192,35 +240,63 @@ struct TokeyoTownGameView: View {
                 IsoTileRenderer(
                     state: town.state ?? sentinelState,
                     phase: phase,
-                    placementPreview: currentPreview
+                    placementPreview: currentPreview,
+                    view: town.view
                 )
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { v in
-                            updateHover(at: v.location, canvas: canvasSize)
+                            if panMode {
+                                continuePan(value: v)
+                            } else {
+                                updateHover(at: v.location, canvas: canvasSize)
+                            }
                         }
                         .onEnded { v in
-                            handleTap(at: v.location, canvas: canvasSize)
+                            if panMode {
+                                continuePan(value: v)
+                                dragStartPan = nil
+                                dragStartLocation = nil
+                            } else if let start = dragStartLocation,
+                                      hypot(v.location.x - start.x, v.location.y - start.y) < 4 {
+                                handleTap(at: v.location, canvas: canvasSize)
+                                dragStartLocation = nil
+                            } else {
+                                dragStartLocation = nil
+                                handleTap(at: v.location, canvas: canvasSize)
+                            }
                         }
                 )
             }
         }
-        .frame(minHeight: 280)
+        .frame(minHeight: 300)
+    }
+
+    private func continuePan(value: DragGesture.Value) {
+        if dragStartPan == nil {
+            dragStartPan = (town.view.panX, town.view.panY)
+            dragStartLocation = value.startLocation
+        }
+        guard let startPan = dragStartPan else { return }
+        let dx = value.translation.width
+        let dy = value.translation.height
+        town.view.panX = startPan.x + dx
+        town.view.panY = startPan.y + dy
     }
 
     private var currentPreview: IsoTileRenderer.PlacementPreview? {
         guard case let .build(id) = town.tool, let tile = hoverTile else { return nil }
         return IsoTileRenderer.PlacementPreview(
-            kind: id,
-            tile: tile,
+            kind: id, tile: tile,
             valid: town.canPlaceBuilding(id, at: tile.x, y: tile.y)
         )
     }
 
     private func updateHover(at point: CGPoint, canvas: CGSize) {
         guard let mapSize = town.state?.repo.mapSize else { return }
-        hoverTile = IsoMath.unproject(point, mapSize: mapSize, canvas: canvas)
+        if dragStartLocation == nil { dragStartLocation = point }
+        hoverTile = IsoMath.unproject(point, mapSize: mapSize, canvas: canvas, view: town.view)
     }
 
     private var bottomBar: some View {
@@ -240,13 +316,20 @@ struct TokeyoTownGameView: View {
                             Text(compactCostText(b.cost))
                                 .font(.system(size: 6, design: .monospaced))
                                 .foregroundStyle(.white.opacity(0.55))
-                            if b.shape.footprint.w > 1 || b.shape.footprint.h > 1 {
-                                Text("\(b.shape.footprint.w)×\(b.shape.footprint.h)")
-                                    .font(.system(size: 6, design: .monospaced))
-                                    .foregroundStyle(Color(red: 0.95, green: 0.85, blue: 0.30))
+                            HStack(spacing: 2) {
+                                if b.shape.footprint.w > 1 || b.shape.footprint.h > 1 {
+                                    Text("\(b.shape.footprint.w)×\(b.shape.footprint.h)")
+                                        .font(.system(size: 6, design: .monospaced))
+                                        .foregroundStyle(Color(red: 0.95, green: 0.85, blue: 0.30))
+                                }
+                                if b.isHome {
+                                    Text("HOME")
+                                        .font(.system(size: 6, design: .monospaced))
+                                        .foregroundStyle(Color(red: 0.55, green: 0.92, blue: 0.55))
+                                }
                             }
                         }
-                        .frame(width: 60)
+                        .frame(width: 64)
                         .padding(3)
                         .background(
                             town.pendingPlacement == b.id
@@ -266,7 +349,7 @@ struct TokeyoTownGameView: View {
             }
             .padding(.horizontal, 2)
         }
-        .frame(height: 72)
+        .frame(height: 84)
     }
 
     private var sentinelState: TokeyoTownState {
@@ -294,8 +377,12 @@ struct TokeyoTownGameView: View {
     }
 
     private func handleTap(at point: CGPoint, canvas: CGSize) {
-        guard let mapSize = town.state?.repo.mapSize,
-              let tile = IsoMath.unproject(point, mapSize: mapSize, canvas: canvas) else { return }
+        guard !panMode,
+              let mapSize = town.state?.repo.mapSize,
+              let tile = IsoMath.unproject(point,
+                                           mapSize: mapSize,
+                                           canvas: canvas,
+                                           view: town.view) else { return }
         Task { _ = await town.applyToolAt(x: tile.x, y: tile.y) }
     }
 }

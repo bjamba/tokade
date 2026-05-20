@@ -148,23 +148,32 @@ struct TokeyoTownState: Codable, Equatable {
     struct Townsfolk: Codable, Equatable, Identifiable {
         var id: UUID
         var name: String
+        /// Continuous on-screen position. The AI snaps this to `nextStep`
+        /// at the end of each move and picks a new nextStep toward the
+        /// ultimate goal.
         var tileX: Double
         var tileY: Double
-        /// Home building. May be nil if the townsfolk hasn't been
-        /// assigned one yet (no houses placed).
         var homeBuildingId: UUID?
-        /// Current goal tile they're walking toward. Updated by the
-        /// errand planner — see `TownsfolkAI`.
+        /// Ultimate destination — the building/tile the AI is heading
+        /// toward. The renderer never interpolates directly to this.
         var goalX: Int
         var goalY: Int
-        /// Seconds remaining to pause at the current tile (e.g. while
-        /// "inside" a destination building). Decremented each tick.
+        /// The single 4-cardinal neighbor the townsfolk is currently
+        /// walking *into*. The renderer interpolates only between
+        /// `(tileX, tileY)` and this. v3 — keeps motion strictly
+        /// cardinal so townsfolk never appear to walk diagonally.
+        var nextStepX: Int?
+        var nextStepY: Int?
         var pauseRemaining: Double = 0
-        /// Activity label — drives a one-line status line if we ever
-        /// surface it ("visiting Bakery", "going home").
         var activity: String = "wandering"
         var hue: Double
         var createdAt: Date
+
+        /// Convenience for the renderer.
+        var nextStep: (Int, Int)? {
+            if let x = nextStepX, let y = nextStepY { return (x, y) }
+            return nil
+        }
     }
 
     enum Biome: String, Codable, CaseIterable {

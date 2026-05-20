@@ -2,31 +2,34 @@ import Foundation
 import Observation
 import os.log
 
-/// Owns the live Tokeyo Town state. Sibling of `TokenGaidenStore` — both
-/// held by `TokadeApp` and fed by the same `UsageStore` event stream.
+/// Owns the live Tokeyo Town state.
 @MainActor
 @Observable
 final class TokeyoTownStore {
-    /// The currently-active town, if any. nil → show the new-town flow.
     private(set) var state: TokeyoTownState?
-    /// Latest known index (read on load; used by future multi-town UI).
     private(set) var index: TokeyoTownIndex = .empty
 
     /// Currently-selected tool (what tapping a tile will do).
     var tool: Tool = .hand
 
-    enum Tool: Equatable {
-        case hand                  // tap → demolish building or decor on that tile
+    /// Camera view transform — scrubbed in the UI by zoom buttons + drag.
+    var view: IsoMath.ViewTransform = .identity
+
+    enum Tool: Equatable, Hashable {
+        case hand                  // demolish building OR clear flower/decor — the universal "remove" tool
         case build(String)         // place this building id
         case road                  // paint a road tile
-        case clearTree             // remove a tree (gold cost, lumber refund)
-        case plantTree             // place a tree (lumber cost)
-        case levelRock             // remove a rock (industry cost)
-        case plantFlower           // place a flower (growth cost)
-        case lantern               // place a decoration lantern (coin cost)
+        case clearTree
+        case plantTree
+        case levelRock
+        case plantFlower
+        case lantern
+        case raise                 // raise terrain one tier (max +2)
+        case lower                 // lower terrain one tier (min -1)
     }
 
-    /// Per-action costs / refunds. Centralized so tests + UI can read them.
+    // MARK: - Action costs (centralized)
+
     static let roadCost = TokeyoTownState.Resources(coin: 4)
     static let clearTreeCost = TokeyoTownState.Resources(coin: 8)
     static let clearTreeRefund = TokeyoTownState.Resources(lumber: 4)
@@ -34,10 +37,22 @@ final class TokeyoTownStore {
     static let levelRockCost = TokeyoTownState.Resources(industry: 10)
     static let plantFlowerCost = TokeyoTownState.Resources(growth: 3)
     static let lanternCost = TokeyoTownState.Resources(coin: 12)
+    static let raiseCost = TokeyoTownState.Resources(industry: 6)
+    static let lowerCost = TokeyoTownState.Resources(industry: 6)
+
+    // MARK: - Undo / redo
+
+    private static let historyCap = 50
+    private var undoStack: [TokeyoTownState] = []
+    private var redoStack: [TokeyoTownState] = []
+
+    var canUndo: Bool { !undoStack.isEmpty }
+    var canRedo: Bool { !redoStack.isEmpty }
+
+    // MARK: - Save plumbing
 
     private let save = TokeyoTownSave()
     private let log = Logger(subsystem: "com.bjamba.tokade", category: "TokeyoTown")
-
     private var dirty = false
     private var lastWriteAt: Date = .distantPast
 
@@ -54,7 +69,6 @@ final class TokeyoTownStore {
         if let oldId = index.activeTownId {
             await save.archiveTown(id: oldId)
         }
-
         let townId = RepoScanner.townId(for: path)
         let repo = TokeyoTownState.RepoSnapshot(
             path: scan.path.path,
@@ -70,29 +84,23 @@ final class TokeyoTownStore {
             lushness: scan.lushness
         )
         var fresh = TokeyoTownState.fresh(townId: townId, repo: repo, now: now)
-        // Seed townsfolk at spawnable tiles.
         fresh.townsfolk = TownsfolkSpawner.spawn(
             count: min(repo.contributorCount + 1, 6),
             biome: repo.biome,
             terrain: fresh.terrain,
             now: now
         )
-
+        undoStack.removeAll()
+        redoStack.removeAll()
         state = fresh
-
         index = TokeyoTownIndex(
             activeTownId: townId,
-            towns: [
-                .init(
-                    townId: townId,
-                    displayName: repo.displayName,
-                    repoPath: repo.path,
-                    biome: repo.biome,
-                    lastOpenedAt: now
-                ),
-            ]
+            towns: [.init(
+                townId: townId, displayName: repo.displayName,
+                repoPath: repo.path, biome: repo.biome,
+                lastOpenedAt: now
+            )]
         )
-
         await save.writeTown(fresh)
         await save.writeIndex(index)
     }
@@ -101,15 +109,16 @@ final class TokeyoTownStore {
         await save.eraseAll()
         state = nil
         index = .empty
+        undoStack.removeAll()
+        redoStack.removeAll()
     }
 
-    // MARK: - Tool selection
+    // MARK: - Tools
 
     func selectTool(_ tool: Tool) {
         self.tool = tool
     }
 
-    /// Convenience for older callers that picked a building directly.
     func selectBuilding(_ kind: String?) {
         tool = kind.map { .build($0) } ?? .hand
     }
@@ -119,9 +128,8 @@ final class TokeyoTownStore {
         return nil
     }
 
-    // MARK: - Placement
+    // MARK: - Placement validation
 
-    /// Set of terrain kinds that buildings can sit on for this biome.
     private func allowedBuildTiles(_ biome: TokeyoTownState.Biome) -> Set<TerrainTile> {
         switch biome {
         case .beach, .desert: return [.grass, .sand]
@@ -129,8 +137,9 @@ final class TokeyoTownStore {
         }
     }
 
-    /// True iff the given building can be placed at (x, y) right now.
-    /// Used by the renderer's placement preview *and* the actual tap.
+    /// Pier (and any other water-adjacency-required building) must touch water.
+    private static let waterAdjacentBuildings: Set<String> = ["beach-pier"]
+
     func canPlaceBuilding(_ kind: String, at x: Int, y: Int) -> Bool {
         guard let s = state, let b = BuildingCatalog.find(kind), b.biome == s.repo.biome else { return false }
         let fp = b.shape.footprint
@@ -143,37 +152,69 @@ final class TokeyoTownStore {
                 bx: x, by: y, bw: fp.w, bh: fp.h
             ) { return false }
         }
+        if Self.waterAdjacentBuildings.contains(kind),
+           !footprintTouchesWater(at: x, y: y, w: fp.w, h: fp.h, terrain: s.terrain) {
+            return false
+        }
         return s.resources.canAfford(b.cost)
     }
 
-    /// Apply the current tool at tile (x, y). Returns true if something
-    /// actually happened.
+    private func footprintTouchesWater(at x: Int, y: Int, w: Int, h: Int, terrain: TerrainGrid) -> Bool {
+        for dy in 0..<h {
+            for dx in 0..<w {
+                let nx = x + dx
+                let ny = y + dy
+                if terrain.tile(x: nx - 1, y: ny) == .water { return true }
+                if terrain.tile(x: nx + 1, y: ny) == .water { return true }
+                if terrain.tile(x: nx, y: ny - 1) == .water { return true }
+                if terrain.tile(x: nx, y: ny + 1) == .water { return true }
+            }
+        }
+        return false
+    }
+
+    // MARK: - Apply tool
+
     @discardableResult
     func applyToolAt(x: Int, y: Int) async -> Bool {
         guard let s = state else { return false }
-        switch tool {
+        return switch tool {
         case .hand:
-            return await handAction(state: s, x: x, y: y)
+            await handAction(state: s, x: x, y: y)
         case let .build(id):
-            return await placeBuilding(id: id, x: x, y: y)
+            await placeBuildingAction(id: id, x: x, y: y)
         case .road:
-            return await placeRoad(x: x, y: y)
+            await placeRoadAction(x: x, y: y)
         case .clearTree:
-            return await terraform(x: x, y: y, requireTile: .tree, replacement: .grass,
-                                   cost: Self.clearTreeCost, refund: Self.clearTreeRefund)
+            await terraformAction(x: x, y: y, requireTile: .tree, replacement: .grass,
+                                            cost: Self.clearTreeCost, refund: Self.clearTreeRefund)
         case .plantTree:
-            return await terraform(x: x, y: y, requireTile: .grass, replacement: .tree,
-                                   cost: Self.plantTreeCost, refund: .zero)
+            await terraformAction(x: x, y: y, requireTile: .grass, replacement: .tree,
+                                            cost: Self.plantTreeCost, refund: .zero)
         case .levelRock:
-            return await terraform(x: x, y: y, requireTile: .rock, replacement: .grass,
-                                   cost: Self.levelRockCost, refund: .zero)
+            await terraformAction(x: x, y: y, requireTile: .rock, replacement: .grass,
+                                            cost: Self.levelRockCost, refund: .zero,
+                                            alsoZeroElevation: true)
         case .plantFlower:
-            return await terraform(x: x, y: y, requireTile: .grass, replacement: .flower,
-                                   cost: Self.plantFlowerCost, refund: .zero)
+            await terraformAction(x: x, y: y, requireTile: .grass, replacement: .flower,
+                                            cost: Self.plantFlowerCost, refund: .zero)
         case .lantern:
-            return await terraform(x: x, y: y, requireTile: .grass, replacement: .decor,
-                                   cost: Self.lanternCost, refund: .zero)
+            await terraformAction(x: x, y: y, requireTile: .grass, replacement: .decor,
+                                            cost: Self.lanternCost, refund: .zero)
+        case .raise:
+            await raiseAction(x: x, y: y)
+        case .lower:
+            await lowerAction(x: x, y: y)
         }
+    }
+
+    // MARK: - Individual actions (each takes a snapshot before mutating)
+
+    private func snapshot() {
+        guard let s = state else { return }
+        undoStack.append(s)
+        if undoStack.count > Self.historyCap { undoStack.removeFirst() }
+        redoStack.removeAll()
     }
 
     private func handAction(state s: TokeyoTownState, x: Int, y: Int) async -> Bool {
@@ -181,6 +222,7 @@ final class TokeyoTownStore {
             (x >= b.tileX) && (x < b.tileX + b.width) &&
                 (y >= b.tileY) && (y < b.tileY + b.height)
         }) {
+            snapshot()
             var ns = s
             ns.buildings.removeAll { $0.id == hit.id }
             ns.townsfolk = ns.townsfolk.map { npc in
@@ -193,7 +235,9 @@ final class TokeyoTownStore {
             return true
         }
         let tile = s.terrain.tile(x: x, y: y)
-        if tile == .flower || tile == .decor {
+        // Hand also clears anything paintable (flower, decor, road).
+        if tile == .flower || tile == .decor || tile == .road {
+            snapshot()
             var ns = s
             ns.terrain.setTile(.grass, x: x, y: y)
             state = ns
@@ -203,17 +247,15 @@ final class TokeyoTownStore {
         return false
     }
 
-    private func placeBuilding(id: String, x: Int, y: Int) async -> Bool {
+    private func placeBuildingAction(id: String, x: Int, y: Int) async -> Bool {
         guard canPlaceBuilding(id, at: x, y: y),
               let b = BuildingCatalog.find(id),
               var s = state else { return false }
+        snapshot()
         _ = s.resources.deduct(b.cost)
         let placed = TokeyoTownState.PlacedBuilding(
-            id: UUID(),
-            kind: id,
-            tileX: x, tileY: y,
-            width: b.shape.footprint.w,
-            height: b.shape.footprint.h,
+            id: UUID(), kind: id, tileX: x, tileY: y,
+            width: b.shape.footprint.w, height: b.shape.footprint.h,
             placedAt: .now
         )
         s.buildings.append(placed)
@@ -221,9 +263,7 @@ final class TokeyoTownStore {
             s.townsfolk = TownsfolkSpawner.assignHomeIfNeeded(s.townsfolk, to: placed)
             if Double.random(in: 0..<1) < 0.5,
                let newcomer = TownsfolkSpawner.spawnOne(
-                   biome: s.repo.biome,
-                   terrain: s.terrain,
-                   home: placed
+                   biome: s.repo.biome, terrain: s.terrain, home: placed
                ) {
                 s.townsfolk.append(newcomer)
             }
@@ -234,15 +274,15 @@ final class TokeyoTownStore {
     }
 
     private func isHomeBuilding(_ id: String) -> Bool {
-        ["plain-cottage", "desert-adobe", "tundra-cabin",
-         "forest-treehouse", "forest-mushroom", "beach-cottage"].contains(id)
+        BuildingCatalog.find(id)?.isHome ?? false
     }
 
-    private func placeRoad(x: Int, y: Int) async -> Bool {
+    private func placeRoadAction(x: Int, y: Int) async -> Bool {
         guard var s = state, s.terrain.contains(x: x, y: y) else { return false }
         let current = s.terrain.tile(x: x, y: y)
         guard current == .grass || current == .sand || current == .flower else { return false }
         guard s.resources.canAfford(Self.roadCost) else { return false }
+        snapshot()
         _ = s.resources.deduct(Self.roadCost)
         s.terrain.setTile(.road, x: x, y: y)
         state = s
@@ -250,23 +290,89 @@ final class TokeyoTownStore {
         return true
     }
 
-    private func terraform(
-        x: Int,
-        y: Int,
-        requireTile: TerrainTile,
-        replacement: TerrainTile,
-        cost: TokeyoTownState.Resources,
-        refund: TokeyoTownState.Resources
+    private func terraformAction(
+        x: Int, y: Int,
+        requireTile: TerrainTile, replacement: TerrainTile,
+        cost: TokeyoTownState.Resources, refund: TokeyoTownState.Resources,
+        alsoZeroElevation: Bool = false
     ) async -> Bool {
         guard var s = state, s.terrain.contains(x: x, y: y) else { return false }
         guard s.terrain.tile(x: x, y: y) == requireTile else { return false }
         guard s.resources.canAfford(cost) else { return false }
+        snapshot()
         _ = s.resources.deduct(cost)
         s.resources.add(refund)
         s.terrain.setTile(replacement, x: x, y: y)
+        if alsoZeroElevation {
+            s.terrain.setElev(0, x: x, y: y)
+        }
         state = s
         await flush()
         return true
+    }
+
+    private func raiseAction(x: Int, y: Int) async -> Bool {
+        guard var s = state, s.terrain.contains(x: x, y: y) else { return false }
+        let current = s.terrain.elev(x: x, y: y)
+        guard current < 2 else { return false }
+        // Can't raise a tile occupied by a building (would break flatness).
+        if isOccupiedByBuilding(x: x, y: y) { return false }
+        guard s.resources.canAfford(Self.raiseCost) else { return false }
+        snapshot()
+        _ = s.resources.deduct(Self.raiseCost)
+        s.terrain.setElev(current + 1, x: x, y: y)
+        // Tier transitions: water/sand → grass; grass at tier 2 → rock peak.
+        if s.terrain.tile(x: x, y: y) == .water { s.terrain.setTile(.grass, x: x, y: y) }
+        if current + 1 == 2, s.terrain.tile(x: x, y: y) != .rock {
+            s.terrain.setTile(.rock, x: x, y: y)
+        }
+        state = s
+        await flush()
+        return true
+    }
+
+    private func lowerAction(x: Int, y: Int) async -> Bool {
+        guard var s = state, s.terrain.contains(x: x, y: y) else { return false }
+        let current = s.terrain.elev(x: x, y: y)
+        guard current > -1 else { return false }
+        if isOccupiedByBuilding(x: x, y: y) { return false }
+        guard s.resources.canAfford(Self.lowerCost) else { return false }
+        snapshot()
+        _ = s.resources.deduct(Self.lowerCost)
+        s.terrain.setElev(current - 1, x: x, y: y)
+        if current - 1 == -1 { s.terrain.setTile(.water, x: x, y: y) }
+        if current - 1 == 0, s.terrain.tile(x: x, y: y) == .rock {
+            s.terrain.setTile(.grass, x: x, y: y)
+        }
+        state = s
+        await flush()
+        return true
+    }
+
+    private func isOccupiedByBuilding(x: Int, y: Int) -> Bool {
+        guard let s = state else { return false }
+        return s.buildings.contains { b in
+            (x >= b.tileX) && (x < b.tileX + b.width) &&
+                (y >= b.tileY) && (y < b.tileY + b.height)
+        }
+    }
+
+    // MARK: - Undo / Redo
+
+    func undo() async {
+        guard let previous = undoStack.popLast(), let current = state else { return }
+        redoStack.append(current)
+        state = previous
+        dirty = true
+        await flush()
+    }
+
+    func redo() async {
+        guard let next = redoStack.popLast(), let current = state else { return }
+        undoStack.append(current)
+        state = next
+        dirty = true
+        await flush()
     }
 
     private func rectsOverlap(
@@ -291,16 +397,39 @@ final class TokeyoTownStore {
         s.resources.add(delta)
         s.accountedEvents = newAccounted
         s.lastTickAt = .now
-
         s.townsfolk = TownsfolkAI.step(
             townsfolk: s.townsfolk,
             buildings: s.buildings,
             terrain: s.terrain,
             mapSize: s.repo.mapSize
         )
-
         state = s
         scheduleWrite()
+    }
+
+    // MARK: - Camera
+
+    func zoomIn() {
+        let zooms = IsoMath.ViewTransform.allZooms
+        if let i = zooms.firstIndex(of: view.zoom), i + 1 < zooms.count {
+            view.zoom = zooms[i + 1]
+        }
+    }
+
+    func zoomOut() {
+        let zooms = IsoMath.ViewTransform.allZooms
+        if let i = zooms.firstIndex(of: view.zoom), i > 0 {
+            view.zoom = zooms[i - 1]
+        }
+    }
+
+    func recenterCamera() {
+        view = .identity
+    }
+
+    func pan(by delta: CGSize) {
+        view.panX += delta.width
+        view.panY += delta.height
     }
 
     // MARK: - Write debounce

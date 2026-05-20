@@ -310,6 +310,58 @@ Building costs were bumped roughly 2-3×. Major (2×2) buildings now require *mu
 
 Tile half-width scales with map size: bigger tiles for small towns (12-tile maps get 34px tiles), smaller tiles for huge maps. The map-size formula now floors at 12 (was 16) and caps at 48 (was 64), so the canvas is full at every scale.
 
+## v3 Addendum (2026-05-20 — second iteration)
+
+After v2 playtesting, another set of decisions was revisited:
+
+### B1. Townsfolk move strictly cardinally on screen
+
+Townsfolk state now tracks `(tileX, tileY)` *and* `nextStepX/Y`. The AI commits to a single 4-cardinal neighbor per tick; the renderer interpolates only between `(tileX, tileY)` and `nextStep`. The ultimate `goalX/Y` is never used as a renderer target, eliminating diagonal motion across the board.
+
+The AI also rejects steps with elevation deltas > 1 — townsfolk can climb a cliff one tier high but not jump up a mountain.
+
+### B2. Undo / redo
+
+`TokeyoTownStore` keeps two `[TokeyoTownState]` stacks capped at 50 entries each. Every player action (build, demolish, road, terraform, raise, lower) calls `snapshot()` *before* mutating, pushes the prior state onto the undo stack, and clears redo. `undo()` / `redo()` swap states through the stacks. Header has ↶ / ↷ buttons that disable when their stack is empty.
+
+### B3. Building badge
+
+Each building draws a small white-filled circle with a colored ring at the building's base, with the catalog glyph inside it — the silhouette stays clean (so cottages look like cottages) but the meaning is recoverable at a glance. Badge color comes from the biome's accent.
+
+### B4. Per-tile sub-detail
+
+Grass tiles get 3 small green strokes; sand tiles get 2 short ripple arcs. Both seeded by `townId ⊕ tile coords` so the variation is stable per town and lifelike, not noisy.
+
+### B5. Zoom + pan
+
+`IsoMath.ViewTransform { zoom, panX, panY }` plumbed through all projection. Three discrete zoom levels (0.75 / 1.0 / 1.5). Header has − / + / recenter buttons. A 🖐 toggle puts the canvas in pan mode — drags then move the camera instead of placing tiles. Tap-then-release with movement < 4px still applies the tool.
+
+### B6. Road autotiling with sidewalks
+
+Roads are no longer the whole tile. Each road tile draws two thin diamonds (NS strip + EW strip), each with a slightly-wider sidewalk underlay. Strip endpoints extend to the tile edge in directions that connect, otherwise stop short — naturally producing straights, curves, Ts, crosses, and dead-ends without enumerating sprite variants. Adjacent buildings count as connections, so roads visibly meet building edges. Straight tiles get a center dash.
+
+### B7. More home variants per biome
+
+Each biome now has 9 buildings (was 8): the original set plus one new home variant. Plain gets a row house, desert a yurt, tundra a stone lodge, forest a forest cabin, beach a bungalow. `BuildingCatalog.Building` now carries an `isHome: Bool` flag — the store no longer hardcodes which ids are homes, and `testEveryBiomeHasMultipleHomeVariants` ensures at least 2 per biome going forward.
+
+### B8. Pier must touch water
+
+`canPlaceBuilding` now rejects `beach-pier` unless at least one tile in the footprint is orthogonally adjacent to a `.water` tile. Other water-adjacent buildings can be added to `waterAdjacentBuildings` in the store.
+
+### B9. Terrain elevation tiers + raise/lower tools
+
+Per-tile `elevation: Int8` in `[-1, 2]`:
+- -1 = underwater (sits below the 0-plane; tile rendered as water)
+-  0 = ground
+-  1 = hill
+-  2 = mountain peak (auto-converts to a `rock` tile)
+
+The renderer lifts each tile diamond by `elev × stepHeight × zoom` and draws side cliff faces between this tile and its south/east neighbors when elevation drops. `canBuild` requires every tile in a footprint share elevation (buildings need flat ground).
+
+New tools `raise` (industry 6) and `lower` (industry 6) bump elevation one tier per click. Tier transitions auto-flip terrain kind: lower to -1 becomes water; raise to 2 becomes rock.
+
+All elevation changes go through the same undo/redo stack, so #B2 covers #9 reversibility for free.
+
 ## Threading to CLAUDE.md
 
 This ADR introduces one new rule and reuses three existing ones:

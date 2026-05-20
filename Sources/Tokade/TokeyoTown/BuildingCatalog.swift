@@ -18,9 +18,13 @@ enum BuildingCatalog {
         let biome: TokeyoTownState.Biome
         let cost: TokeyoTownState.Resources
         let shape: BuildingShape
-        /// Single emoji or character used only in the palette row label.
+        /// Single emoji or character used in the palette row + the small
+        /// building badge drawn beside the building.
         let glyph: String
         let blurb: String
+        /// True when this building counts as housing — drives townsfolk
+        /// home assignment in `TownsfolkSpawner`.
+        var isHome: Bool = false
         var footprint: BuildingShape.Footprint { shape.footprint }
     }
 
@@ -49,7 +53,7 @@ enum BuildingCatalog {
                 roof: Color(red: 0.78, green: 0.30, blue: 0.30),
                 trim: trimWarm
             ),
-            glyph: "🏠", blurb: "A small home. Houses one townsfolk."
+            glyph: "🏠", blurb: "A small home. Houses one townsfolk.", isHome: true
         ),
         Building(
             id: "plain-grocer", displayName: "Grocer", biome: .plain,
@@ -128,6 +132,17 @@ enum BuildingCatalog {
             ),
             glyph: "📚", blurb: "Knowledge condenses here."
         ),
+        Building(
+            id: "plain-rowhouse", displayName: "Row House", biome: .plain,
+            cost: .init(coin: 70, lumber: 22),
+            shape: .twoStory(
+                wall: Color(red: 0.78, green: 0.55, blue: 0.42),
+                upper: Color(red: 0.62, green: 0.42, blue: 0.32),
+                roof: Color(red: 0.35, green: 0.20, blue: 0.18),
+                trim: trimWarm
+            ),
+            glyph: "🏘", blurb: "Skinny, stacked, neighborly.", isHome: true
+        ),
     ]
 
     // MARK: - Desert (8)
@@ -141,7 +156,7 @@ enum BuildingCatalog {
                 roof: Color(red: 0.65, green: 0.40, blue: 0.22),
                 trim: trimWarm
             ),
-            glyph: "🏚", blurb: "Cool walls. Warm tile floors."
+            glyph: "🏚", blurb: "Cool walls. Warm tile floors.", isHome: true
         ),
         Building(
             id: "desert-oasis", displayName: "Oasis", biome: .desert,
@@ -209,6 +224,20 @@ enum BuildingCatalog {
             ),
             glyph: "💧", blurb: "Holds the rare rain."
         ),
+        Building(
+            id: "desert-yurt", displayName: "Yurt", biome: .desert,
+            cost: .init(coin: 55, lumber: 14),
+            shape: BuildingShape(
+                footprint: .init(1, 1),
+                stories: [.init(height: 14, inset: 0,
+                                wallColor: Color(red: 0.92, green: 0.78, blue: 0.55),
+                                trimColor: trimWarm)],
+                roof: .hip(height: 14, color: Color(red: 0.62, green: 0.30, blue: 0.22)),
+                ornament: .spire(height: 4, color: Color(red: 0.95, green: 0.85, blue: 0.30)),
+                accent: nil
+            ),
+            glyph: "⛺", blurb: "Felt walls, lattice frame, warm at night.", isHome: true
+        ),
     ]
 
     // MARK: - Tundra (8)
@@ -222,7 +251,7 @@ enum BuildingCatalog {
                 roof: Color(red: 0.95, green: 0.95, blue: 0.97),
                 trim: trimDark
             ),
-            glyph: "🛖", blurb: "Smoke from the chimney all winter."
+            glyph: "🛖", blurb: "Smoke from the chimney all winter.", isHome: true
         ),
         Building(
             id: "tundra-icefishing", displayName: "Ice Fishing Hut", biome: .tundra,
@@ -290,6 +319,16 @@ enum BuildingCatalog {
             ),
             glyph: "⛩", blurb: "Bells on red ribbons."
         ),
+        Building(
+            id: "tundra-lodge", displayName: "Stone Lodge", biome: .tundra,
+            cost: .init(coin: 120, lumber: 18, stability: 6),
+            shape: .bigHall(
+                wall: Color(red: 0.55, green: 0.55, blue: 0.62),
+                roof: Color(red: 0.78, green: 0.78, blue: 0.84),
+                trim: trimDark
+            ),
+            glyph: "🏔", blurb: "Two families. Stone hearth.", isHome: true
+        ),
     ]
 
     // MARK: - Forest (8)
@@ -304,7 +343,7 @@ enum BuildingCatalog {
                 roof: Color(red: 0.30, green: 0.55, blue: 0.30),
                 trim: trimDark
             ),
-            glyph: "🌳", blurb: "A ladder. A door. A view."
+            glyph: "🌳", blurb: "A ladder. A door. A view.", isHome: true
         ),
         Building(
             id: "forest-mushroom", displayName: "Mushroom Hut", biome: .forest,
@@ -318,7 +357,7 @@ enum BuildingCatalog {
                 ornament: nil,
                 accent: .white
             ),
-            glyph: "🍄", blurb: "Spotted, large, hospitable."
+            glyph: "🍄", blurb: "Spotted, large, hospitable.", isHome: true
         ),
         Building(
             id: "forest-shrine", displayName: "Moss Shrine", biome: .forest,
@@ -390,6 +429,16 @@ enum BuildingCatalog {
             ),
             glyph: "🌉", blurb: "Over the slowest part of the stream."
         ),
+        Building(
+            id: "forest-cabin", displayName: "Forest Cabin", biome: .forest,
+            cost: .init(coin: 65, lumber: 16),
+            shape: .cottage(
+                wall: Color(red: 0.55, green: 0.36, blue: 0.22),
+                roof: Color(red: 0.30, green: 0.45, blue: 0.30),
+                trim: trimDark
+            ),
+            glyph: "🏕", blurb: "Pine planks, mossy roof.", isHome: true
+        ),
     ]
 
     // MARK: - Beach (8)
@@ -404,7 +453,7 @@ enum BuildingCatalog {
                 trim: .white,
                 accent: .white
             ),
-            glyph: "🏡", blurb: "Pale pink walls. Faded by salt."
+            glyph: "🏡", blurb: "Pale pink walls. Faded by salt.", isHome: true
         ),
         Building(
             id: "beach-lighthouse", displayName: "Lighthouse", biome: .beach,
@@ -481,6 +530,17 @@ enum BuildingCatalog {
                 roof: Color(red: 0.55, green: 0.16, blue: 0.22)
             ),
             glyph: "⛩", blurb: "Bells, rope, salt-bleached wood."
+        ),
+        Building(
+            id: "beach-bungalow", displayName: "Bungalow", biome: .beach,
+            cost: .init(coin: 60, lumber: 14),
+            shape: .cottage(
+                wall: Color(red: 0.78, green: 0.92, blue: 0.92),
+                roof: Color(red: 0.42, green: 0.62, blue: 0.78),
+                trim: .white,
+                accent: .white
+            ),
+            glyph: "🏝", blurb: "Wraparound porch, no shoes needed.", isHome: true
         ),
     ]
 }

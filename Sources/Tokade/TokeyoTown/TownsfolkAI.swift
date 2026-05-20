@@ -128,15 +128,30 @@ enum TownsfolkAI {
         return "visiting \(b.displayName)"
     }
 
+    /// One AI step = one full cardinal hop. The renderer interpolates
+    /// over phase ∈ [0, 1) between `(tileX, tileY)` and `nextStep`, so
+    /// motion is strictly N/E/S/W on-screen — no diagonals.
     private static func advance(
         npc: TokeyoTownState.Townsfolk,
         terrain: TerrainGrid,
         mapSize: Int
     ) -> TokeyoTownState.Townsfolk {
         var n = npc
+        // Snap to whatever nextStep we previously committed to.
+        if let step = n.nextStep {
+            n.tileX = Double(step.0)
+            n.tileY = Double(step.1)
+        }
+        n.nextStepX = nil
+        n.nextStepY = nil
+
         let curX = Int(n.tileX.rounded())
         let curY = Int(n.tileY.rounded())
-        // Candidate neighbors — 4-way.
+        if curX == n.goalX, curY == n.goalY {
+            // Already at goal; the planner will pick a new errand next tick.
+            return n
+        }
+
         let candidates: [(x: Int, y: Int)] = [
             (curX + 1, curY), (curX - 1, curY),
             (curX, curY + 1), (curX, curY - 1),
@@ -147,9 +162,11 @@ enum TownsfolkAI {
             guard c.x >= 0, c.x < mapSize, c.y >= 0, c.y < mapSize else { continue }
             let tile = terrain.tile(x: c.x, y: c.y)
             guard tile.isWalkable else { continue }
+            // Cliff-friction: prefer steps where the elevation delta is ≤1.
+            let elevDelta = abs(terrain.elev(x: c.x, y: c.y) - terrain.elev(x: curX, y: curY))
+            if elevDelta > 1 { continue }
             let dx = Double(c.x - n.goalX)
             let dy = Double(c.y - n.goalY)
-            // Manhattan distance, biased by tile cost.
             let score = abs(dx) + abs(dy) + Double(tile.pathCost) * 0.04
             if score < bestScore {
                 bestScore = score
@@ -157,21 +174,9 @@ enum TownsfolkAI {
             }
         }
         if let next = best {
-            // Move ~half a tile per tick so motion is smooth across the
-            // 60-fps foreground loop (which interpolates with `phase`).
-            let speed: Double = 0.5
-            let dx = Double(next.x) - n.tileX
-            let dy = Double(next.y) - n.tileY
-            let dist = (dx * dx + dy * dy).squareRoot()
-            if dist < speed {
-                n.tileX = Double(next.x)
-                n.tileY = Double(next.y)
-            } else {
-                n.tileX += dx / dist * speed
-                n.tileY += dy / dist * speed
-            }
+            n.nextStepX = next.x
+            n.nextStepY = next.y
         } else {
-            // Stuck — abandon this goal, wander instead.
             n.pauseRemaining = 2
             n.activity = "stuck"
         }

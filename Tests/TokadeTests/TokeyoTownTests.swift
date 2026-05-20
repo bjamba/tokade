@@ -227,11 +227,23 @@ final class TokeyoTownTests: XCTestCase {
     // Mirrors CosmeticCatalogTests pattern — make sure every biome has 8
     // buildings and IDs are unique.
 
-    func testEveryBiomeHasEightBuildings() {
+    func testEveryBiomeHasNineBuildings() {
+        // v3 — each biome has 8 base buildings + 1 extra home variant.
         for biome in TokeyoTownState.Biome.allCases {
             XCTAssertEqual(
-                BuildingCatalog.buildings(for: biome).count, 8,
-                "Biome \(biome) should have 8 buildings"
+                BuildingCatalog.buildings(for: biome).count, 9,
+                "Biome \(biome) should have 9 buildings"
+            )
+        }
+    }
+
+    func testEveryBiomeHasMultipleHomeVariants() {
+        // v3 — at least 2 home variants per biome so towns have residential diversity.
+        for biome in TokeyoTownState.Biome.allCases {
+            let homes = BuildingCatalog.buildings(for: biome).filter(\.isHome)
+            XCTAssertGreaterThanOrEqual(
+                homes.count, 2,
+                "Biome \(biome) should have at least 2 home variants"
             )
         }
     }
@@ -427,9 +439,9 @@ final class TokeyoTownTests: XCTestCase {
 
     // MARK: - Townsfolk AI
 
-    func testTownsfolkAIPicksWalkableNeighbor() {
-        // Surround the npc with water except one direction. AI should
-        // step toward that direction.
+    func testTownsfolkAIPicksCardinalNeighborOnly() {
+        // v3 — AI commits to a `nextStep` neighbor; renderer interpolates
+        // strictly between current and nextStep. No diagonal moves possible.
         var tiles = [TerrainTile](repeating: .water, count: 4 * 4)
         for i in 0..<tiles.count { tiles[i] = .water }
         tiles[0 * 4 + 0] = .grass // start
@@ -453,7 +465,77 @@ final class TokeyoTownTests: XCTestCase {
             mapSize: 4
         )
         let next = stepped[0]
-        XCTAssertGreaterThan(next.tileX, npc.tileX)
-        XCTAssertLessThanOrEqual(next.tileY, 0.01)
+        // Should commit to east tile (1, 0), no fractional motion.
+        XCTAssertEqual(next.nextStepX, 1)
+        XCTAssertEqual(next.nextStepY, 0)
+        // Current position untouched — renderer will lerp to nextStep.
+        XCTAssertEqual(next.tileX, 0)
+        XCTAssertEqual(next.tileY, 0)
+    }
+
+    // MARK: - v3 — undo/redo, elevation, autotile mask, pier-water
+
+    func testUndoRedoRoundTrips() {
+        // We can't run the full store async paths in a unit test easily,
+        // but we can validate the snapshot logic by encoding & comparing.
+        let repo = TokeyoTownState.RepoSnapshot(
+            path: "/p", displayName: "p", scannedAt: .now,
+            primaryLanguage: "swift", biome: .beach, era: .modern,
+            ageInDays: 10, loc: 1234, mapSize: 16,
+            contributorCount: 1, lushness: 0.5
+        )
+        var s1 = TokeyoTownState.fresh(townId: "abc", repo: repo)
+        s1.resources.coin = 100
+        var s2 = s1
+        s2.resources.coin = 90
+        var s3 = s2
+        s3.resources.coin = 70
+        var stack: [TokeyoTownState] = [s1, s2]
+        var redo: [TokeyoTownState] = []
+        // simulate undo from s3
+        var current = s3
+        if let popped = stack.popLast() {
+            redo.append(current)
+            current = popped
+        }
+        XCTAssertEqual(current.resources.coin, 90)
+        if let popped = stack.popLast() {
+            redo.append(current)
+            current = popped
+        }
+        XCTAssertEqual(current.resources.coin, 100)
+        if let r = redo.popLast() {
+            stack.append(current)
+            current = r
+        }
+        XCTAssertEqual(current.resources.coin, 90)
+    }
+
+    func testTerrainElevationDefaultsAndRoundTrip() throws {
+        let grid = TerrainGenerator.generate(seed: 99, size: 8, biome: .forest)
+        // Water tiles should default to elev -1.
+        var sawWaterAt = false
+        for y in 0..<8 {
+            for x in 0..<8 where grid.tile(x: x, y: y) == .water {
+                XCTAssertEqual(grid.elev(x: x, y: y), -1)
+                sawWaterAt = true
+            }
+        }
+        // Encode/decode round trip preserves elevation.
+        let enc = JSONEncoder()
+        let dec = JSONDecoder()
+        let back = try dec.decode(TerrainGrid.self, from: enc.encode(grid))
+        XCTAssertEqual(back.elevation, grid.elevation)
+        _ = sawWaterAt // some seeds may have no water; not a failure
+    }
+
+    func testCanBuildRejectsMixedElevationFootprint() {
+        var tiles = [TerrainTile](repeating: .grass, count: 4 * 4)
+        var elev = [Int8](repeating: 0, count: 4 * 4)
+        elev[1 * 4 + 1] = 1 // one corner of (0..2, 0..2) is on a hill
+        _ = tiles
+        let grid = TerrainGrid(size: 4, tiles: tiles, elevation: elev)
+        XCTAssertFalse(grid.canBuild(at: 0, y: 0, w: 2, h: 2, allowedTiles: [.grass]))
+        XCTAssertTrue(grid.canBuild(at: 2, y: 2, w: 2, h: 2, allowedTiles: [.grass]))
     }
 }

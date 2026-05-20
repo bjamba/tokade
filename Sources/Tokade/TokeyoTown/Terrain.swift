@@ -47,17 +47,37 @@ enum TerrainTile: String, Codable, CaseIterable, Hashable {
     }
 }
 
-/// A square grid of terrain tiles. Encoded compactly (one row string per
-/// row, single character per tile) so saves stay readable.
+/// A square grid of terrain tiles plus per-tile elevation. Encoded
+/// compactly in saves.
+///
+/// v3 — elevation tier per tile in [-1, 2]:
+///   -1 = underwater shelf (drawn below the 0-plane)
+///    0 = ground
+///    1 = hill
+///    2 = mountain
+///
+/// The renderer lifts the tile diamond by `elevation × stepHeight` and
+/// draws side cliffs where neighbors differ. Buildings inherit their
+/// anchor tile's elevation.
 struct TerrainGrid: Codable, Equatable {
     let size: Int
     /// Row-major. tiles[y * size + x].
     private(set) var tiles: [TerrainTile]
+    /// Row-major. elevation[y * size + x]. Defaults to 0; water defaults
+    /// to -1 so the shoreline renders one step below ground.
+    private(set) var elevation: [Int8]
 
-    init(size: Int, tiles: [TerrainTile]) {
+    init(size: Int, tiles: [TerrainTile], elevation: [Int8]? = nil) {
         precondition(tiles.count == size * size)
         self.size = size
         self.tiles = tiles
+        if let elev = elevation {
+            precondition(elev.count == size * size)
+            self.elevation = elev
+        } else {
+            // Default elevation: water = -1, everything else = 0.
+            self.elevation = tiles.map { $0 == .water ? -1 : 0 }
+        }
     }
 
     func tile(x: Int, y: Int) -> TerrainTile {
@@ -65,9 +85,19 @@ struct TerrainGrid: Codable, Equatable {
         return tiles[y * size + x]
     }
 
+    func elev(x: Int, y: Int) -> Int {
+        guard contains(x: x, y: y) else { return -1 }
+        return Int(elevation[y * size + x])
+    }
+
     mutating func setTile(_ tile: TerrainTile, x: Int, y: Int) {
         guard contains(x: x, y: y) else { return }
         tiles[y * size + x] = tile
+    }
+
+    mutating func setElev(_ e: Int, x: Int, y: Int) {
+        guard contains(x: x, y: y) else { return }
+        elevation[y * size + x] = Int8(max(-1, min(2, e)))
     }
 
     func contains(x: Int, y: Int) -> Bool {
@@ -75,17 +105,42 @@ struct TerrainGrid: Codable, Equatable {
     }
 
     /// True if the rectangle (x..<x+w, y..<y+h) is entirely buildable
-    /// (grass/sand for the building's allowed terrain set, no occupants).
+    /// (allowed tile, no water-adjacent issues, *and* every tile shares
+    /// the same elevation — buildings need flat ground).
     func canBuild(at x: Int, y: Int, w: Int, h: Int, allowedTiles: Set<TerrainTile>) -> Bool {
         guard x >= 0, y >= 0, x + w <= size, y + h <= size else { return false }
+        let anchorElev = elev(x: x, y: y)
         for dy in 0..<h {
             for dx in 0..<w {
                 if !allowedTiles.contains(tile(x: x + dx, y: y + dy)) {
                     return false
                 }
+                if elev(x: x + dx, y: y + dy) != anchorElev {
+                    return false
+                }
             }
         }
         return true
+    }
+
+    /// Custom Codable to keep the encoded JSON compact and v2-compatible.
+    /// Old (v2) saves only had `size` and `tiles`; the elevation array
+    /// defaults to all-zero (water = -1) when missing.
+    enum CodingKeys: String, CodingKey { case size, tiles, elevation }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let size = try c.decode(Int.self, forKey: .size)
+        let tiles = try c.decode([TerrainTile].self, forKey: .tiles)
+        let elev = try c.decodeIfPresent([Int8].self, forKey: .elevation)
+        self.init(size: size, tiles: tiles, elevation: elev)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(size, forKey: .size)
+        try c.encode(tiles, forKey: .tiles)
+        try c.encode(elevation, forKey: .elevation)
     }
 }
 
@@ -106,16 +161,32 @@ enum TerrainGenerator {
         let detail = noiseField(size: size, freq: 12, rng: &rng)
 
         var tiles: [TerrainTile] = []
+        var elev: [Int8] = []
         tiles.reserveCapacity(size * size)
+        elev.reserveCapacity(size * size)
         for y in 0..<size {
             for x in 0..<size {
                 let e = elevation[y * size + x]
                 let m = moisture[y * size + x]
                 let d = detail[y * size + x]
-                tiles.append(classify(elevation: e, moisture: m, detail: d, biome: biome))
+                let kind = classify(elevation: e, moisture: m, detail: d, biome: biome)
+                tiles.append(kind)
+                elev.append(elevationTier(kind: kind, elevation: e))
             }
         }
-        return TerrainGrid(size: size, tiles: tiles)
+        return TerrainGrid(size: size, tiles: tiles, elevation: elev)
+    }
+
+    /// Map a tile + the noise value that produced it to a discrete elev
+    /// tier in [-1, 2]. Water sits 1 step below ground; rocks become
+    /// hills (tier 1) most of the time, mountains (tier 2) at the high
+    /// end of the elevation noise.
+    private static func elevationTier(kind: TerrainTile, elevation: Double) -> Int8 {
+        switch kind {
+        case .water: return -1
+        case .rock: return elevation > 0.92 ? 2 : 1
+        default: return 0
+        }
     }
 
     /// Choose a tile kind for one cell. Thresholds per-biome — beach has
