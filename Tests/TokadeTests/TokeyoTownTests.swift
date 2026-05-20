@@ -23,15 +23,13 @@ final class TokeyoTownTests: XCTestCase {
     }
 
     func testMapSizeClampsToRange() {
-        // Tiny repo → floor at 16
-        XCTAssertEqual(RepoScanner.mapSize(forLOC: 0), 16)
-        XCTAssertEqual(RepoScanner.mapSize(forLOC: 100), 16)
-        // Huge repo → cap at 64
-        XCTAssertEqual(RepoScanner.mapSize(forLOC: 1_000_000), 64)
-        // Mid-sized
+        // v2 — floor 12, ceiling 48 (smaller maps so zoom feels right).
+        XCTAssertEqual(RepoScanner.mapSize(forLOC: 0), 12)
+        XCTAssertEqual(RepoScanner.mapSize(forLOC: 100), 12)
+        XCTAssertEqual(RepoScanner.mapSize(forLOC: 1_000_000), 48)
         let mid = RepoScanner.mapSize(forLOC: 10000)
-        XCTAssertGreaterThanOrEqual(mid, 16)
-        XCTAssertLessThanOrEqual(mid, 64)
+        XCTAssertGreaterThanOrEqual(mid, 12)
+        XCTAssertLessThanOrEqual(mid, 48)
     }
 
     func testLushnessFloorAndCeiling() {
@@ -89,30 +87,32 @@ final class TokeyoTownTests: XCTestCase {
             accounted: .init(),
             currentSessionCwd: nil
         )
-        XCTAssertEqual(delta.coin, 5) // 5000 / 1000
+        // v2 ratio: 1 coin / 4,000 tokens. 5,000 tokens → 1 coin.
+        XCTAssertEqual(delta.coin, 1)
     }
 
     func testAccrualConvertsToolsToResources() {
+        // v2 ratios: knowledge 1/10 reads, lumber 1/3 edits, industry 1/8 bashes.
         let now = Date()
         var events: [UsageEvent] = []
-        // 5 events × 5 reads each = 25 reads → 5 knowledge (25/5)
-        for i in 0..<5 {
+        // 10 events × 5 reads = 50 reads → 5 knowledge (50/10)
+        for i in 0..<10 {
             events.append(makeEvent(
                 ts: now.addingTimeInterval(Double(i)),
                 tools: ["Read", "Read", "Read", "Read", "Read"],
                 messageId: "r\(i)"
             ))
         }
-        // 3 events × 1 edit = 3 edits → 1 lumber (3/3)
-        for i in 0..<3 {
+        // 6 events × 1 edit = 6 edits → 2 lumber (6/3)
+        for i in 0..<6 {
             events.append(makeEvent(
                 ts: now.addingTimeInterval(Double(100 + i)),
                 tools: ["Edit"],
                 messageId: "e\(i)"
             ))
         }
-        // 5 events × 1 bash = 5 bashes → 1 industry (5/5)
-        for i in 0..<5 {
+        // 8 events × 1 bash = 8 bashes → 1 industry (8/8)
+        for i in 0..<8 {
             events.append(makeEvent(
                 ts: now.addingTimeInterval(Double(200 + i)),
                 tools: ["Bash"],
@@ -126,7 +126,7 @@ final class TokeyoTownTests: XCTestCase {
             currentSessionCwd: nil
         )
         XCTAssertGreaterThanOrEqual(delta.knowledge, 5)
-        XCTAssertGreaterThanOrEqual(delta.lumber, 1)
+        XCTAssertGreaterThanOrEqual(delta.lumber, 2)
         XCTAssertGreaterThanOrEqual(delta.industry, 1)
     }
 
@@ -147,7 +147,8 @@ final class TokeyoTownTests: XCTestCase {
 
     func testAccrualIdempotentViaAccountedHighWater() {
         let now = Date()
-        let events = [makeEvent(ts: now, tokens: 3000, messageId: "a")]
+        // v2 ratio is 1 coin / 4,000 tokens. 12,000 tokens → 3 coin.
+        let events = [makeEvent(ts: now, tokens: 12000, messageId: "a")]
         let (delta1, accounted) = ResourceAccrual.accrue(
             events: events,
             repoPath: "/repo",
@@ -330,5 +331,129 @@ final class TokeyoTownTests: XCTestCase {
         XCTAssertEqual(back.resources.coin, 42)
         XCTAssertEqual(back.buildings.count, 1)
         XCTAssertEqual(back.buildings.first?.kind, "beach-cottage")
+    }
+
+    // MARK: - Terrain (v2)
+
+    func testTerrainGenerationIsDeterministic() {
+        let a = TerrainGenerator.generate(seed: 12345, size: 16, biome: .beach)
+        let b = TerrainGenerator.generate(seed: 12345, size: 16, biome: .beach)
+        XCTAssertEqual(a.tiles, b.tiles)
+    }
+
+    func testTerrainSeedDiffersByTownId() {
+        let s1 = TerrainGenerator.seed(for: "alpha")
+        let s2 = TerrainGenerator.seed(for: "beta")
+        XCTAssertNotEqual(s1, s2)
+    }
+
+    func testTerrainCanBuildHonorsAllowedTiles() {
+        var tiles = [TerrainTile](repeating: .grass, count: 4 * 4)
+        tiles[0] = .water
+        let grid = TerrainGrid(size: 4, tiles: tiles)
+        // 1×1 on grass — OK
+        XCTAssertTrue(grid.canBuild(at: 1, y: 1, w: 1, h: 1, allowedTiles: [.grass]))
+        // 2×2 that overlaps the water tile at (0,0) — fail
+        XCTAssertFalse(grid.canBuild(at: 0, y: 0, w: 2, h: 2, allowedTiles: [.grass]))
+        // 2×2 entirely on grass — OK
+        XCTAssertTrue(grid.canBuild(at: 1, y: 1, w: 2, h: 2, allowedTiles: [.grass]))
+        // Out of bounds — fail
+        XCTAssertFalse(grid.canBuild(at: 3, y: 3, w: 2, h: 2, allowedTiles: [.grass]))
+    }
+
+    func testTerrainPathCostPrefersRoadsOverGrassOverTrees() {
+        XCTAssertLessThan(TerrainTile.road.pathCost, TerrainTile.grass.pathCost)
+        XCTAssertLessThan(TerrainTile.grass.pathCost, TerrainTile.tree.pathCost)
+        // Water/rock are effectively impassable.
+        XCTAssertGreaterThan(TerrainTile.water.pathCost, TerrainTile.tree.pathCost * 5)
+    }
+
+    // MARK: - Buildings (v2)
+
+    func testFootprintsArePopulatedConsistently() {
+        for b in BuildingCatalog.all {
+            XCTAssertEqual(b.footprint.w, b.shape.footprint.w)
+            XCTAssertEqual(b.footprint.h, b.shape.footprint.h)
+            XCTAssertGreaterThanOrEqual(b.footprint.w, 1)
+            XCTAssertGreaterThanOrEqual(b.footprint.h, 1)
+            XCTAssertLessThanOrEqual(b.footprint.w, 2)
+            XCTAssertLessThanOrEqual(b.footprint.h, 2)
+        }
+    }
+
+    func testMajorBuildingsHaveMultiResourceCosts() {
+        // Every 2x* building should require at least 2 distinct resources
+        // (not just coin) — ADR-0006 addendum §5.
+        for b in BuildingCatalog.all where b.footprint.w > 1 || b.footprint.h > 1 {
+            let c = b.cost
+            var nonZero = 0
+            for k in [c.coin, c.knowledge, c.lumber, c.industry, c.stability, c.inspiration, c.growth]
+                where k > 0 { nonZero += 1 }
+            XCTAssertGreaterThanOrEqual(nonZero, 2, "\(b.id) should cost multiple resources")
+        }
+    }
+
+    // MARK: - State versioning
+
+    func testStateDecodesV1SaveByRegeneratingTerrain() throws {
+        // A handcrafted v1 payload — no `terrain` field. The decoder should
+        // fall back to regenerating terrain from the townId seed.
+        let json = """
+        {
+          "schemaVersion": 1,
+          "townId": "deadbeefdeadbeef",
+          "createdAt": "2026-05-20T00:00:00Z",
+          "lastTickAt": "2026-05-20T00:00:00Z",
+          "repo": {
+            "path": "/p", "displayName": "p",
+            "scannedAt": "2026-05-20T00:00:00Z",
+            "primaryLanguage": "swift",
+            "biome": "beach", "era": "modern",
+            "ageInDays": 1, "loc": 10, "mapSize": 16,
+            "contributorCount": 1, "lushness": 0.5
+          },
+          "resources": {"coin":0,"knowledge":0,"lumber":0,"industry":0,"stability":0,"inspiration":0,"growth":0},
+          "accountedEvents": {},
+          "buildings": [],
+          "townsfolk": []
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let state = try decoder.decode(TokeyoTownState.self, from: Data(json.utf8))
+        XCTAssertEqual(state.terrain.size, 16)
+        XCTAssertEqual(state.terrain.tiles.count, 16 * 16)
+    }
+
+    // MARK: - Townsfolk AI
+
+    func testTownsfolkAIPicksWalkableNeighbor() {
+        // Surround the npc with water except one direction. AI should
+        // step toward that direction.
+        var tiles = [TerrainTile](repeating: .water, count: 4 * 4)
+        for i in 0..<tiles.count { tiles[i] = .water }
+        tiles[0 * 4 + 0] = .grass // start
+        tiles[0 * 4 + 1] = .grass // only walkable neighbor (east)
+        tiles[1 * 4 + 0] = .water
+        let grid = TerrainGrid(size: 4, tiles: tiles)
+        let npc = TokeyoTownState.Townsfolk(
+            id: UUID(), name: "T",
+            tileX: 0, tileY: 0,
+            homeBuildingId: nil,
+            goalX: 3, goalY: 0,
+            pauseRemaining: 0,
+            activity: "test",
+            hue: 0.5,
+            createdAt: .now
+        )
+        let stepped = TownsfolkAI.step(
+            townsfolk: [npc],
+            buildings: [],
+            terrain: grid,
+            mapSize: 4
+        )
+        let next = stepped[0]
+        XCTAssertGreaterThan(next.tileX, npc.tileX)
+        XCTAssertLessThanOrEqual(next.tileY, 0.01)
     }
 }

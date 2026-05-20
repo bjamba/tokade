@@ -6,7 +6,24 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
+### Changed (Tokeyo Town v2 — major overhaul of the v1 MVP)
+
+- **Save schema → v2**. Adds `terrain`, footprint fields on placed buildings, and AI fields on townsfolk. v1 saves decode cleanly — terrain regenerates from the (deterministic) townId seed.
+- **Procedural terrain**. Every town now has water, sand, grass, rock, trees, and flowers generated from value noise seeded by townId. Per-biome thresholds; same repo → same landscape every time. Buildings can only sit on grass (and sand, for beach/desert).
+- **Building shapes are drawn, not stickered**. Replaced the glyph-on-a-brick rendering with a composable shape system: stacked iso prisms + roof types (flat/gable/hip/dome) + optional ornaments (chimneys, spires, annexes). Cottages look like cottages, lighthouses look like lighthouses.
+- **Variable footprints (1×1, 2×1, 2×2)**. Landmarks (library, pyramid, aquarium, pier, bridge, school, …) now take more tiles and demand multiple scarce resources, not just coin.
+- **Roads + terraforming** as a tool sidebar: road / plant tree / clear tree / level rock / plant flower / lantern. Roads cost 4 coin/tile, clearing a tree returns lumber, leveling a rock costs industry, etc.
+- **Townsfolk actually do things now**. Each gets a home building, errands (random non-home destinations), pauses 3-10s at each destination, then heads home. Pathing biases toward road tiles so streets feel used.
+- **Resource rebalance** based on v1 playtesting:
+  - Coin: 1 / 1,000 tokens → **1 / 4,000 tokens** (tokens were dominating)
+  - Knowledge: 1 / 5 reads → **1 / 10 reads**
+  - Industry: 1 / 5 bashes → **1 / 8 bashes**
+  - Stability: 1 / 25 → **1 / 40 bashes**
+  - Building costs bumped 2-3×; major buildings require ≥2 distinct scarce resources.
+- **Zoom + camera**. Tile sizes scale with map size so small towns fill the canvas. Map-size formula floors at 12 (was 16) and caps at 48 (was 64).
+- **ADR-0006 addendum** captures every architectural decision above.
+
+### Added (v1 — landed in the previous commit)
 
 - **Tokeyo Town** — a second game in the Arcade tab. Cozy isometric
   sandbox city-builder where each town is themed after a real local

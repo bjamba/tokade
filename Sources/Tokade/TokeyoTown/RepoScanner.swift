@@ -120,8 +120,10 @@ enum RepoScanner {
     }
 
     static func mapSize(forLOC loc: Int) -> Int {
+        // v2 — lower floor (12) so a tiny repo's town isn't dominated by
+        // empty tiles when the renderer zooms in.
         let raw = Int(Double(max(0, loc) / 100).squareRoot())
-        return min(64, max(16, raw))
+        return min(48, max(12, raw))
     }
 
     static func lushness(forCommitsLast30 commits: Int) -> Double {

@@ -212,6 +212,104 @@ Tracked in issue #26 sub-tasks slated for later versions:
 - Roads / rivers as first-class objects
 - Quests tied to GitHub issues/PRs
 
+## v2 Addendum (2026-05-20)
+
+After playing the v1 MVP, several decisions were revisited. This addendum
+supersedes the corresponding sections above; the original text is
+preserved for historical context.
+
+### A1. Save schema bumped to v2
+
+`schemaVersion: 2`. Adds:
+- `terrain: TerrainGrid` — per-tile landscape state.
+- `PlacedBuilding.width` / `height` — explicit footprint per placed instance (defaults to 1 when decoding v1 saves).
+- `Townsfolk.homeBuildingId`, `pauseRemaining`, `activity` — needed by the new AI.
+
+Decoder falls back gracefully on v1 saves: terrain is regenerated from the townId seed (deterministic, same townId → same terrain).
+
+### A2. Procedural terrain layer
+
+The map is now generated from value noise seeded by `townId`. Per-tile classification varies by biome:
+
+| Biome  | Water     | Sand       | Grass    | Rock      | Tree     | Flower    |
+|--------|-----------|------------|----------|-----------|----------|-----------|
+| Beach  | low elev  | shoreline  | upland   | —         | sparse   | scattered |
+| Desert | rare      | dominant   | —        | high elev | oasis    | rare      |
+| Tundra | frozen    | —          | most     | high elev | sparse   | —         |
+| Forest | rare      | —          | clearings| high elev | dominant | edges     |
+| Plain  | rare      | —          | dominant | high elev | sparse   | scattered |
+
+Buildings may only sit on `grass` (always) and `sand` (beach/desert only). Trees, rocks, and water block placement until terraformed (see A4).
+
+### A3. Building shapes are procedural recipes
+
+`BuildingShape` is a composable stack of iso-prism primitives:
+- `Story` — base prism with width, depth, height, inset, wall + trim color
+- `Roof` — `flat` / `gable(axis, height, color)` / `hip(height, color)` / `dome(height, color)`
+- `Ornament` — optional chimney, spire, or annex
+- `accent` — optional door rectangle on the front face
+
+`BuildingCatalog` ships one recipe per building. The renderer draws the recipe directly — no glyph on the world, no sprite assets. Footprints are 1×1 (most) or 2×1 / 2×2 (landmarks: library, pyramid, aquarium, pier, bridge, school, etc.).
+
+### A4. Roads and terraforming
+
+New tools on the store, exposed in the sidebar:
+
+| Tool         | Effect                                  | Cost          | Refund    |
+|--------------|------------------------------------------|---------------|-----------|
+| Road         | grass/sand/flower → road                | 4 coin/tile   | —         |
+| Plant Tree   | grass → tree                            | 6 lumber      | —         |
+| Clear Tree   | tree → grass                            | 8 coin        | 4 lumber  |
+| Level Rock   | rock → grass                            | 10 industry   | —         |
+| Plant Flower | grass → flower                          | 3 growth      | —         |
+| Lantern      | grass → decor (lantern)                 | 12 coin       | —         |
+| Hand         | demolish building / clear flower-or-decor | —           | —         |
+
+Roads are tile decorations (not buildings) and contribute to townsfolk pathing — see A6.
+
+### A5. Variable footprints + placement validation
+
+`canPlaceBuilding(_, at:)`:
+1. Footprint must be inside the map.
+2. Every tile in the footprint must be on an allowed terrain kind for the biome (grass + sand for beach/desert; grass for others).
+3. No overlap with any other placed building's footprint.
+4. Player must be able to afford the building's `cost`.
+
+The renderer draws a translucent preview at the hovered tile with a red overlay when the placement is invalid.
+
+### A6. Townsfolk AI with home + errands + road preference
+
+Each tick:
+1. If paused, decrement `pauseRemaining`.
+2. Else if `atGoal`, pick a new errand:
+   - Homeless → wander to a random walkable tile.
+   - At home → head to a random non-home building.
+   - Elsewhere → head home.
+   With `pauseChance` (85% default), pause for 3–10 in-game seconds before picking the next goal.
+3. Else step toward the goal: pick the 4-neighbor with the lowest `Manhattan distance + 0.04 × tile.pathCost`. Roads cost 1, grass 3, trees 6 — so townsfolk prefer roads when scores are close, without being forced to use them.
+
+When a "home" building (cottage, adobe home, log cabin, tree house, mushroom hut, pastel cottage) is placed, the spawner assigns it to the first homeless townsfolk and 50% of the time spawns a newcomer who immediately moves into it.
+
+### A7. Resource rebalance
+
+After v1 playtesting showed coin dominating every other resource:
+
+| Resource    | v1 ratio          | v2 ratio              |
+|-------------|-------------------|-----------------------|
+| Coin        | 1 / 1,000 tokens  | **1 / 4,000 tokens**  |
+| Knowledge   | 1 / 5 reads       | **1 / 10 reads**      |
+| Lumber      | 1 / 3 edits       | unchanged             |
+| Industry    | 1 / 5 bashes      | **1 / 8 bashes**      |
+| Stability   | 1 / 25 bashes     | **1 / 40 bashes**     |
+| Inspiration | 1 / slash command | unchanged             |
+| Growth      | 1 / session       | unchanged             |
+
+Building costs were bumped roughly 2-3×. Major (2×2) buildings now require *multiple* scarce resources, not just lots of coin — enforced by the `testMajorBuildingsHaveMultiResourceCosts` test.
+
+### A8. Camera + tile size
+
+Tile half-width scales with map size: bigger tiles for small towns (12-tile maps get 34px tiles), smaller tiles for huge maps. The map-size formula now floors at 12 (was 16) and caps at 48 (was 64), so the canvas is full at every scale.
+
 ## Threading to CLAUDE.md
 
 This ADR introduces one new rule and reuses three existing ones:

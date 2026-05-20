@@ -24,8 +24,10 @@ enum ResourceAccrual {
         var pendingSessionEvents: [String: Date] = [:] // last seen timestamp per session
 
         for event in candidates {
-            // Coin: 1 / 1000 tokens
-            delta.coin += event.grandTotal / 1000
+            // Coin: 1 / 4,000 tokens. v2 nerfed from 1/1k because tokens
+            // are by far the most abundant signal and dominated every
+            // other resource at the v1 ratios.
+            delta.coin += event.grandTotal / 4000
 
             // Inspiration: per slash command
             if event.slashCommand != nil {
@@ -93,17 +95,17 @@ enum ResourceAccrual {
     }
 
     /// Apply ratio divisors to convert raw tool-call counts into resources.
-    /// Ratios from ADR-0006 §5:
-    ///   - knowledge: 1 / 5 reads
-    ///   - lumber:    1 / 3 edits
-    ///   - industry:  1 / 5 bashes
-    ///   - stability: 1 / 5 bashes (rough proxy; refined later)
+    /// v2 ratios (ADR-0006 addendum):
+    ///   - knowledge: 1 / 10 reads (v1 was 1/5)
+    ///   - lumber:    1 / 3 edits (unchanged — edits stay the main scarce signal)
+    ///   - industry:  1 / 8 bashes (v1 was 1/5)
+    ///   - stability: 1 / 40 bashes (~1/5 of industry, was 1/25)
     private static func normalize(_ raw: TokeyoTownState.Resources) -> TokeyoTownState.Resources {
         var out = raw
-        out.knowledge = raw.knowledge / 5
+        out.knowledge = raw.knowledge / 10
         out.lumber    = raw.lumber    / 3
-        out.industry  = raw.industry  / 5
-        out.stability = raw.industry  / 25  // ~1/5 of industry
+        out.industry  = raw.industry  / 8
+        out.stability = raw.industry  / 40  // ~1/5 of industry
         return out
     }
 }
