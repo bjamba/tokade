@@ -18,19 +18,14 @@ struct TokeyoTownTab: View {
                 town: town,
                 notifier: notifier,
                 onExitGame: onExitGame,
-                onStartNewTown: { showConfirmNewTown = true }
-            )
-            .confirmationDialog(
-                "Start a new town?",
-                isPresented: $showConfirmNewTown
-            ) {
-                Button("Start new town", role: .destructive) {
+                onStartNewTown: { showConfirmNewTown = true },
+                showConfirmNewTown: showConfirmNewTown,
+                onConfirmNewTown: {
                     Task { await town.eraseAll() }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("The current town will be archived to ~/.tokade/games/tokeyotown/archive/. You can only have one town at a time in this version.")
-            }
+                    showConfirmNewTown = false
+                },
+                onCancelNewTown: { showConfirmNewTown = false }
+            )
         } else {
             NewTownView(store: town, usage: usage, notifier: notifier, onCancel: onExitGame)
         }
@@ -43,6 +38,13 @@ struct TokeyoTownGameView: View {
     @Bindable var notifier: Notifier
     var onExitGame: () -> Void
     var onStartNewTown: () -> Void
+    /// When true, the inline "start a new town?" confirmation panel is
+    /// shown over the canvas. We render this inside the menu bar window
+    /// rather than as a `.confirmationDialog` because external modals
+    /// dismiss the MenuBarExtra panel.
+    var showConfirmNewTown: Bool = false
+    var onConfirmNewTown: () -> Void = {}
+    var onCancelNewTown: () -> Void = {}
 
     @State private var hoverTile: (x: Int, y: Int)?
     @State private var dragStartPan: (x: CGFloat, y: CGFloat)?
@@ -266,10 +268,53 @@ struct TokeyoTownGameView: View {
                 )
                     currentToolIndicator
                         .padding(6)
+                    if showConfirmNewTown {
+                        confirmNewTownOverlay
+                            .frame(width: canvasSize.width, height: canvasSize.height)
+                    }
                 }
             }
         }
         .frame(minHeight: 300)
+    }
+
+    /// Inline confirmation panel for "Start a new town?". Lives inside
+    /// the menu bar window so it doesn't dismiss the panel — using a
+    /// `.confirmationDialog` here would steal focus and close Tokade.
+    private var confirmNewTownOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.6).ignoresSafeArea()
+            VStack(spacing: 10) {
+                Text("START A NEW TOWN?")
+                    .font(.system(.callout, design: .monospaced)).fontWeight(.bold)
+                    .foregroundStyle(Color(red: 0.95, green: 0.85, blue: 0.30))
+                Text("The current town will be archived to ~/.tokade/games/tokeyotown/archive/. You can only have one town at a time in this version.")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12)
+                HStack(spacing: 8) {
+                    Button("Cancel") { onCancelNewTown() }
+                        .buttonStyle(.plain)
+                        .padding(.vertical, 6).padding(.horizontal, 14)
+                        .background(Color(red: 0.20, green: 0.20, blue: 0.25))
+                        .foregroundStyle(.white)
+                        .overlay(Rectangle().stroke(Color(white: 0.4), lineWidth: 1))
+                        .font(.system(.caption, design: .monospaced))
+                    Button("Start New Town") { onConfirmNewTown() }
+                        .buttonStyle(.plain)
+                        .padding(.vertical, 6).padding(.horizontal, 14)
+                        .background(Color(red: 0.95, green: 0.42, blue: 0.42))
+                        .foregroundStyle(.white)
+                        .overlay(Rectangle().stroke(.black, lineWidth: 1))
+                        .font(.system(.caption, design: .monospaced)).fontWeight(.bold)
+                }
+            }
+            .padding(16)
+            .background(Color(red: 0.10, green: 0.10, blue: 0.14))
+            .overlay(Rectangle().stroke(Color(red: 0.95, green: 0.85, blue: 0.30), lineWidth: 2))
+        }
     }
 
     private var currentToolIndicator: some View {
