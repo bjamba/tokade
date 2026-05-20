@@ -44,6 +44,8 @@ struct Cosmetic: Hashable, Identifiable {
 enum CosmeticCatalog {
     static let all: [Cosmetic] = [
         // ── Hair (already chosen at hatch — every hair is a starter)
+        // The full set here must match `CharacterCreatorSwatches.hairStyles`
+        // so anything choosable at hatch is also selectable in the wardrobe.
         Cosmetic(id: "horns",     slot: "hair", display: "Horns",     unlock: .starter),
         Cosmetic(id: "spiky",     slot: "hair", display: "Spiky",     unlock: .starter),
         Cosmetic(id: "cat-ears",  slot: "hair", display: "Cat ears",  unlock: .starter),
@@ -51,6 +53,10 @@ enum CosmeticCatalog {
         Cosmetic(id: "mohawk",    slot: "hair", display: "Mohawk",    unlock: .starter),
         Cosmetic(id: "antennae",  slot: "hair", display: "Antennae",  unlock: .starter),
         Cosmetic(id: "long",      slot: "hair", display: "Long",      unlock: .starter),
+        Cosmetic(id: "bald",      slot: "hair", display: "Bald",      unlock: .starter),
+        Cosmetic(id: "flame",     slot: "hair", display: "Flame",     unlock: .starter),
+        Cosmetic(id: "mushroom",  slot: "hair", display: "Mushroom",  unlock: .starter),
+        Cosmetic(id: "tentacles", slot: "hair", display: "Tentacles", unlock: .starter),
 
         // ── Hats
         Cosmetic(id: "beanie",     slot: "hat", display: "Beanie",     unlock: .starter),
