@@ -149,12 +149,10 @@ struct TokeyoTownGameView: View {
     private var toolSidebar: some View {
         ScrollView {
             VStack(spacing: 4) {
-                toolButton(.hand, icon: "🗑", label: "Remove",
-                           subtitle: "any tile")
-                toolButton(.pan, icon: "✥", label: "Pan",
-                           subtitle: "drag map")
+                toolButton(.hand, icon: "🗑", label: "Remove")
+                toolButton(.pan, icon: "✥", label: "Pan")
                 toolButton(.road, icon: "🛣", label: "Road",
-                           cost: TokeyoTownStore.roadCost, costPrefix: "/tile")
+                           cost: TokeyoTownStore.roadCost)
                 toolButton(.plantTree, icon: "🌱", label: "Plant",
                            cost: TokeyoTownStore.plantTreeCost)
                 toolButton(.clearTree, icon: "🪓", label: "Fell",
@@ -173,17 +171,15 @@ struct TokeyoTownGameView: View {
             }
             .padding(.bottom, 2)
         }
-        .frame(width: 66)
+        .frame(width: 60)
     }
 
     private func toolButton(
         _ tool: TokeyoTownStore.Tool,
         icon: String,
         label: String,
-        subtitle: String? = nil,
         cost: TokeyoTownState.Resources? = nil,
-        refund: TokeyoTownState.Resources? = nil,
-        costPrefix: String? = nil
+        refund: TokeyoTownState.Resources? = nil
     ) -> some View {
         let isSelected = town.tool == tool
         return Button {
@@ -192,25 +188,20 @@ struct TokeyoTownGameView: View {
             VStack(spacing: 1) {
                 Text(icon).font(.system(size: 14))
                 Text(label.uppercased())
-                    .font(.system(size: 7, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.7))
-                if let subtitle {
-                    Text(subtitle.uppercased())
-                        .font(.system(size: 6, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
+                    .font(.system(size: 8, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.78))
                 if let cost {
-                    Text(compactCostText(cost) + (costPrefix ?? ""))
-                        .font(.system(size: 6, design: .monospaced))
+                    Text(compactCostText(cost))
+                        .font(.system(size: 7, design: .monospaced))
                         .foregroundStyle(.white.opacity(0.55))
                 }
                 if let refund {
                     Text("+" + compactCostText(refund))
-                        .font(.system(size: 6, design: .monospaced))
+                        .font(.system(size: 7, design: .monospaced))
                         .foregroundStyle(Color(red: 0.55, green: 0.92, blue: 0.55))
                 }
             }
-            .padding(.vertical, 3)
+            .padding(.vertical, 4)
             .frame(maxWidth: .infinity)
             .background(isSelected
                 ? Color(red: 0.95, green: 0.85, blue: 0.30).opacity(0.25)
@@ -245,6 +236,7 @@ struct TokeyoTownGameView: View {
                         state: town.state ?? sentinelState,
                         phase: phase,
                         placementPreview: currentPreview,
+                        hoverHighlight: currentHoverHighlight,
                         view: town.view
                     )
                     .contentShape(Rectangle())
@@ -313,6 +305,56 @@ struct TokeyoTownGameView: View {
             kind: id, tile: tile,
             valid: town.canPlaceBuilding(id, at: tile.x, y: tile.y)
         )
+    }
+
+    /// Yellow / red tile outline for non-build tools so the player sees
+    /// which tile their next click will affect.
+    private var currentHoverHighlight: IsoTileRenderer.HoverHighlight? {
+        guard let tile = hoverTile, let s = town.state else { return nil }
+        switch town.tool {
+        case .pan, .build:
+            return nil
+        case .hand:
+            return .init(x: tile.x, y: tile.y, valid: true)
+        case .road:
+            let t = s.terrain.tile(x: tile.x, y: tile.y)
+            let elev = s.terrain.elev(x: tile.x, y: tile.y)
+            let validTile = (t == .grass || t == .sand || t == .flower) && elev < 2
+            let canAfford = s.resources.canAfford(TokeyoTownStore.roadCost)
+            return .init(x: tile.x, y: tile.y, valid: validTile && canAfford)
+        case .clearTree:
+            let valid = s.terrain.tile(x: tile.x, y: tile.y) == .tree
+                && s.resources.canAfford(TokeyoTownStore.clearTreeCost)
+            return .init(x: tile.x, y: tile.y, valid: valid)
+        case .plantTree:
+            let valid = s.terrain.tile(x: tile.x, y: tile.y) == .grass
+                && s.resources.canAfford(TokeyoTownStore.plantTreeCost)
+            return .init(x: tile.x, y: tile.y, valid: valid)
+        case .levelRock:
+            let valid = s.terrain.tile(x: tile.x, y: tile.y) == .rock
+                && s.resources.canAfford(TokeyoTownStore.levelRockCost)
+            return .init(x: tile.x, y: tile.y, valid: valid)
+        case .plantFlower:
+            let valid = s.terrain.tile(x: tile.x, y: tile.y) == .grass
+                && s.resources.canAfford(TokeyoTownStore.plantFlowerCost)
+            return .init(x: tile.x, y: tile.y, valid: valid)
+        case .lantern:
+            let valid = s.terrain.tile(x: tile.x, y: tile.y) == .grass
+                && s.resources.canAfford(TokeyoTownStore.lanternCost)
+            return .init(x: tile.x, y: tile.y, valid: valid)
+        case .raise:
+            let t = s.terrain.tile(x: tile.x, y: tile.y)
+            let valid = s.terrain.elev(x: tile.x, y: tile.y) < 2
+                && t != .road
+                && s.resources.canAfford(TokeyoTownStore.raiseCost)
+            return .init(x: tile.x, y: tile.y, valid: valid)
+        case .lower:
+            let t = s.terrain.tile(x: tile.x, y: tile.y)
+            let valid = s.terrain.elev(x: tile.x, y: tile.y) > -1
+                && t != .road
+                && s.resources.canAfford(TokeyoTownStore.lowerCost)
+            return .init(x: tile.x, y: tile.y, valid: valid)
+        }
     }
 
     private func updateHover(at point: CGPoint, canvas: CGSize) {

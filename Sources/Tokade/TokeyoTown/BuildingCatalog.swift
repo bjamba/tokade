@@ -25,6 +25,13 @@ enum BuildingCatalog {
         /// True when this building counts as housing — drives townsfolk
         /// home assignment in `TownsfolkSpawner`.
         var isHome: Bool = false
+        /// True when this building's footprint may *include* water tiles
+        /// (and must include both water and land). Currently only piers.
+        /// The placement rule for these is special-cased in the store:
+        ///   - at least one footprint tile on water
+        ///   - at least one footprint tile on buildable land
+        ///   - no elevation-matching requirement (water sits at -1)
+        var extendsIntoWater: Bool = false
         var footprint: BuildingShape.Footprint { shape.footprint }
     }
 
@@ -485,7 +492,7 @@ enum BuildingCatalog {
             cost: .init(coin: 90, lumber: 22, industry: 10),
             shape: BuildingShape(
                 footprint: .init(2, 1),
-                stories: [.init(height: 5, inset: 0,
+                stories: [.init(height: 3, inset: 0,
                                 wallColor: Color(red: 0.62, green: 0.48, blue: 0.32),
                                 trimColor: trimDark)],
                 roof: .flat,
@@ -496,7 +503,9 @@ enum BuildingCatalog {
                     postColor: trimDark
                 )
             ),
-            glyph: "🛥", blurb: "Long boards. Long shadows at sunset. Must touch water."
+            glyph: "🛥",
+            blurb: "Long boards extending over water. Place where land meets sea.",
+            extendsIntoWater: true
         ),
         Building(
             id: "beach-icecream", displayName: "Ice Cream Stand", biome: .beach,

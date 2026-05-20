@@ -86,11 +86,23 @@ struct IsoTileRenderer: View {
     let state: TokeyoTownState
     let phase: Double
     let placementPreview: PlacementPreview?
+    /// Tile the user is hovering over with a non-build tool — the
+    /// renderer highlights it with a yellow outline so the player sees
+    /// exactly what will change on click.
+    let hoverHighlight: HoverHighlight?
     let view: IsoMath.ViewTransform
 
     struct PlacementPreview {
         let kind: String
         let tile: (x: Int, y: Int)
+        let valid: Bool
+    }
+
+    /// Generic single-tile highlight overlay. `valid` controls whether
+    /// the outline is yellow (will act) or red (invalid).
+    struct HoverHighlight {
+        let x: Int
+        let y: Int
         let valid: Bool
     }
 
@@ -150,6 +162,12 @@ struct IsoTileRenderer: View {
                                  anchorX: placed.tileX, anchorY: placed.tileY,
                                  canvas: size, alpha: 1.0)
                 }
+            }
+
+            // Single-tile hover highlight for non-build tools.
+            if let hh = hoverHighlight, placementPreview == nil {
+                drawTileHighlight(context: context, x: hh.x, y: hh.y,
+                                  valid: hh.valid, canvas: size)
             }
 
             // Placement preview
@@ -578,49 +596,47 @@ struct IsoTileRenderer: View {
         let connectsW = (mask & 8) != 0
 
         // Edge-midpoint offsets from tile center, in screen px.
-        let nMid = CGPoint(x:  tw / 2, y: -th / 2)
-        let eMid = CGPoint(x:  tw / 2, y:  th / 2)
-        let sMid = CGPoint(x: -tw / 2, y:  th / 2)
+        let nMid = CGPoint(x: tw / 2, y: -th / 2)
+        let eMid = CGPoint(x: tw / 2, y: th / 2)
+        let sMid = CGPoint(x: -tw / 2, y: th / 2)
         let wMid = CGPoint(x: -tw / 2, y: -th / 2)
 
-        // Half-widths perpendicular to the road direction.
-        let asphaltHalf: CGFloat = tw * 0.22
-        let sidewalkHalf: CGFloat = tw * 0.32
+        // Single asphalt strip per connecting direction. v3.3 — dropped
+        // the sidewalk underlay and the center cap; the road now reads
+        // as one clean dark line continuing across connected tiles.
+        let asphaltHalf: CGFloat = max(2.5, tw * 0.16)
+        _ = sidewalk
 
-        // Cap fill at the tile center so when only one direction connects
-        // (a dead-end) or no direction connects, we still get a clean center
-        // circle of road.
-        let capR: CGFloat = asphaltHalf
-        let sidewalkCapR: CGFloat = sidewalkHalf
-
-        // Pass 1: sidewalk arms + cap (lighter, wider underlay).
-        drawRoadCap(context: context, center: center, radius: sidewalkCapR, color: sidewalk)
-        if connectsN { drawRoadArm(context: context, center: center, to: nMid, halfWidth: sidewalkHalf, color: sidewalk) }
-        if connectsE { drawRoadArm(context: context, center: center, to: eMid, halfWidth: sidewalkHalf, color: sidewalk) }
-        if connectsS { drawRoadArm(context: context, center: center, to: sMid, halfWidth: sidewalkHalf, color: sidewalk) }
-        if connectsW { drawRoadArm(context: context, center: center, to: wMid, halfWidth: sidewalkHalf, color: sidewalk) }
-
-        // Pass 2: asphalt arms + cap (darker, narrower).
-        drawRoadCap(context: context, center: center, radius: capR, color: asphalt)
-        if connectsN { drawRoadArm(context: context, center: center, to: nMid, halfWidth: asphaltHalf, color: asphalt) }
-        if connectsE { drawRoadArm(context: context, center: center, to: eMid, halfWidth: asphaltHalf, color: asphalt) }
-        if connectsS { drawRoadArm(context: context, center: center, to: sMid, halfWidth: asphaltHalf, color: asphalt) }
-        if connectsW { drawRoadArm(context: context, center: center, to: wMid, halfWidth: asphaltHalf, color: asphalt) }
-
-        // Yellow dashed lane stripe down the centerline of straight runs.
-        if connectsN, connectsS, !connectsE, !connectsW {
-            var line = Path()
-            line.move(to: CGPoint(x: center.x + nMid.x * 0.85, y: center.y + nMid.y * 0.85))
-            line.addLine(to: CGPoint(x: center.x + sMid.x * 0.85, y: center.y + sMid.y * 0.85))
-            context.stroke(line, with: .color(laneStripeColor),
-                           style: StrokeStyle(lineWidth: 1.2, dash: [3.5, 2.5]))
+        let connectingMids: [(connect: Bool, mid: CGPoint)] = [
+            (connectsN, nMid), (connectsE, eMid),
+            (connectsS, sMid), (connectsW, wMid),
+        ]
+        for (connect, mid) in connectingMids where connect {
+            drawRoadArm(context: context, center: center, to: mid,
+                        halfWidth: asphaltHalf, color: asphalt)
         }
-        if connectsE, connectsW, !connectsN, !connectsS {
+
+        // Dead-end (single connection or none): give the road a small
+        // squared cap at the center so it doesn't vanish to a point.
+        let connectionCount = connectingMids.filter(\.connect).count
+        if connectionCount <= 1 {
+            let r: CGFloat = asphaltHalf * 0.9
+            let rect = CGRect(x: center.x - r, y: center.y - r,
+                              width: r * 2, height: r * 2)
+            context.fill(Path(rect), with: .color(asphalt))
+        }
+
+        // Yellow dashed lane stripe along EVERY connecting arm so all
+        // tile types (straight, curve, T, cross, dead-end) have visible
+        // lane markings.
+        for (connect, mid) in connectingMids where connect {
             var line = Path()
-            line.move(to: CGPoint(x: center.x + eMid.x * 0.85, y: center.y + eMid.y * 0.85))
-            line.addLine(to: CGPoint(x: center.x + wMid.x * 0.85, y: center.y + wMid.y * 0.85))
+            line.move(to: CGPoint(x: center.x + mid.x * 0.12,
+                                  y: center.y + mid.y * 0.12))
+            line.addLine(to: CGPoint(x: center.x + mid.x * 0.92,
+                                     y: center.y + mid.y * 0.92))
             context.stroke(line, with: .color(laneStripeColor),
-                           style: StrokeStyle(lineWidth: 1.2, dash: [3.5, 2.5]))
+                           style: StrokeStyle(lineWidth: 1, dash: [3, 2.5]))
         }
     }
 
@@ -653,14 +669,6 @@ struct IsoTileRenderer: View {
         context.fill(path, with: .color(color))
     }
 
-    /// Filled square at the tile's center so arms meet cleanly.
-    private func drawRoadCap(
-        context: GraphicsContext, center: CGPoint, radius: CGFloat, color: Color
-    ) {
-        let rect = CGRect(x: center.x - radius, y: center.y - radius,
-                          width: radius * 2, height: radius * 2)
-        context.fill(Path(rect), with: .color(color))
-    }
 
     /// Roads are roads, not biome-themed planks. Dark asphalt + light
     /// concrete sidewalks everywhere; saturation hardly varies between
@@ -911,18 +919,13 @@ struct IsoTileRenderer: View {
         }
     }
 
-    /// Draws the building's glyph above its roof apex, with a small
-    /// translucent halo so it's legible against any roof color.
+    /// Draws the building's glyph just above its roof apex. v3.3 —
+    /// halo dropped (was reading as a UI sticker); glyph smaller so the
+    /// building's silhouette wins over the emoji.
     private func drawRoofGlyph(context: GraphicsContext, glyph: String, at top: CGPoint) {
         let zoom = CGFloat(view.zoom)
-        let p = CGPoint(x: top.x, y: top.y - 14 * zoom)
-        let size = 14 * zoom
-        // Halo behind the glyph
-        let haloR = size * 0.55
-        let haloRect = CGRect(x: p.x - haloR, y: p.y - haloR,
-                              width: haloR * 2, height: haloR * 2)
-        context.fill(Path(ellipseIn: haloRect),
-                     with: .color(.black.opacity(0.32)))
+        let p = CGPoint(x: top.x, y: top.y - 9 * zoom)
+        let size = 10 * zoom
         let glyphResolved = context.resolve(Text(glyph).font(.system(size: size)))
         context.draw(glyphResolved, at: p, anchor: .center)
     }
@@ -1105,6 +1108,36 @@ struct IsoTileRenderer: View {
                               width: d, height: d)
             context.fill(Path(rect), with: .color(color.opacity(alpha)))
         }
+    }
+
+    /// Draws a single-tile outline + soft fill at (x, y). Used by the
+    /// hover indicator for every non-build tool (road, terraform,
+    /// raise/lower, remove) so the player can see which tile they're
+    /// about to act on.
+    private func drawTileHighlight(
+        context: GraphicsContext,
+        x: Int, y: Int,
+        valid: Bool,
+        canvas: CGSize
+    ) {
+        let elev = state.terrain.elev(x: x, y: y)
+        let center = IsoMath.project(x: Double(x), y: Double(y),
+                                     elevation: elev,
+                                     mapSize: state.repo.mapSize,
+                                     canvas: canvas, view: view)
+        let tw = IsoMath.tileWidth(forMapSize: state.repo.mapSize, zoom: view.zoom)
+        let th = IsoMath.tileHeight(forMapSize: state.repo.mapSize, zoom: view.zoom)
+        var path = Path()
+        path.move(to: CGPoint(x: center.x, y: center.y - th))
+        path.addLine(to: CGPoint(x: center.x + tw, y: center.y))
+        path.addLine(to: CGPoint(x: center.x, y: center.y + th))
+        path.addLine(to: CGPoint(x: center.x - tw, y: center.y))
+        path.closeSubpath()
+        let outline = valid
+            ? Color(red: 0.98, green: 0.85, blue: 0.30)
+            : Color(red: 0.95, green: 0.30, blue: 0.30)
+        context.fill(path, with: .color(outline.opacity(0.22)))
+        context.stroke(path, with: .color(outline), lineWidth: 1.4)
     }
 
     private func drawInvalidOverlay(

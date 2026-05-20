@@ -174,14 +174,35 @@ final class TokeyoTownStore {
         }
     }
 
-    /// Pier (and any other water-adjacency-required building) must touch water.
-    private static let waterAdjacentBuildings: Set<String> = ["beach-pier"]
-
     func canPlaceBuilding(_ kind: String, at x: Int, y: Int) -> Bool {
         guard let s = state, let b = BuildingCatalog.find(kind), b.biome == s.repo.biome else { return false }
         let fp = b.shape.footprint
-        guard s.terrain.canBuild(at: x, y: y, w: fp.w, h: fp.h,
-                                 allowedTiles: allowedBuildTiles(s.repo.biome)) else { return false }
+
+        // Water-extending buildings (piers) have a special rule: footprint
+        // must straddle water AND land. Elevation matching is skipped.
+        if b.extendsIntoWater {
+            guard x >= 0, y >= 0,
+                  x + fp.w <= s.terrain.size, y + fp.h <= s.terrain.size else { return false }
+            var sawWater = false
+            var sawLand = false
+            for dy in 0..<fp.h {
+                for dx in 0..<fp.w {
+                    let t = s.terrain.tile(x: x + dx, y: y + dy)
+                    if t == .water {
+                        sawWater = true
+                    } else if allowedBuildTiles(s.repo.biome).contains(t) {
+                        sawLand = true
+                    } else {
+                        return false
+                    }
+                }
+            }
+            guard sawWater, sawLand else { return false }
+        } else {
+            guard s.terrain.canBuild(at: x, y: y, w: fp.w, h: fp.h,
+                                    allowedTiles: allowedBuildTiles(s.repo.biome)) else { return false }
+        }
+
         for existing in s.buildings {
             if rectsOverlap(
                 ax: existing.tileX, ay: existing.tileY,
@@ -189,25 +210,7 @@ final class TokeyoTownStore {
                 bx: x, by: y, bw: fp.w, bh: fp.h
             ) { return false }
         }
-        if Self.waterAdjacentBuildings.contains(kind),
-           !footprintTouchesWater(at: x, y: y, w: fp.w, h: fp.h, terrain: s.terrain) {
-            return false
-        }
         return s.resources.canAfford(b.cost)
-    }
-
-    private func footprintTouchesWater(at x: Int, y: Int, w: Int, h: Int, terrain: TerrainGrid) -> Bool {
-        for dy in 0..<h {
-            for dx in 0..<w {
-                let nx = x + dx
-                let ny = y + dy
-                if terrain.tile(x: nx - 1, y: ny) == .water { return true }
-                if terrain.tile(x: nx + 1, y: ny) == .water { return true }
-                if terrain.tile(x: nx, y: ny - 1) == .water { return true }
-                if terrain.tile(x: nx, y: ny + 1) == .water { return true }
-            }
-        }
-        return false
     }
 
     // MARK: - Apply tool
@@ -320,6 +323,9 @@ final class TokeyoTownStore {
         guard var s = state, s.terrain.contains(x: x, y: y) else { return false }
         let current = s.terrain.tile(x: x, y: y)
         guard current == .grass || current == .sand || current == .flower else { return false }
+        // No roads on mountain peaks — we don't yet have angled road
+        // graphics for elevation changes, so roads stay on flat tiles.
+        guard s.terrain.elev(x: x, y: y) < 2 else { return false }
         guard s.resources.canAfford(Self.roadCost) else { return false }
         snapshot()
         _ = s.resources.deduct(Self.roadCost)
@@ -355,6 +361,9 @@ final class TokeyoTownStore {
         let current = s.terrain.elev(x: x, y: y)
         guard current < 2 else { return false }
         if isOccupiedByBuilding(x: x, y: y) { return false }
+        // Roads can't survive an elevation change without angled-road
+        // graphics — reject the raise rather than silently break them.
+        if s.terrain.tile(x: x, y: y) == .road { return false }
         guard s.resources.canAfford(Self.raiseCost) else { return false }
         snapshot()
         _ = s.resources.deduct(Self.raiseCost)
@@ -376,6 +385,7 @@ final class TokeyoTownStore {
         let current = s.terrain.elev(x: x, y: y)
         guard current > -1 else { return false }
         if isOccupiedByBuilding(x: x, y: y) { return false }
+        if s.terrain.tile(x: x, y: y) == .road { return false }
         guard s.resources.canAfford(Self.lowerCost) else { return false }
         snapshot()
         _ = s.resources.deduct(Self.lowerCost)

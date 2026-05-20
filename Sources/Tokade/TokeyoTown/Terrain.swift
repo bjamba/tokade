@@ -164,17 +164,56 @@ enum TerrainGenerator {
         var elev: [Int8] = []
         tiles.reserveCapacity(size * size)
         elev.reserveCapacity(size * size)
+        // v3.3 — beach gets a directional shoreline bias: tiles closer to
+        // one chosen map edge are nudged down in elevation so water forms
+        // a contiguous coast rather than scattered ponds. Side is seeded
+        // by the townId so it's stable across reloads.
+        let coastSide: CoastSide = biome == .beach
+            ? CoastSide.allCases[Int(seed & 3)]
+            : .none
         for y in 0..<size {
             for x in 0..<size {
-                let e = elevation[y * size + x]
+                var e = elevation[y * size + x]
                 let m = moisture[y * size + x]
                 let d = detail[y * size + x]
+                if biome == .beach {
+                    e = applyCoastBias(e, x: x, y: y, size: size, side: coastSide)
+                }
                 let kind = classify(elevation: e, moisture: m, detail: d, biome: biome)
                 tiles.append(kind)
                 elev.append(elevationTier(kind: kind, elevation: e))
             }
         }
         return TerrainGrid(size: size, tiles: tiles, elevation: elev)
+    }
+
+    enum CoastSide: CaseIterable {
+        case none, n, e, s, w
+    }
+
+    /// Nudge the elevation noise down toward one edge so water there
+    /// becomes a continuous coastline. Linear falloff over the outer
+    /// 40% of the map.
+    private static func applyCoastBias(
+        _ e: Double, x: Int, y: Int, size: Int, side: CoastSide
+    ) -> Double {
+        let fx = Double(x) / Double(max(1, size - 1))
+        let fy = Double(y) / Double(max(1, size - 1))
+        let distFromCoast: Double
+        switch side {
+        case .none: return e
+        case .n: distFromCoast = fy             // 0 at north edge, 1 at south
+        case .s: distFromCoast = 1 - fy
+        case .w: distFromCoast = fx
+        case .e: distFromCoast = 1 - fx
+        }
+        // Within the inner 60% of the map, no bias.
+        let coastZone = 0.40
+        guard distFromCoast < coastZone else { return e }
+        let t = distFromCoast / coastZone        // 0 at coast → 1 at inland edge of zone
+        // Drop elevation linearly. At coast (t=0) drop by 0.30, fading
+        // to 0 at the inland edge of the zone.
+        return e - 0.30 * (1 - t)
     }
 
     /// Map a tile + the noise value that produced it to a discrete elev

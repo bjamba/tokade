@@ -119,15 +119,18 @@ struct BuildingShape: Hashable {
     }
 
     static func lighthouse(wall: Color, band: Color, capColor: Color) -> BuildingShape {
+        // v3.3 — three stories that *narrow* as they rise (not widen),
+        // for a slimmer, taller tower silhouette that doesn't dominate
+        // neighbouring 1×1 buildings as much.
         BuildingShape(
             footprint: .init(1, 1),
             stories: [
-                .init(height: 18, inset: 0, wallColor: wall, trimColor: band),
-                .init(height: 16, inset: 3, wallColor: band, trimColor: wall),
-                .init(height: 14, inset: 5, wallColor: wall, trimColor: band),
+                .init(height: 12, inset: 0, wallColor: wall, trimColor: band),
+                .init(height: 12, inset: 5, wallColor: band, trimColor: wall),
+                .init(height: 12, inset: 9, wallColor: wall, trimColor: band),
             ],
-            roof: .dome(height: 8, color: capColor),
-            ornament: .spire(height: 10, color: capColor),
+            roof: .hip(height: 6, color: capColor),
+            ornament: .spire(height: 8, color: capColor),
             accent: nil
         )
     }
@@ -166,12 +169,16 @@ struct BuildingShape: Hashable {
     }
 
     static func aquarium(wall: Color, capColor: Color) -> BuildingShape {
+        // v3.3 — rectangular tank, flat roof, porthole windows. The
+        // earlier dome read as a body of water spilling out of the
+        // building (especially in the beach biome).
         BuildingShape(
             footprint: .init(2, 2),
-            stories: [.init(height: 18, inset: 0, wallColor: wall, trimColor: capColor)],
-            roof: .dome(height: 16, color: capColor),
-            ornament: .spire(height: 6, color: capColor),
-            accent: nil
+            stories: [.init(height: 22, inset: 0, wallColor: wall, trimColor: capColor)],
+            roof: .flat,
+            ornament: nil,
+            accent: nil,
+            detail: .windows(rows: 2, columns: 3, color: capColor)
         )
     }
 
