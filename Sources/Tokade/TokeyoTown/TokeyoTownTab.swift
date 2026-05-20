@@ -242,30 +242,38 @@ struct TokeyoTownGameView: View {
                         view: town.view
                     )
                     .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { v in
-                            if panMode {
-                                continuePan(value: v)
-                            } else {
-                                updateHover(at: v.location, canvas: canvasSize)
-                            }
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case let .active(point):
+                            updateHover(at: point, canvas: canvasSize)
+                        case .ended:
+                            hoverTile = nil
                         }
-                        .onEnded { v in
-                            if panMode {
-                                continuePan(value: v)
-                                dragStartPan = nil
-                                dragStartLocation = nil
-                            } else if let start = dragStartLocation,
-                                      hypot(v.location.x - start.x, v.location.y - start.y) < 4 {
-                                handleTap(at: v.location, canvas: canvasSize)
-                                dragStartLocation = nil
-                            } else {
-                                dragStartLocation = nil
-                                handleTap(at: v.location, canvas: canvasSize)
+                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { v in
+                                if panMode {
+                                    continuePan(value: v)
+                                } else {
+                                    updateHover(at: v.location, canvas: canvasSize)
+                                }
                             }
-                        }
-                )
+                            .onEnded { v in
+                                if panMode {
+                                    continuePan(value: v)
+                                    dragStartPan = nil
+                                    dragStartLocation = nil
+                                } else if let start = dragStartLocation,
+                                          hypot(v.location.x - start.x, v.location.y - start.y) < 4 {
+                                    handleTap(at: v.location, canvas: canvasSize)
+                                    dragStartLocation = nil
+                                } else {
+                                    dragStartLocation = nil
+                                    handleTap(at: v.location, canvas: canvasSize)
+                                }
+                            }
+                    )
                     currentToolIndicator
                         .padding(6)
                     if showConfirmNewTown {

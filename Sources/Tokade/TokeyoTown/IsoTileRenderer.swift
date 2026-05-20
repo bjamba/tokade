@@ -68,8 +68,12 @@ enum IsoMath {
         let dy = p.y - originY
         let fx = (dx / tw + dy / th) / 2
         let fy = (dy / th - dx / tw) / 2
-        let ix = Int(fx.rounded(.down))
-        let iy = Int(fy.rounded(.down))
+        // Round-to-nearest. Tile (x, y) has its center at (fx, fy) =
+        // (x, y); the iso diamond boundary between adjacent tiles is
+        // exactly at the half-integer line in this transformed space,
+        // so nearest-integer correctly classifies the cursor.
+        let ix = Int(fx.rounded())
+        let iy = Int(fy.rounded())
         guard (0..<mapSize).contains(ix), (0..<mapSize).contains(iy) else { return nil }
         return (ix, iy)
     }
@@ -596,77 +600,102 @@ struct IsoTileRenderer: View {
         let connectsW = (mask & 8) != 0
 
         // Edge-midpoint offsets from tile center, in screen px.
-        let nMid = CGPoint(x: tw / 2, y: -th / 2)
-        let eMid = CGPoint(x: tw / 2, y: th / 2)
-        let sMid = CGPoint(x: -tw / 2, y: th / 2)
-        let wMid = CGPoint(x: -tw / 2, y: -th / 2)
+        let nMid = CGPoint(x: center.x + tw / 2, y: center.y - th / 2)
+        let eMid = CGPoint(x: center.x + tw / 2, y: center.y + th / 2)
+        let sMid = CGPoint(x: center.x - tw / 2, y: center.y + th / 2)
+        let wMid = CGPoint(x: center.x - tw / 2, y: center.y - th / 2)
 
-        // Single asphalt strip per connecting direction. v3.3 — dropped
-        // the sidewalk underlay and the center cap; the road now reads
-        // as one clean dark line continuing across connected tiles.
-        let asphaltHalf: CGFloat = max(2.5, tw * 0.16)
-        _ = sidewalk
-
-        let connectingMids: [(connect: Bool, mid: CGPoint)] = [
-            (connectsN, nMid), (connectsE, eMid),
-            (connectsS, sMid), (connectsW, wMid),
-        ]
-        for (connect, mid) in connectingMids where connect {
-            drawRoadArm(context: context, center: center, to: mid,
-                        halfWidth: asphaltHalf, color: asphalt)
+        // Build a single Path for the asphalt centerline of this tile —
+        // either a straight, an L-curve (using a quadratic through the
+        // tile center), or one or more arms (Ts, crosses, dead-ends).
+        // Then stroke it at the road width. The Path approach gives
+        // free smooth L-curves where the previous straight-arm approach
+        // had sharp 90° corners.
+        let connectionCount = [connectsN, connectsE, connectsS, connectsW].filter { $0 }.count
+        let roadWidth: CGFloat = max(4, tw * 0.32)
+        let asphaltPath = buildRoadPath(
+            center: center,
+            connectsN: connectsN, connectsE: connectsE,
+            connectsS: connectsS, connectsW: connectsW,
+            nMid: nMid, eMid: eMid, sMid: sMid, wMid: wMid
+        )
+        if connectionCount > 0 {
+            context.stroke(asphaltPath,
+                           with: .color(asphalt),
+                           style: StrokeStyle(lineWidth: roadWidth,
+                                              lineCap: .round,
+                                              lineJoin: .round))
         }
 
-        // Dead-end (single connection or none): give the road a small
-        // squared cap at the center so it doesn't vanish to a point.
-        let connectionCount = connectingMids.filter(\.connect).count
-        if connectionCount <= 1 {
-            let r: CGFloat = asphaltHalf * 0.9
+        // Isolated road tile with no neighbours — paint a small square.
+        if connectionCount == 0 {
+            let r = roadWidth * 0.45
             let rect = CGRect(x: center.x - r, y: center.y - r,
                               width: r * 2, height: r * 2)
             context.fill(Path(rect), with: .color(asphalt))
         }
 
-        // Yellow dashed lane stripe along EVERY connecting arm so all
-        // tile types (straight, curve, T, cross, dead-end) have visible
-        // lane markings.
-        for (connect, mid) in connectingMids where connect {
-            var line = Path()
-            line.move(to: CGPoint(x: center.x + mid.x * 0.12,
-                                  y: center.y + mid.y * 0.12))
-            line.addLine(to: CGPoint(x: center.x + mid.x * 0.92,
-                                     y: center.y + mid.y * 0.92))
-            context.stroke(line, with: .color(laneStripeColor),
-                           style: StrokeStyle(lineWidth: 1, dash: [3, 2.5]))
+        // Yellow dashed lane stripe down the centerline of the same
+        // path so all road shapes (straight, L-curve, T, cross,
+        // dead-end) get markings.
+        let stripeWidth: CGFloat = max(1, roadWidth * 0.13)
+        if connectionCount > 0 {
+            context.stroke(asphaltPath,
+                           with: .color(laneStripeColor),
+                           style: StrokeStyle(lineWidth: stripeWidth,
+                                              lineCap: .butt,
+                                              dash: [4, 3]))
         }
+
+        _ = sidewalk
     }
 
-    /// Filled quadrilateral from the tile's center to an edge midpoint,
-    /// with the given perpendicular half-width. This is one "arm" of a
-    /// road — straight roads draw two opposite arms, junctions draw
-    /// three or four.
-    private func drawRoadArm(
-        context: GraphicsContext,
+    /// Construct the centerline `Path` for a road tile given its
+    /// connectivity flags. Adjacent-direction pairs (NE / ES / SW / WN)
+    /// emit a quadratic curve through the tile center; opposite pairs
+    /// (NS / EW) emit a straight line; Ts / crosses / dead-ends emit a
+    /// straight arm from the center out to each connecting edge mid.
+    private func buildRoadPath(
         center: CGPoint,
-        to endOffset: CGPoint,
-        halfWidth: CGFloat,
-        color: Color
-    ) {
-        let endPoint = CGPoint(x: center.x + endOffset.x, y: center.y + endOffset.y)
-        // Unit vector along the arm.
-        let len = (endOffset.x * endOffset.x + endOffset.y * endOffset.y).squareRoot()
-        guard len > 0 else { return }
-        let ux = endOffset.x / len
-        let uy = endOffset.y / len
-        // Perpendicular vector (rotated 90°).
-        let px = -uy
-        let py = ux
+        connectsN: Bool, connectsE: Bool, connectsS: Bool, connectsW: Bool,
+        nMid: CGPoint, eMid: CGPoint, sMid: CGPoint, wMid: CGPoint
+    ) -> Path {
+        let total = [connectsN, connectsE, connectsS, connectsW].filter { $0 }.count
         var path = Path()
-        path.move(to: CGPoint(x: center.x + px * halfWidth, y: center.y + py * halfWidth))
-        path.addLine(to: CGPoint(x: endPoint.x + px * halfWidth, y: endPoint.y + py * halfWidth))
-        path.addLine(to: CGPoint(x: endPoint.x - px * halfWidth, y: endPoint.y - py * halfWidth))
-        path.addLine(to: CGPoint(x: center.x - px * halfWidth, y: center.y - py * halfWidth))
-        path.closeSubpath()
-        context.fill(path, with: .color(color))
+        // Straight roads — single line through center.
+        if total == 2, connectsN, connectsS {
+            path.move(to: nMid)
+            path.addLine(to: sMid)
+            return path
+        }
+        if total == 2, connectsE, connectsW {
+            path.move(to: eMid)
+            path.addLine(to: wMid)
+            return path
+        }
+        // L-curves — adjacent pair, quadratic curve through center.
+        let lCurves: [(Bool, Bool, CGPoint, CGPoint)] = [
+            (connectsN, connectsE, nMid, eMid),
+            (connectsE, connectsS, eMid, sMid),
+            (connectsS, connectsW, sMid, wMid),
+            (connectsW, connectsN, wMid, nMid),
+        ]
+        if total == 2, let lc = lCurves.first(where: { $0.0 && $0.1 }) {
+            path.move(to: lc.2)
+            path.addQuadCurve(to: lc.3, control: center)
+            return path
+        }
+        // T / cross / dead-end — straight arms from center to each
+        // connecting edge mid.
+        let arms: [(Bool, CGPoint)] = [
+            (connectsN, nMid), (connectsE, eMid),
+            (connectsS, sMid), (connectsW, wMid),
+        ]
+        for (connect, mid) in arms where connect {
+            path.move(to: center)
+            path.addLine(to: mid)
+        }
+        return path
     }
 
 
@@ -1110,14 +1139,15 @@ struct IsoTileRenderer: View {
         }
     }
 
-    /// Draws a single-tile outline + soft fill at (x, y). Used by the
-    /// hover indicator for every non-build tool (road, terraform,
-    /// raise/lower, remove) so the player can see which tile they're
-    /// about to act on.
+    /// Draws a yellow tile outline + soft fill at (x, y). v3.4 — the
+    /// indicator is just "this is the tile I'm hovering"; it does not
+    /// communicate whether the action will succeed. The action itself
+    /// silently no-ops on invalid input (and the cursor moves on
+    /// without a confusing red flash).
     private func drawTileHighlight(
         context: GraphicsContext,
         x: Int, y: Int,
-        valid: Bool,
+        valid _: Bool,
         canvas: CGSize
     ) {
         let elev = state.terrain.elev(x: x, y: y)
@@ -1133,9 +1163,7 @@ struct IsoTileRenderer: View {
         path.addLine(to: CGPoint(x: center.x, y: center.y + th))
         path.addLine(to: CGPoint(x: center.x - tw, y: center.y))
         path.closeSubpath()
-        let outline = valid
-            ? Color(red: 0.98, green: 0.85, blue: 0.30)
-            : Color(red: 0.95, green: 0.30, blue: 0.30)
+        let outline = Color(red: 0.98, green: 0.85, blue: 0.30)
         context.fill(path, with: .color(outline.opacity(0.22)))
         context.stroke(path, with: .color(outline), lineWidth: 1.4)
     }
