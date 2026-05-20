@@ -8,6 +8,7 @@ import SwiftUI
 @MainActor
 struct TokeyoTownTab: View {
     @Bindable var town: TokeyoTownStore
+    @Bindable var usage: UsageStore
     @Bindable var notifier: Notifier
     var onExitGame: () -> Void
 
@@ -33,7 +34,7 @@ struct TokeyoTownTab: View {
                 Text("The current town will be archived to ~/.tokade/games/tokeyotown/archive/. You can only have one town at a time in this version.")
             }
         } else {
-            NewTownView(store: town, notifier: notifier, onCancel: onExitGame)
+            NewTownView(store: town, usage: usage, notifier: notifier, onCancel: onExitGame)
         }
     }
 }

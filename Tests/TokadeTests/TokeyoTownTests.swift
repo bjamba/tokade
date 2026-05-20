@@ -265,6 +265,49 @@ final class TokeyoTownTests: XCTestCase {
         }
     }
 
+    // MARK: - DiscoveredRepos
+
+    func testDiscoveredReposDedupesByProjectRoot() {
+        // Two events from sibling subfolders of the same repo collapse to one.
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let sub = tmp.appendingPathComponent("Sources/Tokade")
+        try? FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
+        // Mark the root with a .git directory so projectRoot finds it.
+        try? FileManager.default.createDirectory(at: tmp.appendingPathComponent(".git"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+
+        let events = [
+            makeEvent(ts: Date(), cwd: tmp.path, messageId: "a"),
+            makeEvent(ts: Date().addingTimeInterval(1), cwd: sub.path, messageId: "b"),
+        ]
+        let entries = DiscoveredRepos.from(events: events)
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.path, tmp.path)
+    }
+
+    func testDiscoveredReposSortedByDisplayName() {
+        let now = Date()
+        let events = [
+            makeEvent(ts: now, cwd: "/tmp/zebra", messageId: "a"),
+            makeEvent(ts: now.addingTimeInterval(1), cwd: "/tmp/apple", messageId: "b"),
+            makeEvent(ts: now.addingTimeInterval(2), cwd: "/tmp/Mango", messageId: "c"),
+        ]
+        let entries = DiscoveredRepos.from(events: events)
+        XCTAssertEqual(entries.map(\.displayName), ["apple", "Mango", "zebra"])
+    }
+
+    func testDiscoveredReposFilterIsCaseInsensitive() {
+        let entries = [
+            DiscoveredRepos.Entry(path: "/tmp/foo", displayName: "foo"),
+            DiscoveredRepos.Entry(path: "/home/me/Bar-Project", displayName: "Bar-Project"),
+            DiscoveredRepos.Entry(path: "/var/baz", displayName: "baz"),
+        ]
+        XCTAssertEqual(DiscoveredRepos.filter(entries, query: "").count, 3)
+        XCTAssertEqual(DiscoveredRepos.filter(entries, query: "bar").count, 1)
+        XCTAssertEqual(DiscoveredRepos.filter(entries, query: "/TMP/").count, 1)
+        XCTAssertEqual(DiscoveredRepos.filter(entries, query: "   ").count, 3)
+    }
+
     // MARK: - Save round-trip (covers archive perms transitively)
 
     func testStateCodableRoundtrip() throws {

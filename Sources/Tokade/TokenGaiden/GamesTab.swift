@@ -47,7 +47,7 @@ struct GamesTab: View {
                     selectedGame = nil
                 })
             case .tokeyoTown:
-                TokeyoTownTab(town: town, notifier: notifier, onExitGame: {
+                TokeyoTownTab(town: town, usage: store, notifier: notifier, onExitGame: {
                     selectedGame = nil
                 })
             }
