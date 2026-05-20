@@ -17,6 +17,7 @@ final class TokeyoTownStore {
 
     enum Tool: Equatable, Hashable {
         case hand                  // demolish building OR clear flower/decor — the universal "remove" tool
+        case pan                   // drag the camera instead of acting on tiles
         case build(String)         // place this building id
         case road                  // paint a road tile
         case clearTree
@@ -26,6 +27,40 @@ final class TokeyoTownStore {
         case lantern
         case raise                 // raise terrain one tier (max +2)
         case lower                 // lower terrain one tier (min -1)
+
+        /// Human-readable name used by the current-tool indicator.
+        var displayName: String {
+            switch self {
+            case .hand: return "Remove"
+            case .pan: return "Pan"
+            case let .build(id):
+                return BuildingCatalog.find(id)?.displayName ?? "Build"
+            case .road: return "Road"
+            case .clearTree: return "Fell Tree"
+            case .plantTree: return "Plant Tree"
+            case .levelRock: return "Level Rock"
+            case .plantFlower: return "Plant Flower"
+            case .lantern: return "Lantern"
+            case .raise: return "Raise"
+            case .lower: return "Lower"
+            }
+        }
+
+        var glyph: String {
+            switch self {
+            case .hand: return "🗑"
+            case .pan: return "✥"
+            case let .build(id): return BuildingCatalog.find(id)?.glyph ?? "🏠"
+            case .road: return "🛣"
+            case .clearTree: return "🪓"
+            case .plantTree: return "🌱"
+            case .levelRock: return "⛏"
+            case .plantFlower: return "🌸"
+            case .lantern: return "🏮"
+            case .raise: return "⛰"
+            case .lower: return "🕳"
+            }
+        }
     }
 
     // MARK: - Action costs (centralized)
@@ -179,6 +214,8 @@ final class TokeyoTownStore {
     func applyToolAt(x: Int, y: Int) async -> Bool {
         guard let s = state else { return false }
         return switch tool {
+        case .pan:
+            false // pan is purely a camera-drag mode; taps do nothing
         case .hand:
             await handAction(state: s, x: x, y: y)
         case let .build(id):
@@ -315,16 +352,17 @@ final class TokeyoTownStore {
         guard var s = state, s.terrain.contains(x: x, y: y) else { return false }
         let current = s.terrain.elev(x: x, y: y)
         guard current < 2 else { return false }
-        // Can't raise a tile occupied by a building (would break flatness).
         if isOccupiedByBuilding(x: x, y: y) { return false }
         guard s.resources.canAfford(Self.raiseCost) else { return false }
         snapshot()
         _ = s.resources.deduct(Self.raiseCost)
         s.terrain.setElev(current + 1, x: x, y: y)
-        // Tier transitions: water/sand → grass; grass at tier 2 → rock peak.
-        if s.terrain.tile(x: x, y: y) == .water { s.terrain.setTile(.grass, x: x, y: y) }
-        if current + 1 == 2, s.terrain.tile(x: x, y: y) != .rock {
-            s.terrain.setTile(.rock, x: x, y: y)
+        // v3.1 — raising water becomes grass/sand, but raising grass
+        // does NOT convert to rock. The terrain kind stays the same and
+        // the renderer draws a pyramid in the ground color at tier 2.
+        if s.terrain.tile(x: x, y: y) == .water {
+            // Surface tile lifted out of water — biome decides what's exposed.
+            s.terrain.setTile(s.repo.biome == .desert ? .sand : .grass, x: x, y: y)
         }
         state = s
         await flush()
@@ -340,10 +378,10 @@ final class TokeyoTownStore {
         snapshot()
         _ = s.resources.deduct(Self.lowerCost)
         s.terrain.setElev(current - 1, x: x, y: y)
+        // Dropping to -1 fills with water. Higher → lower transitions
+        // don't change the tile kind (a forested mountain becomes a
+        // forested hill becomes a forested patch of grass).
         if current - 1 == -1 { s.terrain.setTile(.water, x: x, y: y) }
-        if current - 1 == 0, s.terrain.tile(x: x, y: y) == .rock {
-            s.terrain.setTile(.grass, x: x, y: y)
-        }
         state = s
         await flush()
         return true

@@ -45,10 +45,12 @@ struct TokeyoTownGameView: View {
     var onStartNewTown: () -> Void
 
     @State private var hoverTile: (x: Int, y: Int)?
-    /// When true, drags pan the camera instead of applying the tool.
-    @State private var panMode = false
     @State private var dragStartPan: (x: CGFloat, y: CGFloat)?
     @State private var dragStartLocation: CGPoint?
+
+    /// True when the Pan tool is selected — drags then move the camera
+    /// instead of applying a tool to tiles.
+    private var panMode: Bool { town.tool == .pan }
 
     var body: some View {
         GameScreen(crtMode: notifier.crtMode) {
@@ -103,7 +105,6 @@ struct TokeyoTownGameView: View {
             iconButton("−") { town.zoomOut() }
             iconButton("\(Int(town.view.zoom * 100))%") { town.recenterCamera() }
             iconButton("+") { town.zoomIn() }
-            iconButton(panMode ? "🖐" : "✥") { panMode.toggle() }
         }
     }
 
@@ -150,6 +151,8 @@ struct TokeyoTownGameView: View {
             VStack(spacing: 4) {
                 toolButton(.hand, icon: "🗑", label: "Remove",
                            subtitle: "any tile")
+                toolButton(.pan, icon: "✥", label: "Pan",
+                           subtitle: "drag map")
                 toolButton(.road, icon: "🛣", label: "Road",
                            cost: TokeyoTownStore.roadCost, costPrefix: "/tile")
                 toolButton(.plantTree, icon: "🌱", label: "Plant",
@@ -237,13 +240,14 @@ struct TokeyoTownGameView: View {
             let phase = phaseValue(at: context.date)
             GeometryReader { geo in
                 let canvasSize = geo.size
-                IsoTileRenderer(
-                    state: town.state ?? sentinelState,
-                    phase: phase,
-                    placementPreview: currentPreview,
-                    view: town.view
-                )
-                .contentShape(Rectangle())
+                ZStack(alignment: .topLeading) {
+                    IsoTileRenderer(
+                        state: town.state ?? sentinelState,
+                        phase: phase,
+                        placementPreview: currentPreview,
+                        view: town.view
+                    )
+                    .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { v in
@@ -268,9 +272,27 @@ struct TokeyoTownGameView: View {
                             }
                         }
                 )
+                    currentToolIndicator
+                        .padding(6)
+                }
             }
         }
         .frame(minHeight: 300)
+    }
+
+    private var currentToolIndicator: some View {
+        HStack(spacing: 4) {
+            Text(town.tool.glyph).font(.system(size: 13))
+            Text(town.tool.displayName.uppercased())
+                .font(.system(.caption2, design: .monospaced))
+                .fontWeight(.bold)
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(
+            Color(red: 0.08, green: 0.08, blue: 0.12).opacity(0.85)
+        )
+        .overlay(Rectangle().stroke(Color(red: 0.95, green: 0.85, blue: 0.30), lineWidth: 1))
     }
 
     private func continuePan(value: DragGesture.Value) {

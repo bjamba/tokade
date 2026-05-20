@@ -114,6 +114,16 @@ struct IsoTileRenderer: View {
                 }
             }
 
+            // Mountain peaks (tier-2 tiles get a colored pyramid in ground color)
+            for y in 0..<state.repo.mapSize {
+                for x in 0..<state.repo.mapSize {
+                    if state.terrain.elev(x: x, y: y) >= 2 {
+                        drawMountainPeak(context: context, x: x, y: y,
+                                         biome: biome, canvas: size)
+                    }
+                }
+            }
+
             // Terrain decor (trees, flowers, rocks, lanterns)
             for y in 0..<state.repo.mapSize {
                 for x in 0..<state.repo.mapSize {
@@ -386,6 +396,73 @@ struct IsoTileRenderer: View {
         _ = tw
     }
 
+    /// Draws a colored 4-sided pyramid on top of a tier-2 tile, using the
+    /// underlying terrain's primary color so the mountain reads as part
+    /// of the landscape (a grassy peak / sandy dune / snowfield) instead
+    /// of a generic grey rock.
+    private func drawMountainPeak(
+        context: GraphicsContext,
+        x: Int,
+        y: Int,
+        biome: BiomeCatalog.BiomeInfo,
+        canvas: CGSize
+    ) {
+        let elev = state.terrain.elev(x: x, y: y)
+        let center = IsoMath.project(x: Double(x), y: Double(y),
+                                     elevation: elev,
+                                     mapSize: state.repo.mapSize,
+                                     canvas: canvas, view: view)
+        let tw = IsoMath.tileWidth(forMapSize: state.repo.mapSize, zoom: view.zoom)
+        let th = IsoMath.tileHeight(forMapSize: state.repo.mapSize, zoom: view.zoom)
+        let peakHeight = IsoMath.elevationOffset(1, zoom: view.zoom) * 1.6
+
+        let groundTile = state.terrain.tile(x: x, y: y)
+        let baseColor = groundColor(for: groundTile, biome: biome)
+        let apex = CGPoint(x: center.x, y: center.y - peakHeight)
+        let cornerN = CGPoint(x: center.x, y: center.y - th)
+        let cornerE = CGPoint(x: center.x + tw, y: center.y)
+        let cornerS = CGPoint(x: center.x, y: center.y + th)
+        let cornerW = CGPoint(x: center.x - tw, y: center.y)
+
+        // Four triangular faces — each a slightly different shade so the
+        // pyramid reads as 3D, not as a flat decal.
+        for (a, b, shade) in [
+            (cornerN, cornerE, 1.0),
+            (cornerE, cornerS, 0.78),
+            (cornerS, cornerW, 0.86),
+            (cornerW, cornerN, 0.92),
+        ] {
+            var face = Path()
+            face.move(to: apex)
+            face.addLine(to: a)
+            face.addLine(to: b)
+            face.closeSubpath()
+            context.fill(face, with: .color(baseColor.opacity(shade)))
+            context.stroke(face, with: .color(.black.opacity(0.3)), lineWidth: 0.5)
+        }
+        // Snow cap on tundra so peaks read as "mountains" not just "tall grass."
+        if biome.biome == .tundra {
+            let snowApexHeight = peakHeight * 0.45
+            let snowApex = apex
+            let snowBaseW = tw * 0.45
+            let snowBaseH = th * 0.45
+            let snowCorners = [
+                CGPoint(x: center.x, y: center.y - snowBaseH - peakHeight + snowApexHeight),
+                CGPoint(x: center.x + snowBaseW, y: center.y - peakHeight + snowApexHeight),
+                CGPoint(x: center.x, y: center.y + snowBaseH - peakHeight + snowApexHeight),
+                CGPoint(x: center.x - snowBaseW, y: center.y - peakHeight + snowApexHeight),
+            ]
+            for i in 0..<4 {
+                var face = Path()
+                face.move(to: snowApex)
+                face.addLine(to: snowCorners[i])
+                face.addLine(to: snowCorners[(i + 1) % 4])
+                face.closeSubpath()
+                context.fill(face, with: .color(.white.opacity(0.86)))
+            }
+        }
+    }
+
     private func drawRockDecor(context: GraphicsContext, at center: CGPoint, tw: CGFloat) {
         // Rocks look like little jagged ridges; for tier-2 mountains, draw
         // a darker peaked silhouette on top.
@@ -463,86 +540,140 @@ struct IsoTileRenderer: View {
         let sidewalk = sidewalkColor(for: biome)
         let asphalt = asphaltColor(for: biome)
 
-        // Two strips, NS and EW. Each strip is a thin diamond
-        // (a fraction of the tile's full diamond). Together they form
-        // crosses / Ts / straights / curves / ends naturally.
-        let stripWidth: CGFloat = tw * 0.42       // half-width of road strip
-        let stripHeight: CGFloat = th * 0.42
-
         let connectsN = (mask & 1) != 0
         let connectsE = (mask & 2) != 0
         let connectsS = (mask & 4) != 0
         let connectsW = (mask & 8) != 0
 
-        // Endpoints for each strip — extend out to the tile edge in
-        // directions that connect, otherwise stop short at the road center.
-        let nStop = connectsN ? -th : -th * 0.35
-        let sStop = connectsS ?  th :  th * 0.35
-        let eStop = connectsE ?  tw :  tw * 0.35
-        let wStop = connectsW ? -tw : -tw * 0.35
+        // Sidewalk strip half-thickness > asphalt strip half-thickness
+        // so the lighter band frames the dark band. v3.1 — tighter than
+        // before so roads read as roads, not as fat blobs.
+        let sidewalkHalf: CGFloat = tw * 0.30
+        let sidewalkHalfTh: CGFloat = th * 0.30
+        let asphaltHalf: CGFloat = tw * 0.20
+        let asphaltHalfTh: CGFloat = th * 0.20
 
-        // NS strip (diamond from N to S, narrow E-W)
+        // Stop points: extend fully to tile edge in any connecting direction,
+        // otherwise stop just at the inner edge of the cross-direction's
+        // strip. This produces clean Ts, crosses, dead-ends without overrun.
+        let nSidewalk = connectsN ? -th : -sidewalkHalfTh
+        let sSidewalk = connectsS ?  th :  sidewalkHalfTh
+        let eSidewalk = connectsE ?  tw :  sidewalkHalf
+        let wSidewalk = connectsW ? -tw : -sidewalkHalf
+
+        let nAsphalt = connectsN ? -th : -asphaltHalfTh
+        let sAsphalt = connectsS ?  th :  asphaltHalfTh
+        let eAsphalt = connectsE ?  tw :  asphaltHalf
+        let wAsphalt = connectsW ? -tw : -asphaltHalf
+
+        // NS strip (sidewalk under, asphalt over)
         if connectsN || connectsS || (!connectsE && !connectsW) {
-            var stripBack = Path()
-            stripBack.move(to: CGPoint(x: center.x - stripWidth - 1, y: center.y))
-            stripBack.addLine(to: CGPoint(x: center.x, y: center.y + nStop - 1))
-            stripBack.addLine(to: CGPoint(x: center.x + stripWidth + 1, y: center.y))
-            stripBack.addLine(to: CGPoint(x: center.x, y: center.y + sStop + 1))
-            stripBack.closeSubpath()
-            context.fill(stripBack, with: .color(sidewalk))
-
-            var strip = Path()
-            strip.move(to: CGPoint(x: center.x - stripWidth + 2, y: center.y))
-            strip.addLine(to: CGPoint(x: center.x, y: center.y + nStop + 1))
-            strip.addLine(to: CGPoint(x: center.x + stripWidth - 2, y: center.y))
-            strip.addLine(to: CGPoint(x: center.x, y: center.y + sStop - 1))
-            strip.closeSubpath()
-            context.fill(strip, with: .color(asphalt))
+            drawDiamondStrip(
+                context: context, center: center,
+                halfW: sidewalkHalf, halfH: sidewalkHalfTh,
+                nStop: nSidewalk, sStop: sSidewalk,
+                eStop: 0, wStop: 0,
+                axis: .ns,
+                color: sidewalk
+            )
+            drawDiamondStrip(
+                context: context, center: center,
+                halfW: asphaltHalf, halfH: asphaltHalfTh,
+                nStop: nAsphalt, sStop: sAsphalt,
+                eStop: 0, wStop: 0,
+                axis: .ns,
+                color: asphalt
+            )
         }
-
         // EW strip
         if connectsE || connectsW || (!connectsN && !connectsS) {
-            var stripBack = Path()
-            stripBack.move(to: CGPoint(x: center.x, y: center.y - stripHeight - 1))
-            stripBack.addLine(to: CGPoint(x: center.x + eStop + 1, y: center.y))
-            stripBack.addLine(to: CGPoint(x: center.x, y: center.y + stripHeight + 1))
-            stripBack.addLine(to: CGPoint(x: center.x + wStop - 1, y: center.y))
-            stripBack.closeSubpath()
-            context.fill(stripBack, with: .color(sidewalk))
-
-            var strip = Path()
-            strip.move(to: CGPoint(x: center.x, y: center.y - stripHeight + 1))
-            strip.addLine(to: CGPoint(x: center.x + eStop - 1, y: center.y))
-            strip.addLine(to: CGPoint(x: center.x, y: center.y + stripHeight - 1))
-            strip.addLine(to: CGPoint(x: center.x + wStop + 1, y: center.y))
-            strip.closeSubpath()
-            context.fill(strip, with: .color(asphalt))
+            drawDiamondStrip(
+                context: context, center: center,
+                halfW: sidewalkHalf, halfH: sidewalkHalfTh,
+                nStop: 0, sStop: 0,
+                eStop: eSidewalk, wStop: wSidewalk,
+                axis: .ew,
+                color: sidewalk
+            )
+            drawDiamondStrip(
+                context: context, center: center,
+                halfW: asphaltHalf, halfH: asphaltHalfTh,
+                nStop: 0, sStop: 0,
+                eStop: eAsphalt, wStop: wAsphalt,
+                axis: .ew,
+                color: asphalt
+            )
         }
 
-        // Center dashes if this tile is a straight (cross-stripe omitted).
-        let isStraight = (connectsN && connectsS && !connectsE && !connectsW) ||
-            (connectsE && connectsW && !connectsN && !connectsS)
-        if isStraight {
-            let dash = CGRect(x: center.x - 1, y: center.y - 1.4, width: 2, height: 2.8)
-            context.fill(Path(dash), with: .color(.white.opacity(0.6)))
+        // Yellow lane stripe on straight runs.
+        let isStraightNS = connectsN && connectsS && !connectsE && !connectsW
+        let isStraightEW = connectsE && connectsW && !connectsN && !connectsS
+        if isStraightNS {
+            var line = Path()
+            line.move(to: CGPoint(x: center.x, y: center.y + nAsphalt + 2))
+            line.addLine(to: CGPoint(x: center.x, y: center.y + sAsphalt - 2))
+            context.stroke(line, with: .color(laneStripeColor),
+                           style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+        }
+        if isStraightEW {
+            var line = Path()
+            line.move(to: CGPoint(x: center.x + wAsphalt + 2, y: center.y))
+            line.addLine(to: CGPoint(x: center.x + eAsphalt - 2, y: center.y))
+            context.stroke(line, with: .color(laneStripeColor),
+                           style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
         }
     }
 
-    private func asphaltColor(for biome: BiomeCatalog.BiomeInfo) -> Color {
-        switch biome.biome {
-        case .plain:  return Color(red: 0.32, green: 0.32, blue: 0.34)
-        case .desert: return Color(red: 0.45, green: 0.36, blue: 0.30)
-        case .tundra: return Color(red: 0.30, green: 0.32, blue: 0.36)
-        case .forest: return Color(red: 0.28, green: 0.28, blue: 0.28)
-        case .beach:  return Color(red: 0.52, green: 0.42, blue: 0.32)  // boardwalk planks
+    private enum RoadAxis { case ns, ew }
+
+    /// Draws a thin iso-diamond strip from one tile edge to the other,
+    /// stopping short of the tile edge when the corresponding side
+    /// doesn't connect. Used for both the sidewalk and the asphalt layer.
+    private func drawDiamondStrip(
+        context: GraphicsContext,
+        center: CGPoint,
+        halfW: CGFloat,
+        halfH: CGFloat,
+        nStop: CGFloat,
+        sStop: CGFloat,
+        eStop: CGFloat,
+        wStop: CGFloat,
+        axis: RoadAxis,
+        color: Color
+    ) {
+        var path = Path()
+        switch axis {
+        case .ns:
+            path.move(to: CGPoint(x: center.x - halfW, y: center.y))
+            path.addLine(to: CGPoint(x: center.x, y: center.y + nStop))
+            path.addLine(to: CGPoint(x: center.x + halfW, y: center.y))
+            path.addLine(to: CGPoint(x: center.x, y: center.y + sStop))
+        case .ew:
+            path.move(to: CGPoint(x: center.x, y: center.y - halfH))
+            path.addLine(to: CGPoint(x: center.x + eStop, y: center.y))
+            path.addLine(to: CGPoint(x: center.x, y: center.y + halfH))
+            path.addLine(to: CGPoint(x: center.x + wStop, y: center.y))
         }
+        path.closeSubpath()
+        context.fill(path, with: .color(color))
+    }
+
+    /// Roads are roads, not biome-themed planks. Dark asphalt + light
+    /// concrete sidewalks everywhere; saturation hardly varies between
+    /// biomes so the road network reads as infrastructure that crosses
+    /// the landscape, not as part of it.
+    private func asphaltColor(for biome: BiomeCatalog.BiomeInfo) -> Color {
+        _ = biome
+        return Color(red: 0.22, green: 0.22, blue: 0.24)
     }
 
     private func sidewalkColor(for biome: BiomeCatalog.BiomeInfo) -> Color {
-        switch biome.biome {
-        case .beach:  return Color(red: 0.88, green: 0.78, blue: 0.55)
-        default:      return Color(red: 0.78, green: 0.78, blue: 0.74)
-        }
+        _ = biome
+        return Color(red: 0.82, green: 0.82, blue: 0.80)
+    }
+
+    private var laneStripeColor: Color {
+        Color(red: 0.98, green: 0.85, blue: 0.30)
     }
 
     // MARK: - Buildings
@@ -613,36 +744,28 @@ struct IsoTileRenderer: View {
                          zoom: zoom, alpha: alpha)
         }
 
-        // Badge — a colored circle with the glyph below the right corner.
+        // Glyph badge sits above the roof apex — back to the v1 approach
+        // but bigger and with a soft drop shadow for legibility against
+        // light or dark walls.
         if alpha >= 0.99 {
-            drawBuildingBadge(context: context, glyph: building.glyph,
-                              color: badgeColor(for: building),
-                              at: CGPoint(x: center.x + halfWBase * 0.55,
-                                          y: center.y + halfHBase * 0.6))
+            drawRoofGlyph(context: context, glyph: building.glyph, at: topCenter)
         }
     }
 
-    private func badgeColor(for b: BuildingCatalog.Building) -> Color {
-        // Subtle tint per biome + a stronger fixed accent for visibility.
-        switch b.biome {
-        case .plain:  return Color(red: 0.95, green: 0.85, blue: 0.30)
-        case .desert: return Color(red: 0.95, green: 0.62, blue: 0.30)
-        case .tundra: return Color(red: 0.62, green: 0.78, blue: 0.92)
-        case .forest: return Color(red: 0.55, green: 0.78, blue: 0.42)
-        case .beach:  return Color(red: 0.92, green: 0.42, blue: 0.62)
-        }
-    }
-
-    private func drawBuildingBadge(context: GraphicsContext, glyph: String,
-                                   color: Color, at point: CGPoint) {
-        let r: CGFloat = 7 * CGFloat(view.zoom)
-        let rect = CGRect(x: point.x - r, y: point.y - r, width: r * 2, height: r * 2)
-        context.fill(Path(ellipseIn: rect), with: .color(.white.opacity(0.92)))
-        context.stroke(Path(ellipseIn: rect), with: .color(color), lineWidth: 1.5)
-        let glyphResolved = context.resolve(
-            Text(glyph).font(.system(size: 9 * CGFloat(view.zoom)))
-        )
-        context.draw(glyphResolved, at: point, anchor: .center)
+    /// Draws the building's glyph above its roof apex, with a small
+    /// translucent halo so it's legible against any roof color.
+    private func drawRoofGlyph(context: GraphicsContext, glyph: String, at top: CGPoint) {
+        let zoom = CGFloat(view.zoom)
+        let p = CGPoint(x: top.x, y: top.y - 14 * zoom)
+        let size = 14 * zoom
+        // Halo behind the glyph
+        let haloR = size * 0.55
+        let haloRect = CGRect(x: p.x - haloR, y: p.y - haloR,
+                              width: haloR * 2, height: haloR * 2)
+        context.fill(Path(ellipseIn: haloRect),
+                     with: .color(.black.opacity(0.32)))
+        let glyphResolved = context.resolve(Text(glyph).font(.system(size: size)))
+        context.draw(glyphResolved, at: p, anchor: .center)
     }
 
     private func drawPrism(
