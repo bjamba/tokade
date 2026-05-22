@@ -24,10 +24,11 @@ enum ResourceAccrual {
         var pendingSessionEvents: [String: Date] = [:] // last seen timestamp per session
 
         for event in candidates {
-            // Coin: 1 / 4,000 tokens. v2 nerfed from 1/1k because tokens
-            // are by far the most abundant signal and dominated every
-            // other resource at the v1 ratios.
-            delta.coin += event.grandTotal / 4000
+            // Coin: 1 / 1,000 tokens. v3.7 — v2's 1/4k nerf was too
+            // aggressive; an hour of light Claude use couldn't buy a
+            // single cottage. Back to the v1 rate but with smaller
+            // building costs so it stays meaningful.
+            delta.coin += event.grandTotal / 1000
 
             // v3.6 — `stability` and `inspiration` retired. They earned
             // too rarely to matter for buying anything and added UI
@@ -101,12 +102,16 @@ enum ResourceAccrual {
     ///   - industry:  1 / 8 bashes (v1 was 1/5)
     ///   - stability: 1 / 40 bashes (~1/5 of industry, was 1/25)
     private static func normalize(_ raw: TokeyoTownState.Resources) -> TokeyoTownState.Resources {
+        // v3.7 — earn rates buffed:
+        //   knowledge: 1 / 10 → 1 / 4 reads
+        //   lumber:    1 / 3  → 1 / 2 edits
+        //   industry:  1 / 8  → 1 / 4 bashes
         var out = raw
-        out.knowledge = raw.knowledge / 10
-        out.lumber    = raw.lumber    / 3
-        out.industry = raw.industry / 8
-        out.stability = 0   // retired in v3.6
-        out.inspiration = 0 // retired in v3.6
+        out.knowledge = raw.knowledge / 4
+        out.lumber = raw.lumber / 2
+        out.industry = raw.industry / 4
+        out.stability = 0
+        out.inspiration = 0
         return out
     }
 }

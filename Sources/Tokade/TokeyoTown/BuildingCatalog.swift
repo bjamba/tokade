@@ -81,13 +81,14 @@ enum BuildingCatalog {
             glyph: "🛒", blurb: "Produce out front, gossip in the back."
         ),
         Building(
-            id: "plain-park", displayName: "Park", biome: .plain,
-            cost: .init(coin: 35, growth: 10),
+            id: "plain-park", displayName: "Village Green", biome: .plain,
+            cost: .init(coin: 15, growth: 3),
             shape: .park(
                 grass: Color(red: 0.45, green: 0.78, blue: 0.42),
                 accent: Color(red: 0.22, green: 0.55, blue: 0.30)
             ),
-            glyph: "🌳", blurb: "Townsfolk loiter here on slow afternoons."
+            glyph: "🌳",
+            blurb: "Tiny green focal point. Surround with trees / flowers / ponds to build a bigger park."
         ),
         Building(
             id: "plain-school", displayName: "School", biome: .plain,
@@ -174,7 +175,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "desert-oasis", displayName: "Oasis", biome: .desert,
-            cost: .init(coin: 100, growth: 16),
+            cost: .init(coin: 40, growth: 6),
             shape: .park(
                 grass: Color(red: 0.42, green: 0.72, blue: 0.55),
                 accent: Color(red: 0.22, green: 0.55, blue: 0.30)
@@ -287,7 +288,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "tundra-pines", displayName: "Pine Grove", biome: .tundra,
-            cost: .init(coin: 28, growth: 10),
+            cost: .init(coin: 10, growth: 3),
             shape: .park(
                 grass: Color(red: 0.92, green: 0.94, blue: 0.97),
                 accent: Color(red: 0.20, green: 0.42, blue: 0.30)
@@ -414,7 +415,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "forest-pond", displayName: "Lily Pond", biome: .forest,
-            cost: .init(coin: 55, growth: 14),
+            cost: .init(coin: 20, growth: 5),
             shape: .waterFeature(
                 stone: Color(red: 0.30, green: 0.55, blue: 0.45),
                 water: Color(red: 0.30, green: 0.62, blue: 0.55)
@@ -543,7 +544,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "beach-gardens", displayName: "Beach Gardens", biome: .beach,
-            cost: .init(coin: 55, growth: 16),
+            cost: .init(coin: 20, growth: 6),
             shape: .gardens(
                 grass: Color(red: 0.55, green: 0.78, blue: 0.42),
                 flower: Color(red: 0.94, green: 0.55, blue: 0.62)

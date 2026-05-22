@@ -87,8 +87,8 @@ final class TokeyoTownTests: XCTestCase {
             accounted: .init(),
             currentSessionCwd: nil
         )
-        // v2 ratio: 1 coin / 4,000 tokens. 5,000 tokens → 1 coin.
-        XCTAssertEqual(delta.coin, 1)
+        // v3.7 ratio: 1 coin / 1,000 tokens. 5,000 tokens → 5 coin.
+        XCTAssertEqual(delta.coin, 5)
     }
 
     func testAccrualConvertsToolsToResources() {
@@ -150,8 +150,8 @@ final class TokeyoTownTests: XCTestCase {
 
     func testAccrualIdempotentViaAccountedHighWater() {
         let now = Date()
-        // v2 ratio is 1 coin / 4,000 tokens. 12,000 tokens → 3 coin.
-        let events = [makeEvent(ts: now, tokens: 12000, messageId: "a")]
+        // v3.7 ratio: 1 coin / 1,000 tokens. 3,000 tokens → 3 coin.
+        let events = [makeEvent(ts: now, tokens: 3000, messageId: "a")]
         let (delta1, accounted) = ResourceAccrual.accrue(
             events: events,
             repoPath: "/repo",

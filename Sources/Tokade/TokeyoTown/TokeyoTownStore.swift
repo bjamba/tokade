@@ -23,6 +23,7 @@ final class TokeyoTownStore {
         case plantTree             // plant a tree
         case plantFlower           // place a flower
         case lantern               // place a decoration lantern
+        case pond                  // place a water tile (build your own ponds / park lakes)
         case raise                 // raise terrain one tier (max +2)
         case lower                 // lower terrain one tier (min -1)
 
@@ -36,6 +37,7 @@ final class TokeyoTownStore {
             case .plantTree: return "Plant Tree"
             case .plantFlower: return "Plant Flower"
             case .lantern: return "Lantern"
+            case .pond: return "Pond"
             case .raise: return "Raise"
             case .lower: return "Lower"
             }
@@ -50,6 +52,7 @@ final class TokeyoTownStore {
             case .plantTree: return "🌳"
             case .plantFlower: return "🌸"
             case .lantern: return "🏮"
+            case .pond: return "💧"
             case .raise: return "⛰"
             case .lower: return "🕳"
             }
@@ -65,6 +68,10 @@ final class TokeyoTownStore {
     static let levelRockCost = TokeyoTownState.Resources(industry: 10)
     static let plantFlowerCost = TokeyoTownState.Resources(growth: 3)
     static let lanternCost = TokeyoTownState.Resources(coin: 12)
+    /// Pond: paint a water tile on grass/sand. Cheap so players can use
+    /// it to compose "parks" of any size + shape from water + flowers
+    /// + trees + lanterns, without needing a dedicated park building.
+    static let pondCost = TokeyoTownState.Resources(coin: 10)
     // v3.2 — terrain shaping now costs coin so it's accessible from day
     // one (industry is one of the slowest-earning resources).
     static let raiseCost = TokeyoTownState.Resources(coin: 30)
@@ -234,7 +241,9 @@ final class TokeyoTownStore {
                                             cost: Self.plantFlowerCost, refund: .zero)
         case .lantern:
             await terraformAction(x: x, y: y, requireTile: .grass, replacement: .decor,
-                                            cost: Self.lanternCost, refund: .zero)
+                                  cost: Self.lanternCost, refund: .zero)
+        case .pond:
+            await pondAction(x: x, y: y)
         case .raise:
             await raiseAction(x: x, y: y)
         case .lower:
@@ -284,21 +293,47 @@ final class TokeyoTownStore {
 
         let tile = s.terrain.tile(x: x, y: y)
         let refund: TokeyoTownState.Resources
+        let restoreElevation: Bool
         switch tile {
-        case .tree: refund = Self.plantTreeCost
-        case .flower: refund = Self.plantFlowerCost
-        case .decor: refund = Self.lanternCost
-        case .road: refund = Self.roadCost
-        case .rock: refund = .zero
+        case .tree: refund = Self.plantTreeCost; restoreElevation = false
+        case .flower: refund = Self.plantFlowerCost; restoreElevation = false
+        case .decor: refund = Self.lanternCost; restoreElevation = false
+        case .road: refund = Self.roadCost; restoreElevation = false
+        case .rock: refund = .zero; restoreElevation = false
+        case .water:
+            // Player-painted ponds (elev was lowered to -1) refund the
+            // pond cost. Naturally-generated water at the map edges
+            // doesn't — but we have no way to distinguish, so we refund
+            // the pond cost either way. Cheap enough not to break.
+            refund = Self.pondCost; restoreElevation = true
         default: return false
         }
         snapshot()
         var ns = s
-        // Rocks revert to grass at their current elevation (preserving
-        // hills/mountains the player may have sculpted).
         ns.terrain.setTile(.grass, x: x, y: y)
+        if restoreElevation, ns.terrain.elev(x: x, y: y) < 0 {
+            ns.terrain.setElev(0, x: x, y: y)
+        }
         ns.resources.add(refund)
         state = ns
+        await flush()
+        return true
+    }
+
+    /// Place a water tile on grass/sand at elevation 0, dropping it to
+    /// elevation -1. Players use this to compose ponds and "lake parks"
+    /// at any size.
+    private func pondAction(x: Int, y: Int) async -> Bool {
+        guard var s = state, s.terrain.contains(x: x, y: y) else { return false }
+        let t = s.terrain.tile(x: x, y: y)
+        guard t == .grass || t == .sand || t == .flower else { return false }
+        guard s.terrain.elev(x: x, y: y) == 0 else { return false }
+        guard s.resources.canAfford(Self.pondCost) else { return false }
+        snapshot()
+        _ = s.resources.deduct(Self.pondCost)
+        s.terrain.setTile(.water, x: x, y: y)
+        s.terrain.setElev(-1, x: x, y: y)
+        state = s
         await flush()
         return true
     }

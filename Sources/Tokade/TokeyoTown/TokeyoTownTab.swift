@@ -159,6 +159,8 @@ struct TokeyoTownGameView: View {
                            cost: TokeyoTownStore.plantTreeCost)
                 toolButton(.plantFlower, icon: "🌸", label: "Flower",
                            cost: TokeyoTownStore.plantFlowerCost)
+                toolButton(.pond, icon: "💧", label: "Pond",
+                           cost: TokeyoTownStore.pondCost)
                 toolButton(.lantern, icon: "🏮", label: "Lantern",
                            cost: TokeyoTownStore.lanternCost)
                 toolButton(.raise, icon: "⛰", label: "Raise",
@@ -379,6 +381,12 @@ struct TokeyoTownGameView: View {
         case .lantern:
             let valid = s.terrain.tile(x: tile.x, y: tile.y) == .grass
                 && s.resources.canAfford(TokeyoTownStore.lanternCost)
+            return .init(x: tile.x, y: tile.y, valid: valid)
+        case .pond:
+            let t = s.terrain.tile(x: tile.x, y: tile.y)
+            let valid = (t == .grass || t == .sand || t == .flower)
+                && s.terrain.elev(x: tile.x, y: tile.y) == 0
+                && s.resources.canAfford(TokeyoTownStore.pondCost)
             return .init(x: tile.x, y: tile.y, valid: valid)
         case .raise:
             let t = s.terrain.tile(x: tile.x, y: tile.y)
