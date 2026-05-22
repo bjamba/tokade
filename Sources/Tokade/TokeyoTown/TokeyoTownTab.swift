@@ -114,6 +114,8 @@ struct TokeyoTownGameView: View {
             iconButton("+") { town.zoomIn() }
             iconButton(town.labelMode.glyph) { town.cycleLabelMode() }
                 .help("Building labels: \(town.labelMode.label)")
+            iconButton(town.dayNightMode.glyph) { town.cycleDayNightMode() }
+                .help("Day/night: \(town.dayNightMode.label)")
             iconButton("🖥") { cycleCRT() }
                 .help("CRT effect: \(notifier.crtMode.label)")
         }
@@ -296,7 +298,9 @@ struct TokeyoTownGameView: View {
                         placementPreview: currentPreview,
                         hoverHighlight: currentHoverHighlight,
                         view: town.view,
-                        labelMode: town.labelMode
+                        labelMode: town.labelMode,
+                        lightLevel: TimeOfDay.from(mode: town.dayNightMode,
+                                                   now: context.date).lightLevel
                     )
                     .contentShape(Rectangle())
                     .onContinuousHover { phase in

@@ -19,6 +19,15 @@ final class TokeyoTownStore {
     /// button. Not persisted (resets to icon each launch).
     var labelMode: LabelMode = .icon
 
+    /// Day/night source — wall clock by default; can be forced to
+    /// noon or midnight via the header toggle (useful for
+    /// screenshots).
+    var dayNightMode: TimeOfDay.Mode = .auto
+
+    func cycleDayNightMode() {
+        dayNightMode = dayNightMode.next
+    }
+
     enum LabelMode: Equatable, CaseIterable {
         case icon, name, none
         var next: LabelMode {

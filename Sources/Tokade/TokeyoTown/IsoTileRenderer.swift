@@ -97,6 +97,9 @@ struct IsoTileRenderer: View {
     /// How to label buildings in the world: glyph (default), display
     /// name, or nothing.
     var labelMode: TokeyoTownStore.LabelMode = .icon
+    /// 0 = midnight, 1 = noon. Drives sky / ground darkening, lantern
+    /// glow, and star visibility. Default 1 = bright daylight.
+    var lightLevel: Double = 1.0
 
     struct PlacementPreview {
         let kind: String
@@ -115,8 +118,15 @@ struct IsoTileRenderer: View {
     var body: some View {
         Canvas { context, size in
             let biome = BiomeCatalog.info(state.repo.biome)
-            context.fill(Path(CGRect(origin: .zero, size: size)),
-                         with: .color(skyColor(for: biome)))
+            // v3.16 — sky tinted by lightLevel. At night the biome's
+            // daytime sky is mixed toward a dark indigo.
+            let nightSky = Color(red: 0.06, green: 0.06, blue: 0.18)
+            let sky = skyColor(for: biome).mix(with: nightSky, by: 1.0 - lightLevel)
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(sky))
+            // Stars start fading in below daylight = 0.4.
+            if lightLevel < 0.5 {
+                drawStars(context: context, size: size)
+            }
 
             // Ground (with elevation lift + side cliffs)
             for y in 0..<state.repo.mapSize {
@@ -291,6 +301,26 @@ struct IsoTileRenderer: View {
                        lineWidth: 0.5)
     }
 
+    /// Stars in the upper half of the canvas, density scaled by darkness.
+    private func drawStars(context: GraphicsContext, size: CGSize) {
+        let darkness = 1.0 - lightLevel
+        let alpha = darkness * 0.9
+        // Deterministic positions seeded by townId so they don't shift
+        // every render. Density 0 → 50 stars as the night deepens.
+        let count = Int(50 * darkness)
+        var rng = TileRNG(seed: TerrainGenerator.seed(for: state.townId))
+        let upperBand = size.height * 0.55
+        for _ in 0 ..< count {
+            let x = CGFloat(rng.next()) * size.width
+            let y = CGFloat(rng.next()) * upperBand
+            let r: CGFloat = rng.next() < 0.85 ? 0.6 : 1.2
+            context.fill(
+                Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
+                with: .color(Color.white.opacity(alpha))
+            )
+        }
+    }
+
     private func groundColor(for tile: TerrainTile, biome: BiomeCatalog.BiomeInfo) -> Color {
         // v3.10 — every tile fill is fully opaque. The lushness blend
         // was using `.opacity()` (alpha), which is wrong for an
@@ -298,23 +328,27 @@ struct IsoTileRenderer: View {
         // made tiles look washed out. Now we mix toward black for low
         // lushness, no transparency.
         let lush = state.repo.lushness
-        let lushMix = 1.0 - (lush * 0.5 + 0.5) // 0 at full lush, 0.5 at min
-        switch tile {
+        let lushMix = 1.0 - (lush * 0.5 + 0.5)
+        // v3.16 — at night, *everything* darkens. Cap the night-darken
+        // at 0.6 so tiles never disappear into total black.
+        let nightMix = (1.0 - lightLevel) * 0.6
+        let baseColor: Color = switch tile {
         case .water:
-            return biome.waterColor ?? Color(red: 0.30, green: 0.55, blue: 0.80)
+            biome.waterColor ?? Color(red: 0.30, green: 0.55, blue: 0.80)
         case .sand:
-            return biome.biome == .desert
+            biome.biome == .desert
                 ? biome.groundColor
                 : Color(red: 0.96, green: 0.88, blue: 0.62)
         case .grass:
-            return darken(biome.groundColor, by: lushMix * 0.5)
+            darken(biome.groundColor, by: lushMix * 0.5)
         case .rock:
-            return Color(red: 0.62, green: 0.60, blue: 0.55)
+            Color(red: 0.62, green: 0.60, blue: 0.55)
         case .tree, .flower, .decor:
-            return darken(biome.groundColor, by: lushMix * 0.5)
+            darken(biome.groundColor, by: lushMix * 0.5)
         case .road:
-            return darken(biome.groundColor, by: lushMix * 0.5)
+            darken(biome.groundColor, by: lushMix * 0.5)
         }
+        return darken(baseColor, by: nightMix)
     }
 
     private func cliffColor(for biome: BiomeCatalog.BiomeInfo) -> Color {
@@ -685,11 +719,17 @@ struct IsoTileRenderer: View {
         // Pole
         let pole = CGRect(x: center.x - 1.1, y: center.y - 13, width: 2.2, height: 12)
         context.fill(Path(pole), with: .color(Color(red: 0.36, green: 0.24, blue: 0.16)))
-        // Glow halo (soft cream behind lamp)
-        let glow = CGRect(x: center.x - 7, y: center.y - 19,
-                          width: 14, height: 11)
+        // Glow halo — scales hugely at night. v3.16 — at darkness 1.0
+        // the halo doubles in radius and opacity, so lanterns become a
+        // real source of light when night falls.
+        let darkness = 1.0 - lightLevel
+        let glowR = 7.0 + darkness * 14.0
+        let glow = CGRect(x: center.x - glowR, y: center.y - 12 - glowR / 2,
+                          width: glowR * 2, height: glowR * 2 - 8)
+        let glowAlpha = 0.30 + darkness * 0.60
         context.fill(Path(ellipseIn: glow),
-                     with: .color(Color(red: 1.0, green: 0.92, blue: 0.62).opacity(0.42)))
+                     with: .color(Color(red: 1.0, green: 0.92, blue: 0.62)
+                         .opacity(glowAlpha)))
         // Lit lamp
         let lamp = CGRect(x: center.x - 4, y: center.y - 17, width: 8, height: 8)
         context.fill(Path(ellipseIn: lamp),
