@@ -79,11 +79,11 @@ recent commit cadence. Then build:
 Buildings auto-populate the town with townsfolk as it densifies; coin
 upkeep covers their existence.
 
-![Tokeyo Town cover](docs/screenshots/tokeyo-town-cover.png)
+![Tokeyo Town overview](docs/screenshots/tokeyo-town-overview.png)
 
-| Overview | Night cycle |
+| Day | Night |
 |:------:|:------:|
-| ![Tokeyo Town overview](docs/screenshots/tokeyo-town-overview.png) | ![Tokeyo Town at night](docs/screenshots/tokeyo-town-night.png) |
+| ![Tokeyo Town in daylight](docs/screenshots/tokeyo-town-day.png) | ![Tokeyo Town at night](docs/screenshots/tokeyo-town-night.png) |
 
 ## Requirements
 
