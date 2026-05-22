@@ -34,15 +34,16 @@ enum TerrainTile: String, Codable, CaseIterable, Hashable {
         }
     }
 
-    /// Pathing bias — lower = preferred. Roads are cheapest, decor / trees
-    /// add a small cost so townsfolk go around when possible.
+    /// Pathing bias — lower = preferred. v3.5 — much stronger road
+    /// preference so townsfolk visibly use the streets the player
+    /// builds (was 1 vs 3; now 1 vs 12).
     var pathCost: Int {
         switch self {
         case .road: 1
-        case .grass, .sand, .flower: 3
-        case .tree: 6
-        case .decor: 5
-        case .water, .rock: 99
+        case .grass, .sand, .flower: 12
+        case .tree: 18
+        case .decor: 16
+        case .water, .rock: 999
         }
     }
 }

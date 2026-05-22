@@ -167,7 +167,10 @@ enum TownsfolkAI {
             if elevDelta > 1 { continue }
             let dx = Double(c.x - n.goalX)
             let dy = Double(c.y - n.goalY)
-            let score = abs(dx) + abs(dy) + Double(tile.pathCost) * 0.04
+            // v3.5 — road bias dialed up. Manhattan distance dominates
+            // when no road option exists; otherwise the road's tiny
+            // pathCost (1) heavily wins over grass (12).
+            let score = abs(dx) + abs(dy) + Double(tile.pathCost) * 0.2
             if score < bestScore {
                 bestScore = score
                 best = c

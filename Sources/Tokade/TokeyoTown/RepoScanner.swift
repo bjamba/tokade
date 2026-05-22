@@ -48,6 +48,14 @@ enum RepoScanner {
         let contributorCount: Int
         let lushness: Double
         let mapSize: Int
+        /// v3.5 — soft hints that drive the pre-seed step at town
+        /// creation. True if the repo has the kind of artifact each
+        /// signals (a tests dir, a docs dir, etc.).
+        var hasTestsDir: Bool = false
+        var hasDocsDir: Bool = false
+        var hasReadme: Bool = false
+        var hasCi: Bool = false
+        var fileCount: Int = 0
     }
 
     /// Run a fresh scan of `url`. Throws if the path isn't a directory.
@@ -73,6 +81,16 @@ enum RepoScanner {
             0
         }
 
+        let fm = FileManager.default
+        let testsDir = ["tests", "test", "Tests", "spec", "__tests__"]
+            .contains { fm.fileExists(atPath: url.appendingPathComponent($0).path) }
+        let docsDir = ["docs", "doc", "documentation"]
+            .contains { fm.fileExists(atPath: url.appendingPathComponent($0).path) }
+        let readme = ["README.md", "README.rst", "README", "readme.md"]
+            .contains { fm.fileExists(atPath: url.appendingPathComponent($0).path) }
+        let ci = [".github/workflows", ".gitlab-ci.yml", "circle.yml", ".circleci"]
+            .contains { fm.fileExists(atPath: url.appendingPathComponent($0).path) }
+
         return ScanResult(
             path: url,
             displayName: url.lastPathComponent,
@@ -83,7 +101,12 @@ enum RepoScanner {
             loc: totalLOC,
             contributorCount: max(1, contributors),
             lushness: lushness(forCommitsLast30: commitsLast30),
-            mapSize: mapSize(forLOC: totalLOC)
+            mapSize: mapSize(forLOC: totalLOC),
+            hasTestsDir: testsDir,
+            hasDocsDir: docsDir,
+            hasReadme: readme,
+            hasCi: ci,
+            fileCount: 0
         )
     }
 

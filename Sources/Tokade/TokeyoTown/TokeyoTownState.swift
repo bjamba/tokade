@@ -160,19 +160,49 @@ struct TokeyoTownState: Codable, Equatable {
         var goalY: Int
         /// The single 4-cardinal neighbor the townsfolk is currently
         /// walking *into*. The renderer interpolates only between
-        /// `(tileX, tileY)` and this. v3 — keeps motion strictly
-        /// cardinal so townsfolk never appear to walk diagonally.
+        /// `(tileX, tileY)` and this — strictly cardinal motion.
         var nextStepX: Int?
         var nextStepY: Int?
         var pauseRemaining: Double = 0
         var activity: String = "wandering"
+        /// Body color hue (0..1). Used as the primary shirt color.
         var hue: Double
+        /// Appearance fields added in v3.5 — make townsfolk visually
+        /// distinct so the town reads as a *crowd*, not as identical dots.
+        var appearance: Appearance = .init()
         var createdAt: Date
 
         /// Convenience for the renderer.
         var nextStep: (Int, Int)? {
             if let x = nextStepX, let y = nextStepY { return (x, y) }
             return nil
+        }
+
+        struct Appearance: Codable, Equatable, Hashable {
+            /// Hat kind. `.none` means no hat.
+            var hat: HatKind = .none
+            /// Hat color hue (0..1). Stable per townsfolk.
+            var hatHue: Double = 0
+            /// Skin tone tier — 0 = pale through 4 = dark.
+            var skinTone: Int = 2
+            /// Hair color hue (0..1). Used for the visible hair tuft.
+            var hairHue: Double = 0.08
+            /// Age tier — childlike townsfolk render smaller.
+            var ageTier: AgeTier = .adult
+            /// Patterned shirt: nil = solid, .stripes or .dots = patterned.
+            var pattern: Pattern = .solid
+
+            enum HatKind: String, Codable, CaseIterable {
+                case none, round, peaked, sunHat, beanie
+            }
+
+            enum AgeTier: String, Codable, CaseIterable {
+                case child, adult, elder
+            }
+
+            enum Pattern: String, Codable, CaseIterable {
+                case solid, stripes, dots
+            }
         }
     }
 

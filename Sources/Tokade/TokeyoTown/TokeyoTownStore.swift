@@ -121,12 +121,10 @@ final class TokeyoTownStore {
             lushness: scan.lushness
         )
         var fresh = TokeyoTownState.fresh(townId: townId, repo: repo, now: now)
-        fresh.townsfolk = TownsfolkSpawner.spawn(
-            count: min(repo.contributorCount + 1, 6),
-            biome: repo.biome,
-            terrain: fresh.terrain,
-            now: now
-        )
+        // v3.5 — pre-seed the town with a few starter buildings, roads,
+        // and townsfolk based on the repo's characteristics. Free
+        // placements (no resource deduction); player still starts at 0.
+        InitialTownPlanner.preSeed(state: &fresh, scan: scan)
         undoStack.removeAll()
         redoStack.removeAll()
         state = fresh

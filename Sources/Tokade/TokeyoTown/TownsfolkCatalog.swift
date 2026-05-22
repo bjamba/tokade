@@ -48,6 +48,7 @@ enum TownsfolkSpawner {
                 pauseRemaining: Double.random(in: 0..<3),
                 activity: "wandering",
                 hue: Double.random(in: 0..<1),
+                appearance: randomAppearance(),
                 createdAt: now
             ))
         }
@@ -73,7 +74,42 @@ enum TownsfolkSpawner {
             pauseRemaining: 0,
             activity: "moving in",
             hue: Double.random(in: 0..<1),
+            appearance: randomAppearance(),
             createdAt: now
+        )
+    }
+
+    /// Roll a stable per-townsfolk appearance. ~60% have a hat; age and
+    /// pattern distributions skew toward "adult" / "solid" so unusual
+    /// variants feel like spotting something rare.
+    static func randomAppearance() -> TokeyoTownState.Townsfolk.Appearance {
+        let hat: TokeyoTownState.Townsfolk.Appearance.HatKind = {
+            let r = Double.random(in: 0..<1)
+            if r < 0.4 { return .none }
+            if r < 0.6 { return .round }
+            if r < 0.75 { return .peaked }
+            if r < 0.9 { return .sunHat }
+            return .beanie
+        }()
+        let age: TokeyoTownState.Townsfolk.Appearance.AgeTier = {
+            let r = Double.random(in: 0..<1)
+            if r < 0.18 { return .child }
+            if r < 0.92 { return .adult }
+            return .elder
+        }()
+        let pattern: TokeyoTownState.Townsfolk.Appearance.Pattern = {
+            let r = Double.random(in: 0..<1)
+            if r < 0.7 { return .solid }
+            if r < 0.88 { return .stripes }
+            return .dots
+        }()
+        return TokeyoTownState.Townsfolk.Appearance(
+            hat: hat,
+            hatHue: Double.random(in: 0..<1),
+            skinTone: Int.random(in: 0...4),
+            hairHue: Double.random(in: 0..<1),
+            ageTier: age,
+            pattern: pattern
         )
     }
 

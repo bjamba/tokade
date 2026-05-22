@@ -222,7 +222,7 @@ struct IsoTileRenderer: View {
                 )
                 drawTownsfolk(context: context,
                               x: interpX, y: interpY, elevation: elev,
-                              hue: npc.hue, canvas: size)
+                              npc: npc, canvas: size)
             }
         }
     }
@@ -406,25 +406,105 @@ struct IsoTileRenderer: View {
         }
     }
 
+    /// v3.5 — tree shape varies by biome:
+    ///   - tundra / forest: stacked pine cones (3 triangles)
+    ///   - desert / beach: palm (trunk + curved fronds)
+    ///   - plain: fluffy oak (trunk + 3 overlapping leaf blobs)
     private func drawTreeDecor(context: GraphicsContext, at center: CGPoint,
                                tw: CGFloat, biome: BiomeCatalog.BiomeInfo) {
-        let trunkH = tw * 0.18
-        let trunk = CGRect(x: center.x - 1.6, y: center.y - trunkH,
-                           width: 3.2, height: trunkH)
-        context.fill(Path(trunk), with: .color(Color(red: 0.36, green: 0.22, blue: 0.14)))
+        let trunkColor = Color(red: 0.34, green: 0.20, blue: 0.12)
         let leafColor: Color = switch biome.biome {
-        case .tundra: Color(red: 0.30, green: 0.50, blue: 0.36)
+        case .tundra: Color(red: 0.22, green: 0.42, blue: 0.30)
         case .desert: Color(red: 0.42, green: 0.62, blue: 0.36)
-        case .beach:  Color(red: 0.45, green: 0.72, blue: 0.42)
-        case .forest: Color(red: 0.20, green: 0.50, blue: 0.28)
-        case .plain:  Color(red: 0.30, green: 0.62, blue: 0.32)
+        case .beach: Color(red: 0.45, green: 0.72, blue: 0.42)
+        case .forest: Color(red: 0.18, green: 0.45, blue: 0.24)
+        case .plain: Color(red: 0.28, green: 0.62, blue: 0.30)
         }
-        let crown = CGRect(x: center.x - tw / 2.8,
-                           y: center.y - tw / 1.6,
-                           width: tw / 1.4, height: tw / 1.4)
-        context.fill(Path(ellipseIn: crown), with: .color(leafColor))
-        context.stroke(Path(ellipseIn: crown),
-                       with: .color(leafColor.opacity(0.4)), lineWidth: 0.5)
+        let leafShadow = leafColor.opacity(0.55)
+
+        switch biome.biome {
+        case .tundra, .forest:
+            // Pine — three stacked triangles.
+            let trunkH: CGFloat = tw * 0.22
+            let trunk = CGRect(x: center.x - 1.4, y: center.y - trunkH,
+                               width: 2.8, height: trunkH)
+            context.fill(Path(trunk), with: .color(trunkColor))
+            let baseY = center.y - trunkH + 1
+            for (i, scale) in [0.95, 0.78, 0.6].enumerated() {
+                let layerW = tw * 0.62 * CGFloat(scale)
+                let layerH = tw * 0.42 * CGFloat(scale)
+                let topY = baseY - layerH * CGFloat(i + 1) * 0.78
+                var tri = Path()
+                tri.move(to: CGPoint(x: center.x, y: topY - layerH))
+                tri.addLine(to: CGPoint(x: center.x + layerW, y: topY + 1))
+                tri.addLine(to: CGPoint(x: center.x - layerW, y: topY + 1))
+                tri.closeSubpath()
+                context.fill(tri, with: .color(i == 0 ? leafShadow : leafColor))
+                context.stroke(tri, with: .color(.black.opacity(0.35)),
+                               lineWidth: 0.5)
+            }
+
+        case .desert, .beach:
+            // Palm — trunk with curved fronds.
+            let trunkH: CGFloat = tw * 0.55
+            let trunk = CGRect(x: center.x - 1.4,
+                               y: center.y - trunkH,
+                               width: 2.8, height: trunkH)
+            context.fill(Path(trunk), with: .color(trunkColor))
+            // Trunk segment lines for the palm-rings look.
+            for i in 1..<4 {
+                let y = center.y - CGFloat(i) * trunkH / 4
+                var line = Path()
+                line.move(to: CGPoint(x: trunk.minX, y: y))
+                line.addLine(to: CGPoint(x: trunk.maxX, y: y))
+                context.stroke(line, with: .color(.black.opacity(0.4)),
+                               lineWidth: 0.4)
+            }
+            // Fronds — 5 curved arcs emerging from top.
+            let crown = CGPoint(x: center.x, y: center.y - trunkH - 1)
+            let frondLen = tw * 0.55
+            for angle in stride(from: -.pi * 0.85, through: -.pi * 0.15, by: .pi * 0.175) {
+                let endX = crown.x + cos(angle) * frondLen
+                let endY = crown.y + sin(angle) * frondLen * 0.55
+                let ctrlX = crown.x + cos(angle) * frondLen * 0.4
+                let ctrlY = crown.y + sin(angle) * frondLen * 1.2
+                var p = Path()
+                p.move(to: crown)
+                p.addQuadCurve(to: CGPoint(x: endX, y: endY),
+                               control: CGPoint(x: ctrlX, y: ctrlY))
+                context.stroke(p, with: .color(leafColor), lineWidth: 1.4)
+            }
+            // Small coconut cluster
+            let coconut = CGRect(x: crown.x - 1.6, y: crown.y - 0.5,
+                                 width: 3.2, height: 2.2)
+            context.fill(Path(ellipseIn: coconut), with: .color(trunkColor))
+
+        case .plain:
+            // Oak — short trunk + three overlapping leaf blobs.
+            let trunkH: CGFloat = tw * 0.20
+            let trunk = CGRect(x: center.x - 1.6,
+                               y: center.y - trunkH,
+                               width: 3.2, height: trunkH)
+            context.fill(Path(trunk), with: .color(trunkColor))
+            let crownY = center.y - trunkH
+            let r: CGFloat = tw * 0.30
+            let blobs = [
+                CGPoint(x: center.x - r * 0.6, y: crownY - r * 0.5),
+                CGPoint(x: center.x + r * 0.65, y: crownY - r * 0.45),
+                CGPoint(x: center.x, y: crownY - r * 1.2),
+            ]
+            for blob in blobs {
+                let rect = CGRect(x: blob.x - r, y: blob.y - r,
+                                  width: r * 2, height: r * 2)
+                context.fill(Path(ellipseIn: rect), with: .color(leafColor))
+            }
+            context.stroke(
+                Path(ellipseIn: CGRect(x: blobs[0].x - r,
+                                       y: blobs[0].y - r,
+                                       width: r * 2, height: r * 2)),
+                with: .color(.black.opacity(0.3)), lineWidth: 0.5
+            )
+        }
     }
 
     private func drawFlowerDecor(context: GraphicsContext, at center: CGPoint,
@@ -1196,27 +1276,202 @@ struct IsoTileRenderer: View {
 
     // MARK: - Townsfolk
 
+    /// v3.5 — paper-doll townsfolk: shirt (hue + pattern), skin head,
+    /// hair, optional hat, with a tiny vertical step-bob when walking
+    /// (phase ∈ [0, 1)) so people read as moving humans, not dots.
     private func drawTownsfolk(
         context: GraphicsContext,
         x: Double, y: Double, elevation: Int,
-        hue: Double, canvas: CGSize
+        npc: TokeyoTownState.Townsfolk,
+        canvas: CGSize
     ) {
         let center = IsoMath.project(x: x, y: y,
                                      elevation: elevation,
                                      mapSize: state.repo.mapSize,
                                      canvas: canvas, view: view)
         let zoom = CGFloat(view.zoom)
-        let body = CGRect(x: center.x - 2.4 * zoom, y: center.y - 7 * zoom,
-                          width: 4.8 * zoom, height: 6 * zoom)
-        let head = CGRect(x: center.x - 2.2 * zoom, y: center.y - 12 * zoom,
-                          width: 4.4 * zoom, height: 4.4 * zoom)
-        let bodyColor = Color(hue: hue, saturation: 0.72, brightness: 0.86)
-        let headColor = Color(hue: (hue + 0.05).truncatingRemainder(dividingBy: 1),
-                              saturation: 0.42, brightness: 0.94)
-        context.fill(Path(body), with: .color(bodyColor))
-        context.fill(Path(ellipseIn: head), with: .color(headColor))
-        context.stroke(Path(body), with: .color(.black.opacity(0.55)), lineWidth: 0.5)
-        context.stroke(Path(ellipseIn: head), with: .color(.black.opacity(0.55)), lineWidth: 0.5)
+        let isWalking = npc.nextStep != nil && npc.pauseRemaining <= 0
+        // Tiny vertical bob — two steps per tile (so a leg-swap cadence).
+        let bob: CGFloat = isWalking
+            ? CGFloat(sin(phase * .pi * 2) * 0.6) * zoom
+            : 0
+
+        // Size + proportion vary by age.
+        let scaleByAge: CGFloat = switch npc.appearance.ageTier {
+        case .child: 0.78
+        case .adult: 1.0
+        case .elder: 0.92
+        }
+        let bodyW = 5.0 * zoom * scaleByAge
+        let bodyH = 6.5 * zoom * scaleByAge
+        let headR = 2.5 * zoom * scaleByAge
+
+        // Anchor point — feet sit on the tile center, body grows upward.
+        let feet = CGPoint(x: center.x, y: center.y + bob)
+        let bodyRect = CGRect(x: feet.x - bodyW / 2,
+                              y: feet.y - bodyH,
+                              width: bodyW, height: bodyH)
+        let headCenter = CGPoint(x: feet.x, y: bodyRect.minY - headR)
+        let headRect = CGRect(x: headCenter.x - headR, y: headCenter.y - headR,
+                              width: headR * 2, height: headR * 2)
+
+        let shirtColor = Color(hue: npc.hue, saturation: 0.72, brightness: 0.86)
+        let pantsColor = Color(hue: npc.hue,
+                               saturation: 0.55,
+                               brightness: 0.50)
+        let skin = skinColor(tier: npc.appearance.skinTone)
+        let hair = Color(hue: npc.appearance.hairHue, saturation: 0.55, brightness: 0.36)
+
+        // Pants (bottom third of body)
+        let pantsRect = CGRect(x: bodyRect.minX, y: bodyRect.midY + bodyH * 0.05,
+                               width: bodyRect.width, height: bodyH * 0.45)
+        context.fill(Path(pantsRect), with: .color(pantsColor))
+
+        // Shirt (top of body)
+        let shirtRect = CGRect(x: bodyRect.minX, y: bodyRect.minY,
+                               width: bodyRect.width,
+                               height: bodyH * 0.62)
+        context.fill(Path(shirtRect), with: .color(shirtColor))
+        // Shirt pattern overlay.
+        drawShirtPattern(context: context, rect: shirtRect,
+                         pattern: npc.appearance.pattern, baseHue: npc.hue)
+
+        // Outline around body so paper-doll silhouette stays crisp.
+        context.stroke(Path(bodyRect),
+                       with: .color(.black.opacity(0.55)),
+                       lineWidth: 0.5)
+
+        // Hair tuft (drawn behind head)
+        let hairRect = CGRect(x: headRect.minX - 0.3,
+                              y: headRect.minY - 0.6,
+                              width: headRect.width + 0.6,
+                              height: headRect.height * 0.65)
+        context.fill(Path(ellipseIn: hairRect), with: .color(hair))
+
+        // Head (skin tone)
+        context.fill(Path(ellipseIn: headRect), with: .color(skin))
+        context.stroke(Path(ellipseIn: headRect),
+                       with: .color(.black.opacity(0.55)), lineWidth: 0.5)
+
+        // Hat
+        if npc.appearance.hat != .none {
+            drawHat(context: context,
+                    head: headRect,
+                    kind: npc.appearance.hat,
+                    color: Color(hue: npc.appearance.hatHue,
+                                 saturation: 0.65, brightness: 0.55))
+        }
+
+        // Stepping feet animation — two tiny dots that swap which one is
+        // forward each half-phase, drawn only when actively walking.
+        if isWalking {
+            let stepOffset: CGFloat = CGFloat(sin(phase * .pi * 2)) * 1.5 * zoom
+            let footL = CGRect(x: feet.x - bodyW * 0.3 - 0.6 + stepOffset,
+                               y: feet.y - 1.4,
+                               width: 1.6, height: 1.6)
+            let footR = CGRect(x: feet.x + bodyW * 0.3 - 1.0 - stepOffset,
+                               y: feet.y - 1.4,
+                               width: 1.6, height: 1.6)
+            context.fill(Path(footL), with: .color(.black.opacity(0.78)))
+            context.fill(Path(footR), with: .color(.black.opacity(0.78)))
+        }
+    }
+
+    private func drawShirtPattern(
+        context: GraphicsContext, rect: CGRect,
+        pattern: TokeyoTownState.Townsfolk.Appearance.Pattern,
+        baseHue: Double
+    ) {
+        let accent = Color(hue: (baseHue + 0.5).truncatingRemainder(dividingBy: 1),
+                           saturation: 0.72, brightness: 0.92)
+        switch pattern {
+        case .solid:
+            return
+        case .stripes:
+            // Two thin horizontal stripes
+            for f in [0.3, 0.6] {
+                let y = rect.minY + rect.height * CGFloat(f)
+                var line = Path()
+                line.move(to: CGPoint(x: rect.minX, y: y))
+                line.addLine(to: CGPoint(x: rect.maxX, y: y))
+                context.stroke(line, with: .color(accent.opacity(0.8)),
+                               lineWidth: 0.7)
+            }
+        case .dots:
+            for offset in [CGPoint(x: 0.3, y: 0.35), CGPoint(x: 0.7, y: 0.55)] {
+                let x = rect.minX + rect.width * CGFloat(offset.x)
+                let y = rect.minY + rect.height * CGFloat(offset.y)
+                let r: CGFloat = 0.7
+                context.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r,
+                                                    width: r * 2, height: r * 2)),
+                             with: .color(accent.opacity(0.92)))
+            }
+        }
+    }
+
+    private func skinColor(tier: Int) -> Color {
+        switch max(0, min(4, tier)) {
+        case 0: return Color(red: 0.98, green: 0.88, blue: 0.78) // pale
+        case 1: return Color(red: 0.94, green: 0.80, blue: 0.66)
+        case 2: return Color(red: 0.82, green: 0.65, blue: 0.48)
+        case 3: return Color(red: 0.62, green: 0.42, blue: 0.28)
+        default: return Color(red: 0.42, green: 0.27, blue: 0.18)
+        }
+    }
+
+    private func drawHat(
+        context: GraphicsContext,
+        head: CGRect,
+        kind: TokeyoTownState.Townsfolk.Appearance.HatKind,
+        color: Color
+    ) {
+        let cx = head.midX
+        let topY = head.minY
+        switch kind {
+        case .none:
+            return
+        case .round:
+            // Half-circle cap.
+            var p = Path()
+            p.addArc(center: CGPoint(x: cx, y: topY + 0.4),
+                     radius: head.width * 0.55,
+                     startAngle: .degrees(180), endAngle: .degrees(0),
+                     clockwise: false)
+            p.closeSubpath()
+            context.fill(p, with: .color(color))
+            context.stroke(p, with: .color(.black.opacity(0.55)), lineWidth: 0.5)
+        case .peaked:
+            // Triangle / cone hat.
+            var p = Path()
+            p.move(to: CGPoint(x: cx, y: topY - head.height * 0.7))
+            p.addLine(to: CGPoint(x: head.minX - 0.4, y: topY + 0.4))
+            p.addLine(to: CGPoint(x: head.maxX + 0.4, y: topY + 0.4))
+            p.closeSubpath()
+            context.fill(p, with: .color(color))
+            context.stroke(p, with: .color(.black.opacity(0.55)), lineWidth: 0.5)
+        case .sunHat:
+            // Brim + crown.
+            let brimRect = CGRect(x: head.minX - 1.4, y: topY - 0.2,
+                                  width: head.width + 2.8, height: 1.4)
+            context.fill(Path(ellipseIn: brimRect), with: .color(color))
+            let crownRect = CGRect(x: head.minX + head.width * 0.18,
+                                   y: topY - head.height * 0.45,
+                                   width: head.width * 0.64,
+                                   height: head.height * 0.55)
+            context.fill(Path(crownRect), with: .color(color))
+        case .beanie:
+            // Snug cap covering the top of the head.
+            var p = Path()
+            p.addArc(center: CGPoint(x: cx, y: topY + head.height * 0.32),
+                     radius: head.width * 0.55,
+                     startAngle: .degrees(180), endAngle: .degrees(0),
+                     clockwise: false)
+            p.closeSubpath()
+            context.fill(p, with: .color(color))
+            // Pom-pom dot
+            let pomRect = CGRect(x: cx - 0.8, y: topY - 1.2, width: 1.6, height: 1.6)
+            context.fill(Path(ellipseIn: pomRect), with: .color(.white.opacity(0.92)))
+        }
     }
 
     private func skyColor(for biome: BiomeCatalog.BiomeInfo) -> Color {
