@@ -142,17 +142,34 @@ struct TokeyoTownGameView: View {
 
     private var resourceBar: some View {
         let r = town.state?.resources ?? .zero
-        // v3.10 — non-coin chips are clickable. One tap buys +1 of that
-        // resource using coin at the published trade rate. Coin chip
-        // stays display-only (no point buying coin with coin).
+        let pop = town.state?.townsfolk.count ?? 0
+        let cap = town.state.map { TokeyoTownStore.populationCap(buildingCount: $0.buildings.count) } ?? 0
+        let upkeep = pop * TokeyoTownStore.upkeepPerTownsfolkPerTick
         return HStack(spacing: 8) {
             chip("💰", r.coin, kind: nil)
             chip("📜", r.knowledge, kind: .knowledge)
             chip("🔨", r.lumber, kind: .lumber)
             chip("⚙️", r.industry, kind: .industry)
             chip("🌱", r.growth, kind: .growth)
+            populationChip(pop: pop, cap: cap, upkeep: upkeep)
         }
         .padding(.vertical, 2)
+    }
+
+    private func populationChip(pop: Int, cap: Int, upkeep: Int) -> some View {
+        HStack(spacing: 2) {
+            Text("👥").font(.system(size: 11))
+            Text("\(pop)/\(cap)")
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.white)
+            Text("−\(upkeep)💰")
+                .font(.system(size: 7, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.6))
+        }
+        .padding(.horizontal, 4).padding(.vertical, 2)
+        .background(Color(red: 0.12, green: 0.12, blue: 0.16))
+        .overlay(Rectangle().stroke(Color(white: 0.25), lineWidth: 0.5))
+        .help("Population: \(pop) of \(cap). Costs \(upkeep) coin/tick — townsfolk leave town if you can't pay.")
     }
 
     private func chip(_ icon: String, _ value: Int, kind: TokeyoTownStore.TradeKind?) -> some View {

@@ -446,24 +446,53 @@ final class TokeyoTownStore {
         snapshot()
         _ = s.resources.deduct(b.cost)
         let placed = TokeyoTownState.PlacedBuilding(
-            id: UUID(), kind: id, tileX: x, tileY: y,
+            id: UUID(), kind: id,
+            tileX: x, tileY: y,
             width: b.shape.footprint.w, height: b.shape.footprint.h,
             placedAt: .now
         )
         s.buildings.append(placed)
+
         if isHomeBuilding(id) {
             s.townsfolk = TownsfolkSpawner.assignHomeIfNeeded(s.townsfolk, to: placed)
-            if Double.random(in: 0..<1) < 0.5,
-               let newcomer = TownsfolkSpawner.spawnOne(
-                   biome: s.repo.biome, terrain: s.terrain, home: placed
-               ) {
-                s.townsfolk.append(newcomer)
+        }
+        // v3.15 — every new building grows the population (toward a
+        // cap of `buildings.count + 2`). Reads as "the town gets more
+        // people as it gets denser." If the new building is a home and
+        // there's room, the newcomer moves into it; otherwise they
+        // wander.
+        let cap = Self.populationCap(buildingCount: s.buildings.count)
+        if s.townsfolk.count < cap {
+            let newcomer: TokeyoTownState.Townsfolk? = if isHomeBuilding(id) {
+                TownsfolkSpawner.spawnOne(
+                    biome: s.repo.biome, terrain: s.terrain, home: placed
+                )
+            } else {
+                TownsfolkSpawner.spawn(
+                    count: 1, biome: s.repo.biome, terrain: s.terrain
+                ).first
+            }
+            if let n = newcomer {
+                s.townsfolk.append(n)
             }
         }
+
         state = s
         await flush()
         return true
     }
+
+    /// Population the town can sustain given its building count. Caps
+    /// at `buildings + 2` so a tiny hamlet of one cottage still has a
+    /// couple of folks puttering around.
+    static func populationCap(buildingCount: Int) -> Int {
+        buildingCount + 2
+    }
+
+    /// Coin upkeep per townsfolk per AI tick. Modest enough that an
+    /// actively-played game funds the town on autopilot; absentee
+    /// players slowly see townsfolk leave town.
+    static let upkeepPerTownsfolkPerTick = 1
 
     private func isHomeBuilding(_ id: String) -> Bool {
         BuildingCatalog.find(id)?.isHome ?? false
@@ -598,6 +627,28 @@ final class TokeyoTownStore {
         s.resources.add(delta)
         s.accountedEvents = newAccounted
         s.lastTickAt = .now
+
+        // v3.15 — upkeep: every townsfolk eats 1 coin per tick. If we
+        // can't fully fund the bill, the shortfall converts to losses
+        // — one townsfolk leaves town per missing coin block, homeless
+        // first, then random.
+        let upkeep = s.townsfolk.count * Self.upkeepPerTownsfolkPerTick
+        if upkeep > 0 {
+            let payable = min(upkeep, s.resources.coin)
+            s.resources.coin -= payable
+            var shortfall = upkeep - payable
+            while shortfall > 0, !s.townsfolk.isEmpty {
+                // Remove a homeless townsfolk first if any; otherwise
+                // anyone.
+                if let i = s.townsfolk.firstIndex(where: { $0.homeBuildingId == nil }) {
+                    s.townsfolk.remove(at: i)
+                } else {
+                    s.townsfolk.removeLast()
+                }
+                shortfall -= Self.upkeepPerTownsfolkPerTick
+            }
+        }
+
         s.townsfolk = TownsfolkAI.step(
             townsfolk: s.townsfolk,
             buildings: s.buildings,
