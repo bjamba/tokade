@@ -252,7 +252,7 @@ struct IsoTileRenderer: View {
         let southElev = state.terrain.elev(x: x, y: y + 1)
         let eastElev = state.terrain.elev(x: x + 1, y: y)
 
-        // South-facing wall
+        // South-facing wall — opaque, darker tint
         if elev > southElev {
             let drop = IsoMath.elevationOffset(elev - southElev, zoom: view.zoom)
             var wall = Path()
@@ -261,9 +261,10 @@ struct IsoTileRenderer: View {
             wall.addLine(to: CGPoint(x: center.x, y: center.y + th + drop))
             wall.addLine(to: CGPoint(x: center.x - tw, y: center.y + drop))
             wall.closeSubpath()
-            context.fill(wall, with: .color(cliffColor(for: biome).opacity(0.85)))
+            context.fill(wall, with: .color(darken(cliffColor(for: biome), by: 0.18)))
+            context.stroke(wall, with: .color(.black.opacity(0.4)), lineWidth: 0.5)
         }
-        // East-facing wall
+        // East-facing wall — slightly darker than south for depth
         if elev > eastElev {
             let drop = IsoMath.elevationOffset(elev - eastElev, zoom: view.zoom)
             var wall = Path()
@@ -272,7 +273,8 @@ struct IsoTileRenderer: View {
             wall.addLine(to: CGPoint(x: center.x, y: center.y + th + drop))
             wall.addLine(to: CGPoint(x: center.x + tw, y: center.y + drop))
             wall.closeSubpath()
-            context.fill(wall, with: .color(cliffColor(for: biome).opacity(0.72)))
+            context.fill(wall, with: .color(darken(cliffColor(for: biome), by: 0.34)))
+            context.stroke(wall, with: .color(.black.opacity(0.4)), lineWidth: 0.5)
         }
 
         // The tile diamond itself
@@ -509,17 +511,50 @@ struct IsoTileRenderer: View {
         }
     }
 
+    /// v3.9 — lush flowers: ~8 blooms in two colors with occasional
+    /// taller stems for shape variety. Seeded by the tile's screen
+    /// position so the arrangement is stable per tile across frames.
     private func drawFlowerDecor(context: GraphicsContext, at center: CGPoint,
                                  tw: CGFloat, biome: BiomeCatalog.BiomeInfo) {
-        let color = biome.accentColor
-        for offset in [CGPoint(x: -3, y: 0), CGPoint(x: 2, y: -2), CGPoint(x: 1, y: 3)] {
-            let r: CGFloat = 1.7
-            let rect = CGRect(x: center.x + offset.x - r,
-                              y: center.y + offset.y - r,
-                              width: r * 2, height: r * 2)
-            context.fill(Path(ellipseIn: rect), with: .color(color))
+        let primary = biome.accentColor
+        let secondary: Color = switch biome.biome {
+        case .plain: Color(red: 0.95, green: 0.62, blue: 0.78)
+        case .desert: Color(red: 0.95, green: 0.85, blue: 0.30)
+        case .tundra: Color(red: 0.92, green: 0.92, blue: 0.95)
+        case .forest: Color(red: 0.42, green: 0.78, blue: 0.55)
+        case .beach: Color(red: 0.30, green: 0.62, blue: 0.92)
         }
-        _ = tw
+        var rng = TileRNG(
+            seed: UInt64(bitPattern: Int64(center.x.bitPattern))
+                &+ UInt64(bitPattern: Int64(center.y.bitPattern)) &* 0x9E37_79B9_7F4A_7C15
+        )
+        for _ in 0..<8 {
+            let dx = (rng.next() * 2 - 1) * tw * 0.55
+            let dy = (rng.next() * 2 - 1) * tw * 0.28
+            let p = CGPoint(x: center.x + dx, y: center.y + dy)
+            let useSecondary = rng.next() < 0.4
+            let bloomR: CGFloat = useSecondary ? 1.3 : 2.0
+            let withStem = rng.next() < 0.3
+            if withStem {
+                var stem = Path()
+                stem.move(to: p)
+                stem.addLine(to: CGPoint(x: p.x, y: p.y - 3.4))
+                context.stroke(stem,
+                               with: .color(Color(red: 0.28, green: 0.52, blue: 0.30)),
+                               lineWidth: 0.7)
+                let bloomCenter = CGPoint(x: p.x, y: p.y - 3.8)
+                let rect = CGRect(x: bloomCenter.x - bloomR,
+                                  y: bloomCenter.y - bloomR,
+                                  width: bloomR * 2, height: bloomR * 2)
+                context.fill(Path(ellipseIn: rect),
+                             with: .color(useSecondary ? secondary : primary))
+            } else {
+                let rect = CGRect(x: p.x - bloomR, y: p.y - bloomR,
+                                  width: bloomR * 2, height: bloomR * 2)
+                context.fill(Path(ellipseIn: rect),
+                             with: .color(useSecondary ? secondary : primary))
+            }
+        }
     }
 
     /// Draws a colored 4-sided pyramid on top of a tier-2 tile, using the
@@ -550,21 +585,23 @@ struct IsoTileRenderer: View {
         let cornerS = CGPoint(x: center.x, y: center.y + th)
         let cornerW = CGPoint(x: center.x - tw, y: center.y)
 
-        // Four triangular faces — each a slightly different shade so the
-        // pyramid reads as 3D, not as a flat decal.
+        // Four triangular faces, each drawn fully opaque but with the
+        // base color darkened by `shade ∈ [0, 1]`. v3.9 — was using
+        // `.opacity()` which is alpha, so faces showed the sky/tile
+        // through; now uses Color(white-mix) for proper shading.
         for (a, b, shade) in [
             (cornerN, cornerE, 1.0),
-            (cornerE, cornerS, 0.78),
-            (cornerS, cornerW, 0.86),
-            (cornerW, cornerN, 0.92),
+            (cornerE, cornerS, 0.62),
+            (cornerS, cornerW, 0.78),
+            (cornerW, cornerN, 0.86),
         ] {
             var face = Path()
             face.move(to: apex)
             face.addLine(to: a)
             face.addLine(to: b)
             face.closeSubpath()
-            context.fill(face, with: .color(baseColor.opacity(shade)))
-            context.stroke(face, with: .color(.black.opacity(0.3)), lineWidth: 0.5)
+            context.fill(face, with: .color(darken(baseColor, by: 1.0 - shade)))
+            context.stroke(face, with: .color(.black.opacity(0.4)), lineWidth: 0.5)
         }
         // Snow cap on tundra so peaks read as "mountains" not just "tall grass."
         if biome.biome == .tundra {
@@ -611,15 +648,37 @@ struct IsoTileRenderer: View {
         context.fill(peak, with: .color(.black.opacity(0.18)))
     }
 
+    /// v3.9 — bigger lantern with a soft glow halo. Base, pole, lamp,
+    /// glow, hanging cap on top. Reads as warm light at any zoom.
     private func drawLanternDecor(context: GraphicsContext, at center: CGPoint, tw: CGFloat) {
-        let pole = CGRect(x: center.x - 1, y: center.y - 9, width: 2, height: 9)
-        context.fill(Path(pole), with: .color(Color(red: 0.42, green: 0.30, blue: 0.20)))
-        let lamp = CGRect(x: center.x - 3.2, y: center.y - 13,
-                          width: 6.4, height: 6.4)
+        // Stone base footing
+        let base = CGRect(x: center.x - 2.4, y: center.y - 2, width: 4.8, height: 2.4)
+        context.fill(Path(ellipseIn: base),
+                     with: .color(Color(red: 0.55, green: 0.50, blue: 0.45)))
+        // Pole
+        let pole = CGRect(x: center.x - 1.1, y: center.y - 13, width: 2.2, height: 12)
+        context.fill(Path(pole), with: .color(Color(red: 0.36, green: 0.24, blue: 0.16)))
+        // Glow halo (soft cream behind lamp)
+        let glow = CGRect(x: center.x - 7, y: center.y - 19,
+                          width: 14, height: 11)
+        context.fill(Path(ellipseIn: glow),
+                     with: .color(Color(red: 1.0, green: 0.92, blue: 0.62).opacity(0.42)))
+        // Lit lamp
+        let lamp = CGRect(x: center.x - 4, y: center.y - 17, width: 8, height: 8)
         context.fill(Path(ellipseIn: lamp),
-                     with: .color(Color(red: 0.98, green: 0.88, blue: 0.55)))
+                     with: .color(Color(red: 0.99, green: 0.86, blue: 0.42)))
         context.stroke(Path(ellipseIn: lamp),
-                       with: .color(.black.opacity(0.35)), lineWidth: 0.5)
+                       with: .color(Color(red: 0.55, green: 0.36, blue: 0.18)),
+                       lineWidth: 0.7)
+        // Bright core inside the lamp
+        let core = CGRect(x: center.x - 1.8, y: center.y - 14.8,
+                          width: 3.6, height: 3.6)
+        context.fill(Path(ellipseIn: core),
+                     with: .color(.white.opacity(0.95)))
+        // Cap on top
+        let cap = CGRect(x: center.x - 2.6, y: center.y - 19.5,
+                         width: 5.2, height: 2.6)
+        context.fill(Path(cap), with: .color(Color(red: 0.36, green: 0.24, blue: 0.16)))
         _ = tw
     }
 
@@ -1474,6 +1533,20 @@ struct IsoTileRenderer: View {
             let pomRect = CGRect(x: cx - 0.8, y: topY - 1.2, width: 1.6, height: 1.6)
             context.fill(Path(ellipseIn: pomRect), with: .color(.white.opacity(0.92)))
         }
+    }
+
+    /// Mix the given color toward black by `amount ∈ [0, 1]`. Used to
+    /// shade pyramid / cliff faces so they look 3D without becoming
+    /// transparent.
+    private func darken(_ color: Color, by amount: Double) -> Color {
+        let nsColor = NSColor(color)
+        guard let rgb = nsColor.usingColorSpace(.deviceRGB) else { return color }
+        let mix = CGFloat(max(0, min(1, amount)))
+        return Color(
+            red: Double(rgb.redComponent * (1 - mix)),
+            green: Double(rgb.greenComponent * (1 - mix)),
+            blue: Double(rgb.blueComponent * (1 - mix))
+        )
     }
 
     private func skyColor(for biome: BiomeCatalog.BiomeInfo) -> Color {

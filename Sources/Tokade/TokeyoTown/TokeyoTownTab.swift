@@ -107,7 +107,18 @@ struct TokeyoTownGameView: View {
             iconButton("−") { town.zoomOut() }
             iconButton("\(Int(town.view.zoom * 100))%") { town.recenterCamera() }
             iconButton("+") { town.zoomIn() }
+            iconButton("🖥") { cycleCRT() }
+                .help("CRT effect: \(notifier.crtMode.label)")
         }
+    }
+
+    /// Cycles through every CRTMode case so players can pick a retro
+    /// scanline / phosphor / dot-matrix overlay for the whole game view.
+    private func cycleCRT() {
+        let modes = CRTMode.allCases
+        let current = notifier.crtMode
+        let next = modes.firstIndex(of: current).map { modes[($0 + 1) % modes.count] } ?? .off
+        notifier.setCRTMode(next)
     }
 
     private func iconButton(_ label: String, action: @escaping () -> Void) -> some View {
