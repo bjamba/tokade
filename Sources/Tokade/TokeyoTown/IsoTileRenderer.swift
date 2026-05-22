@@ -524,10 +524,12 @@ struct IsoTileRenderer: View {
         case .forest: Color(red: 0.42, green: 0.78, blue: 0.55)
         case .beach: Color(red: 0.30, green: 0.62, blue: 0.92)
         }
-        var rng = TileRNG(
-            seed: UInt64(bitPattern: Int64(center.x.bitPattern))
-                &+ UInt64(bitPattern: Int64(center.y.bitPattern)) &* 0x9E37_79B9_7F4A_7C15
-        )
+        // `Double.bitPattern` is already UInt64. The previous
+        // `Int64(...)` cast trapped for any double whose bit pattern
+        // exceeded Int64.max — which is most of them.
+        let xBits = UInt64(center.x.bitPattern)
+        let yBits = UInt64(center.y.bitPattern)
+        var rng = TileRNG(seed: xBits &+ yBits &* UInt64(0x9E37_79B9_7F4A_7C15))
         for _ in 0..<8 {
             let dx = (rng.next() * 2 - 1) * tw * 0.55
             let dy = (rng.next() * 2 - 1) * tw * 0.28
