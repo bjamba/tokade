@@ -110,7 +110,10 @@ struct TokeyoTownGameView: View {
     private var cameraControls: some View {
         HStack(spacing: 2) {
             iconButton("−") { town.zoomOut() }
+            // Fixed minWidth so the header doesn't reflow when the
+            // percentage grows (75% → 100% → 150% → 200% all fit).
             iconButton("\(Int(town.view.zoom * 100))%") { town.recenterCamera() }
+                .frame(minWidth: 38)
             iconButton("+") { town.zoomIn() }
             iconButton(town.labelMode.glyph) { town.cycleLabelMode() }
                 .help("Building labels: \(town.labelMode.label)")
