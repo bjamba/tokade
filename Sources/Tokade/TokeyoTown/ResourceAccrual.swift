@@ -29,10 +29,10 @@ enum ResourceAccrual {
             // other resource at the v1 ratios.
             delta.coin += event.grandTotal / 4000
 
-            // Inspiration: per slash command
-            if event.slashCommand != nil {
-                delta.inspiration += 1
-            }
+            // v3.6 — `stability` and `inspiration` retired. They earned
+            // too rarely to matter for buying anything and added UI
+            // noise. Their costs in `BuildingCatalog` have been folded
+            // into industry/knowledge.
 
             // Per-tool credits, with active-session boost
             let multiplier = activeSessionMultiplier(eventCwd: event.cwd, sessionCwd: currentSessionCwd, repoPath: repoPath)
@@ -104,8 +104,9 @@ enum ResourceAccrual {
         var out = raw
         out.knowledge = raw.knowledge / 10
         out.lumber    = raw.lumber    / 3
-        out.industry  = raw.industry  / 8
-        out.stability = raw.industry  / 40  // ~1/5 of industry
+        out.industry = raw.industry / 8
+        out.stability = 0   // retired in v3.6
+        out.inspiration = 0 // retired in v3.6
         return out
     }
 }

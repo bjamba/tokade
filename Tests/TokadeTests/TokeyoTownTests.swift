@@ -130,11 +130,13 @@ final class TokeyoTownTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(delta.industry, 1)
     }
 
-    func testAccrualSlashCommandGivesInspiration() {
+    func testAccrualDoesNotAccrueRetiredResources() {
+        // v3.6 — stability and inspiration were retired. They should stay
+        // at zero regardless of event content.
         let now = Date()
         let events = [
             makeEvent(ts: now, slashCommand: "review", messageId: "a"),
-            makeEvent(ts: now.addingTimeInterval(1), slashCommand: "build", messageId: "b")
+            makeEvent(ts: now.addingTimeInterval(1), slashCommand: "build", messageId: "b"),
         ]
         let (delta, _) = ResourceAccrual.accrue(
             events: events,
@@ -142,7 +144,8 @@ final class TokeyoTownTests: XCTestCase {
             accounted: .init(),
             currentSessionCwd: nil
         )
-        XCTAssertEqual(delta.inspiration, 2)
+        XCTAssertEqual(delta.inspiration, 0)
+        XCTAssertEqual(delta.stability, 0)
     }
 
     func testAccrualIdempotentViaAccountedHighWater() {
@@ -388,8 +391,8 @@ final class TokeyoTownTests: XCTestCase {
             XCTAssertEqual(b.footprint.h, b.shape.footprint.h)
             XCTAssertGreaterThanOrEqual(b.footprint.w, 1)
             XCTAssertGreaterThanOrEqual(b.footprint.h, 1)
-            XCTAssertLessThanOrEqual(b.footprint.w, 2)
-            XCTAssertLessThanOrEqual(b.footprint.h, 2)
+            XCTAssertLessThanOrEqual(b.footprint.w, 3)
+            XCTAssertLessThanOrEqual(b.footprint.h, 3)
         }
     }
 

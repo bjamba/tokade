@@ -97,7 +97,7 @@ struct BuildingShape: Hashable {
 
     static func dome(wall: Color, dome: Color, height: CGFloat = 14) -> BuildingShape {
         BuildingShape(
-            footprint: .init(1, 1),
+            footprint: .init(2, 2), // v3.6 — observatories etc. are landmarks
             stories: [.init(height: 18, inset: 0, wallColor: wall, trimColor: nil)],
             roof: .dome(height: height, color: dome),
             ornament: nil,
@@ -147,12 +147,13 @@ struct BuildingShape: Hashable {
 
     static func pyramid(stone: Color, capColor: Color) -> BuildingShape {
         BuildingShape(
-            footprint: .init(2, 2),
+            footprint: .init(3, 3), // v3.6 — landmarks should look like landmarks
             stories: [
-                .init(height: 12, inset: 0, wallColor: stone, trimColor: nil),
+                .init(height: 14, inset: 0, wallColor: stone, trimColor: nil),
                 .init(height: 12, inset: 6, wallColor: stone, trimColor: nil),
+                .init(height: 10, inset: 10, wallColor: stone, trimColor: nil),
             ],
-            roof: .hip(height: 16, color: capColor),
+            roof: .hip(height: 18, color: capColor),
             ornament: nil,
             accent: nil
         )
@@ -160,7 +161,7 @@ struct BuildingShape: Hashable {
 
     static func bigHall(wall: Color, roof: Color, trim: Color? = nil) -> BuildingShape {
         BuildingShape(
-            footprint: .init(2, 1),
+            footprint: .init(2, 2), // v3.6 — bumped from 2x1
             stories: [.init(height: 22, inset: 0, wallColor: wall, trimColor: trim)],
             roof: .gable(ridgeAxis: .x, height: 14, color: roof),
             ornament: nil,
@@ -169,16 +170,13 @@ struct BuildingShape: Hashable {
     }
 
     static func aquarium(wall: Color, capColor: Color) -> BuildingShape {
-        // v3.3 — rectangular tank, flat roof, porthole windows. The
-        // earlier dome read as a body of water spilling out of the
-        // building (especially in the beach biome).
         BuildingShape(
-            footprint: .init(2, 2),
+            footprint: .init(3, 2), // v3.6 — bumped from 2x2
             stories: [.init(height: 22, inset: 0, wallColor: wall, trimColor: capColor)],
             roof: .flat,
             ornament: nil,
             accent: nil,
-            detail: .windows(rows: 2, columns: 3, color: capColor)
+            detail: .windows(rows: 2, columns: 4, color: capColor)
         )
     }
 

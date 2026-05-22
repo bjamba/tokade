@@ -27,21 +27,33 @@ enum TownsfolkAI {
         mapSize: Int
     ) -> [TokeyoTownState.Townsfolk] {
         guard !townsfolk.isEmpty else { return townsfolk }
-        return townsfolk.map { npc in
-            stepOne(
-                npc: npc,
-                buildings: buildings,
-                terrain: terrain,
-                mapSize: mapSize
-            )
+        // Pre-compute which tiles are inside a building footprint — the
+        // pather rejects these unless it's the npc's current goal (so
+        // they can still arrive at the building they're visiting).
+        var blocked = Set<Int>()
+        for b in buildings {
+            for dy in 0..<b.height {
+                for dx in 0..<b.width {
+                    blocked.insert(packKey(x: b.tileX + dx, y: b.tileY + dy, size: mapSize))
+                }
+            }
         }
+        return townsfolk.map { npc in
+            stepOne(npc: npc, buildings: buildings,
+                    terrain: terrain, mapSize: mapSize, blocked: blocked)
+        }
+    }
+
+    private static func packKey(x: Int, y: Int, size: Int) -> Int {
+        y * size + x
     }
 
     private static func stepOne(
         npc: TokeyoTownState.Townsfolk,
         buildings: [TokeyoTownState.PlacedBuilding],
         terrain: TerrainGrid,
-        mapSize: Int
+        mapSize: Int,
+        blocked: Set<Int> = []
     ) -> TokeyoTownState.Townsfolk {
         var n = npc
 
@@ -61,7 +73,7 @@ enum TownsfolkAI {
 
         // Step toward goal — pick neighbor that minimizes the heuristic,
         // preferring road tiles (lower pathCost) when scores are close.
-        return advance(npc: n, terrain: terrain, mapSize: mapSize)
+        return advance(npc: n, terrain: terrain, mapSize: mapSize, blocked: blocked)
     }
 
     private static func pickNewErrand(
@@ -134,7 +146,8 @@ enum TownsfolkAI {
     private static func advance(
         npc: TokeyoTownState.Townsfolk,
         terrain: TerrainGrid,
-        mapSize: Int
+        mapSize: Int,
+        blocked: Set<Int> = []
     ) -> TokeyoTownState.Townsfolk {
         var n = npc
         // Snap to whatever nextStep we previously committed to.
@@ -162,14 +175,16 @@ enum TownsfolkAI {
             guard c.x >= 0, c.x < mapSize, c.y >= 0, c.y < mapSize else { continue }
             let tile = terrain.tile(x: c.x, y: c.y)
             guard tile.isWalkable else { continue }
+            // v3.6 — buildings are impassable EXCEPT when the goal is
+            // inside that building (so townsfolk can visit it).
+            let key = c.y * mapSize + c.x
+            let isGoalTile = (c.x == n.goalX) && (c.y == n.goalY)
+            if blocked.contains(key), !isGoalTile { continue }
             // Cliff-friction: prefer steps where the elevation delta is ≤1.
             let elevDelta = abs(terrain.elev(x: c.x, y: c.y) - terrain.elev(x: curX, y: curY))
             if elevDelta > 1 { continue }
             let dx = Double(c.x - n.goalX)
             let dy = Double(c.y - n.goalY)
-            // v3.5 — road bias dialed up. Manhattan distance dominates
-            // when no road option exists; otherwise the road's tiny
-            // pathCost (1) heavily wins over grass (12).
             let score = abs(dx) + abs(dy) + Double(tile.pathCost) * 0.2
             if score < bestScore {
                 bestScore = score

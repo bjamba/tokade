@@ -16,19 +16,16 @@ final class TokeyoTownStore {
     var view: IsoMath.ViewTransform = .identity
 
     enum Tool: Equatable, Hashable {
-        case hand                  // demolish building OR clear flower/decor — the universal "remove" tool
-        case pan                   // drag the camera instead of acting on tiles
-        case build(String)         // place this building id
+        case hand                  // universal Remove — buildings, trees, rocks, flowers, roads, decor
+        case pan                   // drag the camera
+        case build(String)         // place a building
         case road                  // paint a road tile
-        case clearTree
-        case plantTree
-        case levelRock
-        case plantFlower
-        case lantern
+        case plantTree             // plant a tree
+        case plantFlower           // place a flower
+        case lantern               // place a decoration lantern
         case raise                 // raise terrain one tier (max +2)
         case lower                 // lower terrain one tier (min -1)
 
-        /// Human-readable name used by the current-tool indicator.
         var displayName: String {
             switch self {
             case .hand: return "Remove"
@@ -36,9 +33,7 @@ final class TokeyoTownStore {
             case let .build(id):
                 return BuildingCatalog.find(id)?.displayName ?? "Build"
             case .road: return "Road"
-            case .clearTree: return "Fell Tree"
             case .plantTree: return "Plant Tree"
-            case .levelRock: return "Level Rock"
             case .plantFlower: return "Plant Flower"
             case .lantern: return "Lantern"
             case .raise: return "Raise"
@@ -52,9 +47,7 @@ final class TokeyoTownStore {
             case .pan: return "✥"
             case let .build(id): return BuildingCatalog.find(id)?.glyph ?? "🏠"
             case .road: return "🛣"
-            case .clearTree: return "🪓"
-            case .plantTree: return "🌱"
-            case .levelRock: return "⛏"
+            case .plantTree: return "🌳"
             case .plantFlower: return "🌸"
             case .lantern: return "🏮"
             case .raise: return "⛰"
@@ -125,6 +118,14 @@ final class TokeyoTownStore {
         // and townsfolk based on the repo's characteristics. Free
         // placements (no resource deduction); player still starts at 0.
         InitialTownPlanner.preSeed(state: &fresh, scan: scan)
+        // v3.6 — seed the resource high-water mark to "now" so only
+        // events that arrive AFTER the town is created accrue. Without
+        // this a fresh town processes every historical UsageEvent
+        // (months of Claude history → millions of tokens → coin tsunami).
+        fresh.accountedEvents.lastTimestamp = now
+        fresh.accountedEvents.lastEventId = nil
+        // And explicitly zero resources in case anything slipped in.
+        fresh.resources = .zero
         undoStack.removeAll()
         redoStack.removeAll()
         state = fresh
@@ -225,16 +226,9 @@ final class TokeyoTownStore {
             await placeBuildingAction(id: id, x: x, y: y)
         case .road:
             await placeRoadAction(x: x, y: y)
-        case .clearTree:
-            await terraformAction(x: x, y: y, requireTile: .tree, replacement: .grass,
-                                            cost: Self.clearTreeCost, refund: Self.clearTreeRefund)
         case .plantTree:
             await terraformAction(x: x, y: y, requireTile: .grass, replacement: .tree,
-                                            cost: Self.plantTreeCost, refund: .zero)
-        case .levelRock:
-            await terraformAction(x: x, y: y, requireTile: .rock, replacement: .grass,
-                                            cost: Self.levelRockCost, refund: .zero,
-                                            alsoZeroElevation: true)
+                                  cost: Self.plantTreeCost, refund: .zero)
         case .plantFlower:
             await terraformAction(x: x, y: y, requireTile: .grass, replacement: .flower,
                                             cost: Self.plantFlowerCost, refund: .zero)
@@ -257,7 +251,17 @@ final class TokeyoTownStore {
         redoStack.removeAll()
     }
 
+    /// v3.6 — universal Remove. Demolishes whatever's on the tile and
+    /// refunds the resources that were spent placing it.
+    ///   - Building: full refund of its cost.
+    ///   - Tree: refund the plant-tree cost (6 lumber).
+    ///   - Flower: refund the plant-flower cost (3 growth).
+    ///   - Lantern decor: refund the lantern cost (12 coin).
+    ///   - Road: refund the road cost (4 coin).
+    ///   - Rock: no refund (terrain, not player-placed) — replaced with
+    ///           grass at the tile's current elevation.
     private func handAction(state s: TokeyoTownState, x: Int, y: Int) async -> Bool {
+        // Building first — taps inside a footprint always demolish.
         if let hit = s.buildings.first(where: { b in
             (x >= b.tileX) && (x < b.tileX + b.width) &&
                 (y >= b.tileY) && (y < b.tileY + b.height)
@@ -270,21 +274,33 @@ final class TokeyoTownStore {
                 if n.homeBuildingId == hit.id { n.homeBuildingId = nil }
                 return n
             }
+            if let b = BuildingCatalog.find(hit.kind) {
+                ns.resources.add(b.cost)
+            }
             state = ns
             await flush()
             return true
         }
+
         let tile = s.terrain.tile(x: x, y: y)
-        // Hand also clears anything paintable (flower, decor, road).
-        if tile == .flower || tile == .decor || tile == .road {
-            snapshot()
-            var ns = s
-            ns.terrain.setTile(.grass, x: x, y: y)
-            state = ns
-            await flush()
-            return true
+        let refund: TokeyoTownState.Resources
+        switch tile {
+        case .tree: refund = Self.plantTreeCost
+        case .flower: refund = Self.plantFlowerCost
+        case .decor: refund = Self.lanternCost
+        case .road: refund = Self.roadCost
+        case .rock: refund = .zero
+        default: return false
         }
-        return false
+        snapshot()
+        var ns = s
+        // Rocks revert to grass at their current elevation (preserving
+        // hills/mountains the player may have sculpted).
+        ns.terrain.setTile(.grass, x: x, y: y)
+        ns.resources.add(refund)
+        state = ns
+        await flush()
+        return true
     }
 
     private func placeBuildingAction(id: String, x: Int, y: Int) async -> Bool {

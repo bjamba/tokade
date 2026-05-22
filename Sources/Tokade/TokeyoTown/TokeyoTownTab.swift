@@ -124,13 +124,13 @@ struct TokeyoTownGameView: View {
 
     private var resourceBar: some View {
         let r = town.state?.resources ?? .zero
+        // v3.6 — stability + inspiration retired; only the five
+        // earning-resources are shown.
         return HStack(spacing: 8) {
             chip("💰", r.coin)
             chip("📜", r.knowledge)
             chip("🔨", r.lumber)
             chip("⚙️", r.industry)
-            chip("🛡", r.stability)
-            chip("✨", r.inspiration)
             chip("🌱", r.growth)
         }
         .padding(.vertical, 2)
@@ -155,21 +155,16 @@ struct TokeyoTownGameView: View {
                 toolButton(.pan, icon: "✥", label: "Pan")
                 toolButton(.road, icon: "🛣", label: "Road",
                            cost: TokeyoTownStore.roadCost)
-                toolButton(.plantTree, icon: "🌱", label: "Plant",
+                toolButton(.plantTree, icon: "🌳", label: "Tree",
                            cost: TokeyoTownStore.plantTreeCost)
-                toolButton(.clearTree, icon: "🪓", label: "Fell",
-                           cost: TokeyoTownStore.clearTreeCost,
-                           refund: TokeyoTownStore.clearTreeRefund)
-                toolButton(.levelRock, icon: "⛏", label: "Level",
-                           cost: TokeyoTownStore.levelRockCost)
-                toolButton(.raise, icon: "⛰", label: "Raise",
-                           cost: TokeyoTownStore.raiseCost)
-                toolButton(.lower, icon: "🕳", label: "Lower",
-                           cost: TokeyoTownStore.lowerCost)
                 toolButton(.plantFlower, icon: "🌸", label: "Flower",
                            cost: TokeyoTownStore.plantFlowerCost)
                 toolButton(.lantern, icon: "🏮", label: "Lantern",
                            cost: TokeyoTownStore.lanternCost)
+                toolButton(.raise, icon: "⛰", label: "Raise",
+                           cost: TokeyoTownStore.raiseCost)
+                toolButton(.lower, icon: "🕳", label: "Lower",
+                           cost: TokeyoTownStore.lowerCost)
             }
             .padding(.bottom, 2)
         }
@@ -222,8 +217,6 @@ struct TokeyoTownGameView: View {
         if r.knowledge > 0 { parts.append("📜\(r.knowledge)") }
         if r.lumber > 0 { parts.append("🔨\(r.lumber)") }
         if r.industry > 0 { parts.append("⚙️\(r.industry)") }
-        if r.stability > 0 { parts.append("🛡\(r.stability)") }
-        if r.inspiration > 0 { parts.append("✨\(r.inspiration)") }
         if r.growth > 0 { parts.append("🌱\(r.growth)") }
         return parts.joined(separator: " ")
     }
@@ -375,17 +368,9 @@ struct TokeyoTownGameView: View {
             let validTile = (t == .grass || t == .sand || t == .flower) && elev < 2
             let canAfford = s.resources.canAfford(TokeyoTownStore.roadCost)
             return .init(x: tile.x, y: tile.y, valid: validTile && canAfford)
-        case .clearTree:
-            let valid = s.terrain.tile(x: tile.x, y: tile.y) == .tree
-                && s.resources.canAfford(TokeyoTownStore.clearTreeCost)
-            return .init(x: tile.x, y: tile.y, valid: valid)
         case .plantTree:
             let valid = s.terrain.tile(x: tile.x, y: tile.y) == .grass
                 && s.resources.canAfford(TokeyoTownStore.plantTreeCost)
-            return .init(x: tile.x, y: tile.y, valid: valid)
-        case .levelRock:
-            let valid = s.terrain.tile(x: tile.x, y: tile.y) == .rock
-                && s.resources.canAfford(TokeyoTownStore.levelRockCost)
             return .init(x: tile.x, y: tile.y, valid: valid)
         case .plantFlower:
             let valid = s.terrain.tile(x: tile.x, y: tile.y) == .grass

@@ -112,7 +112,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "plain-clocktower", displayName: "Clock Tower", biome: .plain,
-            cost: .init(coin: 220, industry: 26, inspiration: 6),
+            cost: .init(coin: 220, knowledge: 6, industry: 26),
             shape: .tower(
                 wall: Color(red: 0.65, green: 0.55, blue: 0.78),
                 capColor: Color(red: 0.35, green: 0.28, blue: 0.55)
@@ -121,7 +121,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "plain-fountain", displayName: "Fountain", biome: .plain,
-            cost: .init(coin: 70, stability: 6),
+            cost: .init(coin: 70, industry: 6),
             shape: .waterFeature(
                 stone: Color(red: 0.75, green: 0.75, blue: 0.72),
                 water: Color(red: 0.42, green: 0.74, blue: 0.92)
@@ -132,7 +132,7 @@ enum BuildingCatalog {
             id: "plain-library", displayName: "Library", biome: .plain,
             cost: .init(coin: 180, knowledge: 32, lumber: 16),
             shape: BuildingShape(
-                footprint: .init(2, 2),
+                footprint: .init(3, 3),
                 stories: [
                     .init(height: 22, inset: 0,
                           wallColor: Color(red: 0.50, green: 0.34, blue: 0.62),
@@ -194,7 +194,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "desert-observatory", displayName: "Observatory", biome: .desert,
-            cost: .init(coin: 200, knowledge: 28, inspiration: 10),
+            cost: .init(coin: 200, knowledge: 38),
             shape: .dome(
                 wall: Color(red: 0.40, green: 0.34, blue: 0.62),
                 dome: Color(red: 0.95, green: 0.85, blue: 0.42),
@@ -217,7 +217,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "desert-tea", displayName: "Tea House", biome: .desert,
-            cost: .init(coin: 80, stability: 7, growth: 6),
+            cost: .init(coin: 80, industry: 7, growth: 6),
             shape: .shrine(
                 wall: Color(red: 0.92, green: 0.55, blue: 0.42),
                 roof: Color(red: 0.60, green: 0.20, blue: 0.20)
@@ -226,7 +226,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "desert-pyramid", displayName: "Stepped Pyramid", biome: .desert,
-            cost: .init(coin: 320, knowledge: 18, industry: 36, inspiration: 10),
+            cost: .init(coin: 320, knowledge: 28, industry: 36),
             shape: .pyramid(
                 stone: Color(red: 0.78, green: 0.62, blue: 0.36),
                 capColor: Color(red: 0.95, green: 0.85, blue: 0.30)
@@ -235,7 +235,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "desert-cistern", displayName: "Cistern", biome: .desert,
-            cost: .init(coin: 75, industry: 12, stability: 9),
+            cost: .init(coin: 75, industry: 21),
             shape: .waterFeature(
                 stone: Color(red: 0.55, green: 0.62, blue: 0.78),
                 water: Color(red: 0.30, green: 0.55, blue: 0.85)
@@ -307,7 +307,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "tundra-mead", displayName: "Mead Hall", biome: .tundra,
-            cost: .init(coin: 160, lumber: 22, stability: 8, growth: 8),
+            cost: .init(coin: 160, lumber: 22, industry: 8, growth: 8),
             shape: .bigHall(
                 wall: Color(red: 0.65, green: 0.42, blue: 0.30),
                 roof: Color(red: 0.30, green: 0.20, blue: 0.15),
@@ -317,7 +317,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "tundra-onsen", displayName: "Hot Spring", biome: .tundra,
-            cost: .init(coin: 110, stability: 12, growth: 4),
+            cost: .init(coin: 110, industry: 12, growth: 4),
             shape: .waterFeature(
                 stone: Color(red: 0.55, green: 0.55, blue: 0.62),
                 water: Color(red: 0.92, green: 0.78, blue: 0.78)
@@ -325,7 +325,7 @@ enum BuildingCatalog {
             glyph: "♨", blurb: "Steam against the cold."),
         Building(
             id: "tundra-watchtower", displayName: "Watch Tower", biome: .tundra,
-            cost: .init(coin: 190, industry: 22, stability: 14),
+            cost: .init(coin: 190, industry: 36),
             shape: .tower(
                 wall: Color(red: 0.42, green: 0.45, blue: 0.55),
                 capColor: Color(red: 0.30, green: 0.32, blue: 0.42)
@@ -334,7 +334,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "tundra-shrine", displayName: "Snow Shrine", biome: .tundra,
-            cost: .init(coin: 130, lumber: 10, inspiration: 12),
+            cost: .init(coin: 130, knowledge: 12, lumber: 10),
             shape: .shrine(
                 wall: Color(red: 0.78, green: 0.42, blue: 0.55),
                 roof: Color(red: 0.55, green: 0.20, blue: 0.30)
@@ -343,7 +343,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "tundra-lodge", displayName: "Stone Lodge", biome: .tundra,
-            cost: .init(coin: 120, lumber: 18, stability: 6),
+            cost: .init(coin: 120, lumber: 18, industry: 6),
             shape: .bigHall(
                 wall: Color(red: 0.55, green: 0.55, blue: 0.62),
                 roof: Color(red: 0.78, green: 0.78, blue: 0.84),
@@ -383,7 +383,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "forest-shrine", displayName: "Moss Shrine", biome: .forest,
-            cost: .init(coin: 85, lumber: 10, inspiration: 10),
+            cost: .init(coin: 85, knowledge: 10, lumber: 10),
             shape: .shrine(
                 wall: Color(red: 0.30, green: 0.55, blue: 0.42),
                 roof: Color(red: 0.18, green: 0.32, blue: 0.22)
@@ -440,7 +440,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "forest-bridge", displayName: "Stone Bridge", biome: .forest,
-            cost: .init(coin: 100, industry: 18, stability: 8),
+            cost: .init(coin: 100, industry: 26),
             shape: BuildingShape(
                 footprint: .init(2, 1),
                 stories: [.init(height: 8, inset: 0,
@@ -479,7 +479,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "beach-lighthouse", displayName: "Lighthouse", biome: .beach,
-            cost: .init(coin: 220, industry: 26, stability: 16),
+            cost: .init(coin: 220, industry: 42),
             shape: .lighthouse(
                 wall: .white,
                 band: Color(red: 0.92, green: 0.42, blue: 0.42),
@@ -534,7 +534,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "beach-aquarium", displayName: "Aquarium", biome: .beach,
-            cost: .init(coin: 210, knowledge: 24, industry: 16, inspiration: 6),
+            cost: .init(coin: 210, knowledge: 30, industry: 16),
             shape: .aquarium(
                 wall: Color(red: 0.42, green: 0.62, blue: 0.92),
                 capColor: Color(red: 0.30, green: 0.45, blue: 0.78)
@@ -552,7 +552,7 @@ enum BuildingCatalog {
         ),
         Building(
             id: "beach-shrine", displayName: "Sea Shrine", biome: .beach,
-            cost: .init(coin: 130, lumber: 8, stability: 6, inspiration: 12),
+            cost: .init(coin: 130, knowledge: 12, lumber: 8, industry: 6),
             shape: .shrine(
                 wall: Color(red: 0.92, green: 0.30, blue: 0.42),
                 roof: Color(red: 0.55, green: 0.16, blue: 0.22)
