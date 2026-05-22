@@ -6,6 +6,68 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-05-22
+
+### Added
+
+- **Tokeyo Town** — the second Arcade game. Cozy isometric sandbox
+  city-builder themed after a real local repo. Players pick a folder;
+  the scanner derives biome from the primary language
+  (Swift/Kotlin/Dart → beach, Rust/C/C++/Zig → tundra,
+  Python/Ruby/R → forest, JS/TS → plain, Go/Java/C# → desert), era
+  from repo age, map size from LOC, lushness from recent commit
+  cadence, and a starter cluster of buildings + roads + townsfolk
+  from repo signals (tests/, docs/, README, CI files). Subsequent
+  resources accrue from live Claude Code usage (tokens → coin, reads
+  → knowledge, edits → lumber, bashes → industry, sessions →
+  growth). 100% local — no Claude calls, no network requests for
+  scanning (enforced by `scripts/check.sh`).
+
+  Headline features:
+  - 5 biomes × 9 buildings (45 catalog) with composable shape recipes
+    (stories + roof type + ornament + detail) and footprints 1×1
+    through 3×3.
+  - Procedural terrain: water, sand, grass, rock, trees, flowers,
+    elevation tiers (-1 underwater through +4 mountain), seeded by
+    townId so the same repo always grows the same landscape.
+  - Townsfolk with full appearance variation (hat / skin / hair /
+    age / pattern), walk animation, and proper A\* pathing between
+    buildings (preferring roads via tile pathCost weighting).
+  - Real-time **day / night cycle** tied to wall clock — lanterns
+    glow at night, stars appear, ground darkens uniformly. Toggle for
+    forced day / forced night.
+  - Tools sidebar: Remove (universal, with refunds), Pan, Road,
+    Tree, Flower, Lantern, Pond, Raise, Lower.
+  - 50-action Undo / Redo stack.
+  - 5 discrete zoom levels (0.5×–2.0×), drag-pan, click-to-cycle
+    label modes (icon / name / none) and CRT effect (5 modes).
+  - Population grows with buildings (cap = `buildings + 2`); each
+    townsfolk costs 1 coin/tick upkeep. If you can't pay, townsfolk
+    leave town.
+  - Resource trading: spend coin to buy +1 of any other resource at
+    published rates.
+  - Building-to-building tap-to-place with hover highlight; pier must
+    straddle land and water; no road on peaks; raise/lower locked out
+    of road tiles.
+- **Both Arcade banners redesigned** with procedural SwiftUI:
+  - Token Gaiden RPG: Conan-style fantasy — jagged mountains,
+    crossed swords, heavy serif title.
+  - Tokeyo Town: night-sunset cityscape silhouette with lit
+    skyscrapers and clean sans-serif title.
+  - Both topped with a thin CRT scanline + vignette overlay.
+- **Token Gaiden** got a small `← Arcade` back button at the top of
+  every screen, matching Tokeyo Town's idiom.
+
+### Changed
+
+- `CFBundleShortVersionString` → 0.5.0, `CFBundleVersion` → 7.
+
+## [Tokeyo Town iteration log — pre-merge work referenced from v0.5.0]
+
+Documented for posterity; the work above was iterated across ~25
+commits on `feature/tokeyo-town-v2` (squash-merged via #28). The
+following sections describe the design path.
+
 ### Changed (Tokeyo Town v3 — second iteration on the v1 MVP)
 
 - **Cardinal-only townsfolk movement**. The renderer used to interpolate npc position toward the *ultimate goal*, producing visible diagonal motion. AI now commits to a single cardinal `nextStep`; renderer interpolates only between current and next, so motion is strictly N/E/S/W.
