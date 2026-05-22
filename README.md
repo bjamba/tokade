@@ -7,10 +7,17 @@
 A macOS menu bar app that shows your Claude usage and budget at a glance. Reads
 from Claude Code's local session logs and statusline output — no API key needed.
 
-Now ships with **Token Gaiden RPG** — a pixel-art roguelike whose state is
-coupled to your real Claude Code usage. Your pet ages with your plan
-consumption, encounters monsters as you work, and unlocks cosmetics from
-achievements + quest rewards + rare drops.
+Ships with two **Arcade** games that grow alongside your real Claude
+usage:
+
+- **Token Gaiden RPG** — a pixel-art roguelike whose pet ages with your
+  plan consumption, encounters monsters as you work, and unlocks
+  cosmetics from achievements + quest rewards + rare drops.
+- **Tokeyo Town** *(new in v0.5)* — a cozy isometric sandbox
+  city-builder, themed after a real local repo. Resources flow from
+  your Claude usage; you place buildings, sculpt terrain, paint roads,
+  and watch townsfolk path between buildings under a real-time
+  day/night cycle.
 
 ## What it shows
 
@@ -21,9 +28,10 @@ achievements + quest rewards + rare drops.
   tool calls, all broken down by model
 - **Trends tab**: weekday × hour heatmap (all-time), YTD cumulative tokens
   with linear-rate projection wedge
-- **Games tab** *(new in v0.4)*: launcher for Tokade's pixel-art games.
-  Currently hosts **Token Gaiden RPG** — full RPG loop with regions, NPCs,
-  quests, gear, skills, and multi-generation inheritance.
+- **Games tab** *(new in v0.4)*: Arcade launcher for Tokade's pixel-art
+  games. Hosts **Token Gaiden RPG** (full RPG loop with regions, NPCs,
+  quests, gear, skills, multi-generation inheritance) and **Tokeyo
+  Town** *(new in v0.5)* — a cozy isometric sandbox city-builder.
 - **Usage alerts** *(new in v0.4)*: notifications when your 5-hour budget
   crosses 50% / 75% / 90% or a 5-minute window burns >500K tokens.
 
@@ -46,6 +54,36 @@ travel between regions on its own.
 | Menu | Region | Map |
 |:------:|:------:|:------:|
 | ![Token Gaiden menu](docs/screenshots/tg-rpg-menu.png) | ![Token Gaiden region](docs/screenshots/tg-rpg-region.png) | ![Token Gaiden map](docs/screenshots/tg-rpg-map.png) |
+
+### Tokeyo Town
+
+A cozy isometric sandbox city-builder, themed after a *real local repo*
+on your machine. Pick a folder; the scanner derives its biome
+(Swift → beach, Rust → tundra, Python → forest, JS/TS → plain,
+Go/Java → desert), era from repo age, and starting lushness from
+recent commit cadence. Then build:
+
+- Place buildings (40+ across 5 biomes, with footprints from 1×1
+  cottages to 3×3 landmarks) — each costs resources accrued from your
+  Claude usage (tokens → coin, reads → knowledge, edits → lumber,
+  bashes → industry, sessions → growth).
+- Sculpt terrain with raise / lower / pond / tree / flower / lantern /
+  road tools. Townsfolk path between buildings using A\*, preferring
+  the roads you build.
+- Real-time **day/night cycle** tied to your wall clock: lanterns
+  glow at night, stars appear above the town.
+- Active-session 2× bonus when the current Claude session is working
+  inside the town's repo.
+
+100% local — no Claude calls, no network requests for scanning.
+Buildings auto-populate the town with townsfolk as it densifies; coin
+upkeep covers their existence.
+
+![Tokeyo Town cover](docs/screenshots/tokeyo-town-cover.png)
+
+| Overview | Night cycle |
+|:------:|:------:|
+| ![Tokeyo Town overview](docs/screenshots/tokeyo-town-overview.png) | ![Tokeyo Town at night](docs/screenshots/tokeyo-town-night.png) |
 
 ## Requirements
 
