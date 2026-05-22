@@ -112,15 +112,11 @@ struct GamesTab: View {
 
     @ViewBuilder
     private func bannerImage(for game: Game) -> some View {
-        if let sprite = GameBanner.sprite(for: game.bannerId) {
-            let img = SpriteRenderer.render(sprite,
-                                            palette: GameBanner.palette(for: game.bannerId),
-                                            scale: 3)
-            Image(nsImage: img)
-                .interpolation(.none)
-                .resizable()
-                .aspectRatio(128.0 / 48.0, contentMode: .fit)
-                .frame(maxWidth: .infinity)
+        // v3.14 — both games now use SwiftUI procedural banners so we
+        // can give each a distinct visual identity (cityscape vs.
+        // fantasy) without hand-authoring pixel-art matrices for both.
+        if game == .tokenGaidenRPG {
+            TokenGaidenBanner()
         } else if game == .tokeyoTown {
             // v3.13 — procedural banner; saves us from hand-authoring
             // a 128×48 matrix file and stays in sync with the in-game
