@@ -442,38 +442,45 @@ final class TokeyoTownTests: XCTestCase {
 
     // MARK: - Townsfolk AI
 
-    func testTownsfolkAIPicksCardinalNeighborOnly() {
-        // v3 — AI commits to a `nextStep` neighbor; renderer interpolates
-        // strictly between current and nextStep. No diagonal moves possible.
+    func testTownsfolkAIRoutesCardinallyToABuilding() {
+        // v3.12 — AI now uses A* to a *building* destination. Set up a
+        // 4x4 grid with one walkable corridor on the north row and a
+        // single goal building at the east end.
         var tiles = [TerrainTile](repeating: .water, count: 4 * 4)
-        for i in 0..<tiles.count { tiles[i] = .water }
-        tiles[0 * 4 + 0] = .grass // start
-        tiles[0 * 4 + 1] = .grass // only walkable neighbor (east)
-        tiles[1 * 4 + 0] = .water
+        for x in 0..<4 { tiles[0 * 4 + x] = .grass }
         let grid = TerrainGrid(size: 4, tiles: tiles)
+        let goalBuilding = TokeyoTownState.PlacedBuilding(
+            id: UUID(), kind: "plain-cottage",
+            tileX: 3, tileY: 0, width: 1, height: 1,
+            placedAt: .now
+        )
         let npc = TokeyoTownState.Townsfolk(
             id: UUID(), name: "T",
             tileX: 0, tileY: 0,
             homeBuildingId: nil,
-            goalX: 3, goalY: 0,
+            goalX: 0, goalY: 0,
             pauseRemaining: 0,
             activity: "test",
             hue: 0.5,
             createdAt: .now
         )
-        let stepped = TownsfolkAI.step(
-            townsfolk: [npc],
-            buildings: [],
-            terrain: grid,
-            mapSize: 4
-        )
-        let next = stepped[0]
-        // Should commit to east tile (1, 0), no fractional motion.
-        XCTAssertEqual(next.nextStepX, 1)
-        XCTAssertEqual(next.nextStepY, 0)
-        // Current position untouched — renderer will lerp to nextStep.
-        XCTAssertEqual(next.tileX, 0)
-        XCTAssertEqual(next.tileY, 0)
+        // First tick — plans the path. The pause-on-arrival is random,
+        // so we test the planning step deterministically here and trust
+        // the consumption step in code review.
+        var stepped = TownsfolkAI.step(townsfolk: [npc],
+                                       buildings: [goalBuilding],
+                                       terrain: grid, mapSize: 4)
+        XCTAssertFalse(stepped[0].pathKeys.isEmpty)
+        // First step in the path should be the east neighbor of (0, 0) —
+        // (1, 0), which has row-major key 0 * 4 + 1 = 1.
+        XCTAssertEqual(stepped[0].pathKeys.first, 1)
+        // Clear pauseRemaining so the next tick actually consumes the path.
+        stepped[0].pauseRemaining = 0
+        stepped = TownsfolkAI.step(townsfolk: stepped,
+                                   buildings: [goalBuilding],
+                                   terrain: grid, mapSize: 4)
+        XCTAssertEqual(stepped[0].nextStepY, 0)
+        XCTAssertEqual(stepped[0].nextStepX, 1)
     }
 
     // MARK: - v3 — undo/redo, elevation, autotile mask, pier-water

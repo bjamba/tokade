@@ -163,6 +163,11 @@ struct TokeyoTownState: Codable, Equatable {
         /// `(tileX, tileY)` and this — strictly cardinal motion.
         var nextStepX: Int?
         var nextStepY: Int?
+        /// v3.12 — precomputed A* path from current tile to goal,
+        /// stored as row-major (y * mapSize + x) keys so it serialises
+        /// compactly. Each tick the AI pops the head and writes it to
+        /// `nextStep`.
+        var pathKeys: [Int] = []
         var pauseRemaining: Double = 0
         var activity: String = "wandering"
         /// Body color hue (0..1). Used as the primary shirt color.

@@ -521,9 +521,19 @@ struct TokeyoTownGameView: View {
         )
     }
 
+    /// Tick interval used to scale animation phase. Must match the
+    /// background loop in TokadeApp (~3 s) so the npc walk animation
+    /// finishes exactly when the next AI tick fires — no visual
+    /// teleport-back-to-start when phase wraps.
+    private static let tickInterval: Double = 3.0
+
+    /// Animation phase ∈ [0, 1]. Anchored to `state.lastTickAt` so it
+    /// rises smoothly from 0 to 1 between AI ticks and stays clamped
+    /// at 1 if the next tick is late.
     private func phaseValue(at date: Date) -> Double {
-        let secs = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 2.0)
-        return secs / 2.0
+        guard let s = town.state else { return 0 }
+        let elapsed = date.timeIntervalSince(s.lastTickAt)
+        return max(0, min(1, elapsed / Self.tickInterval))
     }
 
     private func handleTap(at point: CGPoint, canvas: CGSize) {
