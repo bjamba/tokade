@@ -219,12 +219,42 @@ final class TokeyoTownStore {
         await save.writeIndex(index)
     }
 
-    func eraseAll() async {
-        await save.eraseAll()
+    /// Discard the active town and return to the new-town picker.
+    ///
+    /// - `archive`: keep the save file under `archive/` (default; the
+    ///   v1 behaviour) so the player can come back to it later via
+    ///   the index. The town no longer shows as active.
+    /// - `delete`: wipe the per-town save *and* everything in the
+    ///   archive — a true clean slate.
+    enum ClearMode { case archive, delete }
+
+    func clearActiveTown(mode: ClearMode) async {
+        switch mode {
+        case .archive:
+            if let id = index.activeTownId {
+                await save.archiveTown(id: id)
+            }
+            // Empty the index's active pointer but keep the archived
+            // entry in `towns` so it could be relisted later.
+            var idx = index
+            idx.activeTownId = nil
+            await save.writeIndex(idx)
+            index = idx
+        case .delete:
+            // Nuke the per-town save AND any archived backups for a
+            // genuine clean wipe.
+            await save.eraseAll()
+            index = .empty
+        }
         state = nil
-        index = .empty
         undoStack.removeAll()
         redoStack.removeAll()
+    }
+
+    /// Legacy alias — old callers (and the "Erase Tokeyo Town history"
+    /// menu in the app footer) still call eraseAll.
+    func eraseAll() async {
+        await clearActiveTown(mode: .delete)
     }
 
     // MARK: - Tools

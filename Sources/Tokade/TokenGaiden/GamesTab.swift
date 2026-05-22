@@ -121,6 +121,11 @@ struct GamesTab: View {
                 .resizable()
                 .aspectRatio(128.0 / 48.0, contentMode: .fit)
                 .frame(maxWidth: .infinity)
+        } else if game == .tokeyoTown {
+            // v3.13 — procedural banner; saves us from hand-authoring
+            // a 128×48 matrix file and stays in sync with the in-game
+            // iso-prism look.
+            TokeyoTownBanner()
         } else {
             Rectangle()
                 .fill(Color(red: 0.18, green: 0.18, blue: 0.22))

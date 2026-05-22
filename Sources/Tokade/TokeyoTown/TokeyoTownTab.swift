@@ -20,8 +20,12 @@ struct TokeyoTownTab: View {
                 onExitGame: onExitGame,
                 onStartNewTown: { showConfirmNewTown = true },
                 showConfirmNewTown: showConfirmNewTown,
-                onConfirmNewTown: {
-                    Task { await town.eraseAll() }
+                onArchiveAndNew: {
+                    Task { await town.clearActiveTown(mode: .archive) }
+                    showConfirmNewTown = false
+                },
+                onDeleteAndNew: {
+                    Task { await town.clearActiveTown(mode: .delete) }
                     showConfirmNewTown = false
                 },
                 onCancelNewTown: { showConfirmNewTown = false }
@@ -43,7 +47,8 @@ struct TokeyoTownGameView: View {
     /// rather than as a `.confirmationDialog` because external modals
     /// dismiss the MenuBarExtra panel.
     var showConfirmNewTown: Bool = false
-    var onConfirmNewTown: () -> Void = {}
+    var onArchiveAndNew: () -> Void = {}
+    var onDeleteAndNew: () -> Void = {}
     var onCancelNewTown: () -> Void = {}
 
     @State private var hoverTile: (x: Int, y: Int)?
@@ -331,33 +336,61 @@ struct TokeyoTownGameView: View {
                 Text("START A NEW TOWN?")
                     .font(.system(.callout, design: .monospaced)).fontWeight(.bold)
                     .foregroundStyle(Color(red: 0.95, green: 0.85, blue: 0.30))
-                Text("The current town will be archived to ~/.tokade/games/tokeyotown/archive/. You can only have one town at a time in this version.")
+                Text("What should happen to the current town?")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(.white.opacity(0.78))
                     .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 12)
-                HStack(spacing: 8) {
+                VStack(spacing: 6) {
+                    confirmRow(
+                        title: "Archive",
+                        subtitle: "Save it to ~/.tokade/games/tokeyotown/archive/ so you can come back to it.",
+                        tint: Color(red: 0.55, green: 0.78, blue: 0.95),
+                        action: onArchiveAndNew
+                    )
+                    confirmRow(
+                        title: "Delete forever",
+                        subtitle: "Wipe the town save and any archived backups. Cannot be undone.",
+                        tint: Color(red: 0.95, green: 0.42, blue: 0.42),
+                        action: onDeleteAndNew
+                    )
                     Button("Cancel") { onCancelNewTown() }
                         .buttonStyle(.plain)
                         .padding(.vertical, 6).padding(.horizontal, 14)
+                        .frame(maxWidth: .infinity)
                         .background(Color(red: 0.20, green: 0.20, blue: 0.25))
                         .foregroundStyle(.white)
                         .overlay(Rectangle().stroke(Color(white: 0.4), lineWidth: 1))
                         .font(.system(.caption, design: .monospaced))
-                    Button("Start New Town") { onConfirmNewTown() }
-                        .buttonStyle(.plain)
-                        .padding(.vertical, 6).padding(.horizontal, 14)
-                        .background(Color(red: 0.95, green: 0.42, blue: 0.42))
-                        .foregroundStyle(.white)
-                        .overlay(Rectangle().stroke(.black, lineWidth: 1))
-                        .font(.system(.caption, design: .monospaced)).fontWeight(.bold)
                 }
+                .padding(.top, 4)
             }
             .padding(16)
+            .frame(maxWidth: 360)
             .background(Color(red: 0.10, green: 0.10, blue: 0.14))
             .overlay(Rectangle().stroke(Color(red: 0.95, green: 0.85, blue: 0.30), lineWidth: 2))
         }
+    }
+
+    private func confirmRow(
+        title: String, subtitle: String, tint: Color, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title.uppercased())
+                    .font(.system(.caption, design: .monospaced)).fontWeight(.bold)
+                    .foregroundStyle(tint)
+                Text(subtitle)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(red: 0.14, green: 0.14, blue: 0.18))
+            .overlay(Rectangle().stroke(tint, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private var currentToolIndicator: some View {
