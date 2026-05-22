@@ -408,7 +408,9 @@ final class TokeyoTownStore {
     private func raiseAction(x: Int, y: Int) async -> Bool {
         guard var s = state, s.terrain.contains(x: x, y: y) else { return false }
         let current = s.terrain.elev(x: x, y: y)
-        guard current < 2 else { return false }
+        // v3.8 — elev max bumped to 4 so players can build proper
+        // mountain ranges, not a single peak tier.
+        guard current < 4 else { return false }
         if isOccupiedByBuilding(x: x, y: y) { return false }
         // Roads can't survive an elevation change without angled-road
         // graphics — reject the raise rather than silently break them.
@@ -432,17 +434,16 @@ final class TokeyoTownStore {
     private func lowerAction(x: Int, y: Int) async -> Bool {
         guard var s = state, s.terrain.contains(x: x, y: y) else { return false }
         let current = s.terrain.elev(x: x, y: y)
-        guard current > -1 else { return false }
+        // v3.8 — Lower stops at flat ground (elev 0). Use the Pond
+        // tool to create water tiles; Lower is purely for sculpting
+        // mountains/hills back down.
+        guard current > 0 else { return false }
         if isOccupiedByBuilding(x: x, y: y) { return false }
         if s.terrain.tile(x: x, y: y) == .road { return false }
         guard s.resources.canAfford(Self.lowerCost) else { return false }
         snapshot()
         _ = s.resources.deduct(Self.lowerCost)
         s.terrain.setElev(current - 1, x: x, y: y)
-        // Dropping to -1 fills with water. Higher → lower transitions
-        // don't change the tile kind (a forested mountain becomes a
-        // forested hill becomes a forested patch of grass).
-        if current - 1 == -1 { s.terrain.setTile(.water, x: x, y: y) }
         state = s
         await flush()
         return true

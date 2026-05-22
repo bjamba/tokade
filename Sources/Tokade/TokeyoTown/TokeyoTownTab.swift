@@ -390,13 +390,13 @@ struct TokeyoTownGameView: View {
             return .init(x: tile.x, y: tile.y, valid: valid)
         case .raise:
             let t = s.terrain.tile(x: tile.x, y: tile.y)
-            let valid = s.terrain.elev(x: tile.x, y: tile.y) < 2
+            let valid = s.terrain.elev(x: tile.x, y: tile.y) < 4
                 && t != .road
                 && s.resources.canAfford(TokeyoTownStore.raiseCost)
             return .init(x: tile.x, y: tile.y, valid: valid)
         case .lower:
             let t = s.terrain.tile(x: tile.x, y: tile.y)
-            let valid = s.terrain.elev(x: tile.x, y: tile.y) > -1
+            let valid = s.terrain.elev(x: tile.x, y: tile.y) > 0
                 && t != .road
                 && s.resources.canAfford(TokeyoTownStore.lowerCost)
             return .init(x: tile.x, y: tile.y, valid: valid)

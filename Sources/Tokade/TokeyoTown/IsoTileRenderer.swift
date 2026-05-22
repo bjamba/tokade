@@ -16,7 +16,9 @@ enum IsoMath {
         var panX: CGFloat = 0
         var panY: CGFloat = 0
         static let identity = ViewTransform()
-        static let allZooms: [Double] = [0.75, 1.0, 1.5]
+        /// v3.8 — extended zoom range. 0.5 is "wide view," 2.0 is
+        /// "close inspection." Discrete steps so the UI stays simple.
+        static let allZooms: [Double] = [0.5, 0.75, 1.0, 1.5, 2.0]
     }
 
     static func tileWidth(forMapSize size: Int, zoom: Double = 1.0) -> CGFloat {

@@ -98,7 +98,9 @@ struct TerrainGrid: Codable, Equatable {
 
     mutating func setElev(_ e: Int, x: Int, y: Int) {
         guard contains(x: x, y: y) else { return }
-        elevation[y * size + x] = Int8(max(-1, min(2, e)))
+        // v3.8 — extended max elevation from 2 to 4 so mountain ranges
+        // are buildable.
+        elevation[y * size + x] = Int8(max(-1, min(4, e)))
     }
 
     func contains(x: Int, y: Int) -> Bool {

@@ -102,14 +102,13 @@ enum ResourceAccrual {
     ///   - industry:  1 / 8 bashes (v1 was 1/5)
     ///   - stability: 1 / 40 bashes (~1/5 of industry, was 1/25)
     private static func normalize(_ raw: TokeyoTownState.Resources) -> TokeyoTownState.Resources {
-        // v3.7 — earn rates buffed:
-        //   knowledge: 1 / 10 → 1 / 4 reads
-        //   lumber:    1 / 3  → 1 / 2 edits
-        //   industry:  1 / 8  → 1 / 4 bashes
+        // v3.8 — full buff. Tool calls now grant 1 resource each (was
+        // 1 per 4 reads, 2 edits, 4 bashes). Tool calls happen far less
+        // often than tokens accumulate, so a 1:1 ratio keeps the
+        // tool-resource pool from being the perpetual bottleneck while
+        // coin keeps pace via tokens.
         var out = raw
-        out.knowledge = raw.knowledge / 4
-        out.lumber = raw.lumber / 2
-        out.industry = raw.industry / 4
+        // raw counts already are 1 per tool invocation, so no division.
         out.stability = 0
         out.inspiration = 0
         return out
