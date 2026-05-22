@@ -404,7 +404,8 @@ struct IsoTileRenderer: View {
         case .tree:
             drawTreeDecor(context: context, at: center, tw: tw, biome: biome)
         case .flower:
-            drawFlowerDecor(context: context, at: center, tw: tw, biome: biome)
+            drawFlowerDecor(context: context, at: center, tw: tw,
+                            tileX: x, tileY: y, biome: biome)
         case .rock:
             drawRockDecor(context: context, at: center, tw: tw)
         case .decor:
@@ -515,11 +516,17 @@ struct IsoTileRenderer: View {
         }
     }
 
-    /// v3.9 — lush flowers: ~8 blooms in two colors with occasional
-    /// taller stems for shape variety. Seeded by the tile's screen
-    /// position so the arrangement is stable per tile across frames.
-    private func drawFlowerDecor(context: GraphicsContext, at center: CGPoint,
-                                 tw: CGFloat, biome: BiomeCatalog.BiomeInfo) {
+    /// v3.11 — lush flowers on a darker garden-bed patch. Seeded by
+    /// *tile* coords so the arrangement is stable across pan/zoom and
+    /// doesn't reshuffle each frame.
+    private func drawFlowerDecor(
+        context: GraphicsContext,
+        at center: CGPoint,
+        tw: CGFloat,
+        tileX: Int,
+        tileY: Int,
+        biome: BiomeCatalog.BiomeInfo
+    ) {
         let primary = biome.accentColor
         let secondary: Color = switch biome.biome {
         case .plain: Color(red: 0.95, green: 0.62, blue: 0.78)
@@ -528,12 +535,26 @@ struct IsoTileRenderer: View {
         case .forest: Color(red: 0.42, green: 0.78, blue: 0.55)
         case .beach: Color(red: 0.30, green: 0.62, blue: 0.92)
         }
-        // `Double.bitPattern` is already UInt64. The previous
-        // `Int64(...)` cast trapped for any double whose bit pattern
-        // exceeded Int64.max — which is most of them.
-        let xBits = UInt64(center.x.bitPattern)
-        let yBits = UInt64(center.y.bitPattern)
-        var rng = TileRNG(seed: xBits &+ yBits &* UInt64(0x9E37_79B9_7F4A_7C15))
+
+        // Garden-bed patch: a darker diamond that fills most of the
+        // tile so flower tiles read as "this patch is a planter / bed"
+        // rather than just a few dots floating on regular ground.
+        let bedColor: Color = biome.biome == .desert
+            ? Color(red: 0.42, green: 0.28, blue: 0.16) // turned soil
+            : darken(biome.groundColor, by: 0.38)
+        let th = tw / 2
+        var bed = Path()
+        let bedW = tw * 0.82
+        let bedH = th * 0.82
+        bed.move(to: CGPoint(x: center.x, y: center.y - bedH))
+        bed.addLine(to: CGPoint(x: center.x + bedW, y: center.y))
+        bed.addLine(to: CGPoint(x: center.x, y: center.y + bedH))
+        bed.addLine(to: CGPoint(x: center.x - bedW, y: center.y))
+        bed.closeSubpath()
+        context.fill(bed, with: .color(bedColor))
+        context.stroke(bed, with: .color(.black.opacity(0.25)), lineWidth: 0.5)
+
+        var rng = TileRNG(seed: tileSeed(x: tileX, y: tileY) &+ 0xF10E_7E47)
         for _ in 0..<8 {
             let dx = (rng.next() * 2 - 1) * tw * 0.55
             let dy = (rng.next() * 2 - 1) * tw * 0.28
