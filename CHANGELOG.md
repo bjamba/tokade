@@ -6,6 +6,72 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed (Tokeyo Town v3 — second iteration on the v1 MVP)
+
+- **Cardinal-only townsfolk movement**. The renderer used to interpolate npc position toward the *ultimate goal*, producing visible diagonal motion. AI now commits to a single cardinal `nextStep`; renderer interpolates only between current and next, so motion is strictly N/E/S/W.
+- **Undo + redo** (cap 50). Every player action (build, demolish, road, terraform, raise, lower) snapshots state first. Buttons in the header.
+- **Building badges**. Small white-and-color circle with the catalog glyph drawn beside each building — silhouette stays clean, meaning stays readable.
+- **Per-tile sub-detail**. Grass tiles get 3 tiny green strokes; sand tiles get 2 short ripple arcs. Seeded by `townId ⊕ tile coords` so variation is stable per town.
+- **Zoom + pan**. Discrete zoom (0.75 / 1.0 / 1.5). Pan toggle in the header — when on, drags move the camera; off, drags hover/place.
+- **Roads look like roads now**. Narrow asphalt strip with a sidewalk underlay; neighbor-aware so straights, curves, Ts, crosses, and dead-ends emerge automatically. Roads extend into adjacent building edges. Straight tiles get a center dash.
+- **More home variants** — each biome now has 9 buildings (was 8): added Row House (plain), Yurt (desert), Stone Lodge (tundra), Forest Cabin (forest), Bungalow (beach). `Building.isHome` flag replaces hardcoded id lists.
+- **Pier must touch water** — `canPlaceBuilding` rejects `beach-pier` unless a footprint tile is orthogonally adjacent to water.
+- **Terrain elevation** in tiers (-1 / 0 / 1 / 2). Renderer lifts tiles + draws cliff side-faces. `canBuild` requires flat footprints. New tools: ⛰ Raise / 🕳 Lower (industry 6 each).
+- **Universal removal tool** — Hand is now Remove and also clears road / flower / decor (not just buildings).
+
+### Changed (Tokeyo Town v2 — major overhaul of the v1 MVP)
+
+- **Save schema → v2**. Adds `terrain`, footprint fields on placed buildings, and AI fields on townsfolk. v1 saves decode cleanly — terrain regenerates from the (deterministic) townId seed.
+- **Procedural terrain**. Every town now has water, sand, grass, rock, trees, and flowers generated from value noise seeded by townId. Per-biome thresholds; same repo → same landscape every time. Buildings can only sit on grass (and sand, for beach/desert).
+- **Building shapes are drawn, not stickered**. Replaced the glyph-on-a-brick rendering with a composable shape system: stacked iso prisms + roof types (flat/gable/hip/dome) + optional ornaments (chimneys, spires, annexes). Cottages look like cottages, lighthouses look like lighthouses.
+- **Variable footprints (1×1, 2×1, 2×2)**. Landmarks (library, pyramid, aquarium, pier, bridge, school, …) now take more tiles and demand multiple scarce resources, not just coin.
+- **Roads + terraforming** as a tool sidebar: road / plant tree / clear tree / level rock / plant flower / lantern. Roads cost 4 coin/tile, clearing a tree returns lumber, leveling a rock costs industry, etc.
+- **Townsfolk actually do things now**. Each gets a home building, errands (random non-home destinations), pauses 3-10s at each destination, then heads home. Pathing biases toward road tiles so streets feel used.
+- **Resource rebalance** based on v1 playtesting:
+  - Coin: 1 / 1,000 tokens → **1 / 4,000 tokens** (tokens were dominating)
+  - Knowledge: 1 / 5 reads → **1 / 10 reads**
+  - Industry: 1 / 5 bashes → **1 / 8 bashes**
+  - Stability: 1 / 25 → **1 / 40 bashes**
+  - Building costs bumped 2-3×; major buildings require ≥2 distinct scarce resources.
+- **Zoom + camera**. Tile sizes scale with map size so small towns fill the canvas. Map-size formula floors at 12 (was 16) and caps at 48 (was 64).
+- **ADR-0006 addendum** captures every architectural decision above.
+
+### Added (v1 — landed in the previous commit)
+
+- **Tokeyo Town** — a second game in the Arcade tab. Cozy isometric
+  sandbox city-builder where each town is themed after a real local
+  repo on your machine. Pick a folder; the scanner derives biome
+  (Swift/Kotlin/Dart → beach, Rust/C → tundra, Python/Ruby → forest,
+  JS/TS → plain, Go/Java/C# → desert), era from repo age, and map size
+  from LOC. Place buildings from a per-biome catalog (8 buildings per
+  biome × 5 biomes = 40 total) that cost resources accrued from your
+  Claude Code usage:
+  - 💰 coin from tokens (1 / 1,000)
+  - 📜 knowledge from `Read` calls (1 / 5)
+  - 🔨 lumber from `Edit`/`Write` (1 / 3)
+  - ⚙️ industry from `Bash` (1 / 5)
+  - 🛡 stability from heavy bashing (1 / 25)
+  - ✨ inspiration from slash commands (1 / 1)
+  - 🌱 growth from sessions (1 / 1)
+- **Active-session bonus** — when the most recent Claude Code session
+  is working inside the town's repo, that town earns at 2× while the
+  session is active. ADR-0006 §6.
+- **Townsfolk** wander autonomously across the iso grid, with names
+  drawn from a per-biome pool. New townsfolk chance-spawn when you
+  place new buildings.
+- **One-town MVP**. Starting a new town archives the previous save to
+  `~/.tokade/games/tokeyotown/archive/` rather than deleting it.
+- **100% local repo scanning**. No Claude calls, no network requests —
+  enforced by `scripts/check.sh` grep over `Sources/Tokade/TokeyoTown/`.
+- Procedural placeholder sprites for MVP (colored isometric diamonds +
+  glyph labels). Kenney.nl CC0 packs are the planned upgrade — the
+  renderer is structured so swapping in real sprites doesn't touch the
+  game logic.
+- ADR-0006: Tokeyo Town architecture (`docs/adr/0006-tokeyo-town-architecture.md`).
+- 18 new tests in `TokeyoTownTests` covering biome mapping, resource
+  accrual, idempotent ticking, iso-math round trip, and building
+  catalog drift guards.
+
 ## [0.4.2] — 2026-05-18
 
 ### Fixed

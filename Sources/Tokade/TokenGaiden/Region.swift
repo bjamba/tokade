@@ -46,7 +46,10 @@ enum Region {
     /// Walk up from `cwd` until a directory containing any `projectMarkers`
     /// is found. Bounded to ~8 levels so misconfigured/test paths don't
     /// scan the whole tree.
-    private static func projectRoot(for cwd: String) -> String? {
+    ///
+    /// Exposed at module scope so Tokeyo Town can reuse the project-marker
+    /// walk when listing repos the user has worked in.
+    static func projectRoot(for cwd: String) -> String? {
         let fm = FileManager.default
         var path = cwd
         for _ in 0..<8 {

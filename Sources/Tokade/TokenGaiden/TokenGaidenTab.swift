@@ -38,6 +38,7 @@ struct TokenGaidenTab: View {
                 // rest of the game.
                 GameScreen(crtMode: notifier.crtMode) {
                     VStack(spacing: 6) {
+                        arcadeBackBar
                         Text("NEW GAME")
                             .font(.system(.title3, design: .monospaced))
                             .fontWeight(.bold)
@@ -120,6 +121,7 @@ struct TokenGaidenTab: View {
     private func aliveLayout(_ state: TokegotchiState) -> some View {
         GameScreen(crtMode: notifier.crtMode) {
             VStack(spacing: 6) {
+                arcadeBackBar
                 topResourceBar(state)
                 Rectangle().fill(Color(white: 0.3)).frame(height: 1)
                 ZStack(alignment: .top) {
@@ -305,6 +307,23 @@ struct TokenGaidenTab: View {
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 HallOfFameCard(state: state)
+            }
+        }
+    }
+
+    /// v3.11 — small "← Arcade" row at the top of every Token Gaiden
+    /// screen, matching Tokeyo Town's idiom. Quietly leaves the game
+    /// back to the arcade lobby; the in-Settings "Exit game" button
+    /// stays around as a redundant control.
+    @ViewBuilder
+    private var arcadeBackBar: some View {
+        if let onExitGame {
+            HStack {
+                Button("← Arcade") { onExitGame() }
+                    .buttonStyle(.plain)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.7))
+                Spacer()
             }
         }
     }

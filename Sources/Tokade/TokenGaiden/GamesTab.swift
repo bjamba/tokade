@@ -6,25 +6,35 @@ import SwiftUI
 @MainActor
 struct GamesTab: View {
     @Bindable var gaiden: TokenGaidenStore
+    @Bindable var town: TokeyoTownStore
     @Bindable var store: UsageStore
     @Bindable var notifier: Notifier
     @State private var selectedGame: Game?
 
-    enum Game: String, Identifiable, Hashable {
+    enum Game: String, Identifiable, Hashable, CaseIterable {
         case tokenGaidenRPG
+        case tokeyoTown
         var id: String { rawValue }
         var bannerId: String {
-            switch self { case .tokenGaidenRPG: return "token-gaiden-rpg" }
+            switch self {
+            case .tokenGaidenRPG: return "token-gaiden-rpg"
+            case .tokeyoTown: return "tokeyo-town"
+            }
         }
 
         var title: String {
-            switch self { case .tokenGaidenRPG: return "Token Gaiden RPG" }
+            switch self {
+            case .tokenGaidenRPG: return "Token Gaiden RPG"
+            case .tokeyoTown: return "Tokeyo Town"
+            }
         }
 
         var subtitle: String {
             switch self {
             case .tokenGaidenRPG:
                 return "A roguelike fed by your Claude Code usage."
+            case .tokeyoTown:
+                return "Cozy isometric sandbox. One town per repo."
             }
         }
     }
@@ -34,6 +44,10 @@ struct GamesTab: View {
             switch game {
             case .tokenGaidenRPG:
                 TokenGaidenTab(gaiden: gaiden, store: store, notifier: notifier, onExitGame: {
+                    selectedGame = nil
+                })
+            case .tokeyoTown:
+                TokeyoTownTab(town: town, usage: store, notifier: notifier, onExitGame: {
                     selectedGame = nil
                 })
             }
@@ -52,7 +66,7 @@ struct GamesTab: View {
                 Rectangle().fill(Color(white: 0.3)).frame(height: 1)
                 ScrollView {
                     VStack(spacing: 10) {
-                        ForEach([Game.tokenGaidenRPG]) { game in
+                        ForEach(Game.allCases) { game in
                             gameCard(game)
                         }
                         comingSoonCard
@@ -98,15 +112,16 @@ struct GamesTab: View {
 
     @ViewBuilder
     private func bannerImage(for game: Game) -> some View {
-        if let sprite = GameBanner.sprite(for: game.bannerId) {
-            let img = SpriteRenderer.render(sprite,
-                                            palette: GameBanner.palette(for: game.bannerId),
-                                            scale: 3)
-            Image(nsImage: img)
-                .interpolation(.none)
-                .resizable()
-                .aspectRatio(128.0 / 48.0, contentMode: .fit)
-                .frame(maxWidth: .infinity)
+        // v3.14 — both games now use SwiftUI procedural banners so we
+        // can give each a distinct visual identity (cityscape vs.
+        // fantasy) without hand-authoring pixel-art matrices for both.
+        if game == .tokenGaidenRPG {
+            TokenGaidenBanner()
+        } else if game == .tokeyoTown {
+            // v3.13 — procedural banner; saves us from hand-authoring
+            // a 128×48 matrix file and stays in sync with the in-game
+            // iso-prism look.
+            TokeyoTownBanner()
         } else {
             Rectangle()
                 .fill(Color(red: 0.18, green: 0.18, blue: 0.22))

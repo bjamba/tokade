@@ -139,6 +139,30 @@ account read it. The README promises 0600 for `~/.tokade/`.
   pattern; a dedicated test will land when the save format gains a v2
   schema.
 
+### Tokeyo Town save file permissions
+
+**Rule**: every file `TokeyoTownSave` writes (per-town saves and the
+index) must have mode `0600` (owner-only read/write). Also, Tokeyo Town
+code under `Sources/Tokade/TokeyoTown/` must not call network primitives.
+
+**Why**: town saves contain repo paths chosen by the user. Anyone with
+read access to those files learns which projects you've adopted into
+the game — and the resource history is a coarse log of your Claude
+usage tied to those projects. Same threat model as the other archives.
+
+The no-network rule for the TokeyoTown folder enforces ADR-0006 § 3:
+repo scanning is local-only, never calls Claude, never makes network
+requests. This is the contract that lets us promise "no extra credits"
+for scanning.
+
+**Enforcement**:
+- Source-side: `scripts/check.sh` greps `0o600` in
+  `Sources/Tokade/TokeyoTown/TokeyoTownSave.swift` and greps for
+  `URLSession|URLRequest|URLDownload` inside
+  `Sources/Tokade/TokeyoTown/` (in addition to the project-wide check).
+- Behavior-side: `Tests/TokadeTests/TokeyoTownTests.swift` round-trip-
+  serializes the state to catch schema regressions.
+
 ### No LLM-attribution noise
 
 **Rule**: don't commit comments or docs that contain strings like
@@ -170,6 +194,7 @@ Current threading:
 | Chart stability hacks (§1) | "Chart stability hacks must stay" | `scripts/check.sh` grep × 3 |
 | Zero tests on critical math (§2) | "Critical-math test coverage" | `scripts/check.sh` test-name grep |
 | Archive append-only contract (cross-cut) | "Data archive promises" | Manual review (honest gap) |
+| Tokeyo Town save threat model (ADR-0006) | "Tokeyo Town save file permissions" | `scripts/check.sh` grep × 2 |
 
 ---
 

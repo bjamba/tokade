@@ -63,6 +63,25 @@ if [ -f Sources/Tokade/TokenGaiden/TokegotchiSave.swift ]; then
     fi
 fi
 
+# Rule: Tokeyo Town save files (~/.tokade/games/tokeyotown/*.json) must also
+# be 0600. Same threat model as the other archives — multi-user macOS could
+# otherwise let another local account read which repos you've built towns from.
+if [ -f Sources/Tokade/TokeyoTown/TokeyoTownSave.swift ]; then
+    if ! grep -q "0o600" Sources/Tokade/TokeyoTown/TokeyoTownSave.swift; then
+        fail "TokeyoTownSave.swift missing 0o600 permission assignment. See CLAUDE.md § Tokeyo Town save file permissions."
+    fi
+fi
+
+# Rule: Tokeyo Town must never call network primitives. The project-wide
+# grep above already catches this, but a dedicated check makes the
+# privacy contract for repo scanning explicit. See ADR-0006 § 3.
+if [ -d Sources/Tokade/TokeyoTown ]; then
+    if grep -RIn --include='*.swift' -E "URLSession|URLRequest|URLDownload" Sources/Tokade/TokeyoTown/ \
+            | grep -v "^[[:space:]]*//"; then
+        fail "Network primitive found in Sources/Tokade/TokeyoTown/. Repo scanning must be local-only. See ADR-0006 § 3."
+    fi
+fi
+
 # Rule: no LLM-attribution strings sneaking into committed code or comments.
 # (Exclude this script itself, which has to mention the pattern to grep for it.)
 if grep -RIn --include='*.swift' --include='*.md' \
