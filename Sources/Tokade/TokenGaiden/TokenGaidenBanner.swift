@@ -155,16 +155,24 @@ struct TokenGaidenBanner: View {
 
     private func drawTitle(context: GraphicsContext, size: CGSize) {
         let title = "TOKEN GAIDEN"
+        let maxWidth = size.width * 0.78 // narrower than Tokeyo Town — leave room for sword tips
+        let (pt, kern) = fittedFontSize(
+            text: title,
+            weight: .black,
+            design: .serif,
+            startingPt: size.height * 0.30,
+            startingKern: size.height * 0.015,
+            maxWidth: maxWidth,
+            availableHeight: size.height,
+            context: context
+        )
         var attr = AttributedString(title)
-        attr.font = .system(size: size.height * 0.32,
-                            weight: .black,
-                            design: .serif)
-        attr.kern = size.height * 0.02
+        attr.font = .system(size: pt, weight: .black, design: .serif)
+        attr.kern = kern
         attr.foregroundColor = Color(red: 0.96, green: 0.86, blue: 0.42)
         let resolved = context.resolve(Text(attr))
 
         let titleY = size.height * 0.46
-        // Heavy drop-shadow to mimic stone-carved depth.
         for offset in [
             (CGSize(width: 2, height: 2), 0.7),
             (CGSize(width: 1, height: 1), 0.4),
@@ -179,7 +187,6 @@ struct TokenGaidenBanner: View {
         context.draw(resolved, at: CGPoint(x: size.width / 2, y: titleY),
                      anchor: .center)
 
-        // Subtitle band
         var sub = AttributedString("R P G")
         sub.font = .system(size: size.height * 0.16, weight: .bold, design: .serif)
         sub.kern = size.height * 0.10
@@ -187,6 +194,32 @@ struct TokenGaidenBanner: View {
         context.draw(context.resolve(Text(sub)),
                      at: CGPoint(x: size.width / 2, y: size.height * 0.78),
                      anchor: .center)
+    }
+
+    private func fittedFontSize(
+        text: String,
+        weight: Font.Weight,
+        design: Font.Design,
+        startingPt: CGFloat,
+        startingKern: CGFloat,
+        maxWidth: CGFloat,
+        availableHeight: CGFloat,
+        context: GraphicsContext
+    ) -> (CGFloat, CGFloat) {
+        var pt = startingPt
+        var kern = startingKern
+        for _ in 0 ..< 12 {
+            var attr = AttributedString(text)
+            attr.font = .system(size: pt, weight: weight, design: design)
+            attr.kern = kern
+            let m = context.resolve(Text(attr)).measure(
+                in: CGSize(width: 10000, height: availableHeight)
+            )
+            if m.width <= maxWidth { return (pt, kern) }
+            pt *= 0.88
+            kern *= 0.88
+        }
+        return (pt, kern)
     }
 
     private func drawCRTOverlay(context: GraphicsContext, size: CGSize) {

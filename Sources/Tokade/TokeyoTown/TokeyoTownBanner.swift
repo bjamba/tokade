@@ -138,25 +138,56 @@ struct TokeyoTownBanner: View {
 
     private func drawTitle(context: GraphicsContext, size: CGSize) {
         let title = "TOKEYO TOWN"
-        // Slightly wider letterspacing achieved by drawing a single
-        // string with kern attribute via AttributedString.
+        let maxWidth = size.width * 0.86
+        let (fontSize, kern) = fittedFontSize(
+            text: title,
+            weight: .heavy,
+            design: .default,
+            startingPt: size.height * 0.30,
+            startingKern: size.height * 0.03,
+            maxWidth: maxWidth,
+            availableHeight: size.height,
+            context: context
+        )
         var attr = AttributedString(title)
-        attr.font = .system(size: size.height * 0.32,
-                            weight: .heavy,
-                            design: .default)
-        attr.kern = size.height * 0.04
+        attr.font = .system(size: fontSize, weight: .heavy, design: .default)
+        attr.kern = kern
         attr.foregroundColor = .white
-        let text = Text(attr)
-        let resolved = context.resolve(text)
-        let measured = resolved.measure(in: CGSize(width: size.width * 0.9,
-                                                   height: size.height))
+        let resolved = context.resolve(Text(attr))
         let position = CGPoint(x: size.width / 2, y: size.height * 0.45)
-        // Subtle drop shadow
         let shadow = context.resolve(Text(attr).foregroundColor(.black.opacity(0.6)))
         context.draw(shadow, at: CGPoint(x: position.x + 1, y: position.y + 1.5),
                      anchor: .center)
         context.draw(resolved, at: position, anchor: .center)
-        _ = measured
+    }
+
+    /// Iteratively shrink the font and kerning until the rendered text
+    /// fits within `maxWidth`. Returns the largest (fontSize, kern) pair
+    /// that fits. Used by both banners to keep their titles from
+    /// clipping at any render size.
+    private func fittedFontSize(
+        text: String,
+        weight: Font.Weight,
+        design: Font.Design,
+        startingPt: CGFloat,
+        startingKern: CGFloat,
+        maxWidth: CGFloat,
+        availableHeight: CGFloat,
+        context: GraphicsContext
+    ) -> (CGFloat, CGFloat) {
+        var pt = startingPt
+        var kern = startingKern
+        for _ in 0 ..< 12 {
+            var attr = AttributedString(text)
+            attr.font = .system(size: pt, weight: weight, design: design)
+            attr.kern = kern
+            let resolved = context.resolve(Text(attr))
+            let m = resolved.measure(in: CGSize(width: 10000, height: availableHeight))
+            if m.width <= maxWidth { return (pt, kern) }
+            pt *= 0.88
+            kern *= 0.88
+        }
+        return (pt, kern)
     }
 
     // MARK: - CRT overlay
