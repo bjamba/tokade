@@ -76,19 +76,25 @@ struct TokeyoTownGameView: View {
     }
 
     private var header: some View {
+        // v3.16.1 — slimmer header. Camera + view-mode toggles moved
+        // off the header into a floating canvas overlay (see
+        // `canvasViewControls`), leaving only navigation and the town
+        // title here.
         HStack(spacing: 6) {
             Button("← Arcade") { onExitGame() }
                 .buttonStyle(.plain)
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.7))
-            iconButton(town.canUndo ? "↶ Undo" : "↶") {
+            iconButton(town.canUndo ? "↶" : "↶") {
                 Task { await town.undo() }
             }
             .disabled(!town.canUndo)
-            iconButton(town.canRedo ? "↷ Redo" : "↷") {
+            .help("Undo")
+            iconButton(town.canRedo ? "↷" : "↷") {
                 Task { await town.redo() }
             }
             .disabled(!town.canRedo)
+            .help("Redo")
             Spacer()
             if let s = town.state {
                 Text(s.repo.displayName.uppercased())
@@ -99,7 +105,6 @@ struct TokeyoTownGameView: View {
                     .foregroundStyle(.white.opacity(0.5))
             }
             Spacer()
-            cameraControls
             Button("New…") { onStartNewTown() }
                 .buttonStyle(.plain)
                 .font(.system(.caption2, design: .monospaced))
@@ -107,11 +112,12 @@ struct TokeyoTownGameView: View {
         }
     }
 
-    private var cameraControls: some View {
+    /// Floating camera + view-mode controls overlaid on the canvas
+    /// (top-right). v3.16.1 — relocated from the header so the title
+    /// row doesn't get crowded as we add more toggles.
+    private var canvasViewControls: some View {
         HStack(spacing: 2) {
             iconButton("−") { town.zoomOut() }
-            // Fixed minWidth so the header doesn't reflow when the
-            // percentage grows (75% → 100% → 150% → 200% all fit).
             iconButton("\(Int(town.view.zoom * 100))%") { town.recenterCamera() }
                 .frame(minWidth: 38)
             iconButton("+") { town.zoomIn() }
@@ -339,6 +345,10 @@ struct TokeyoTownGameView: View {
                             }
                     )
                     currentToolIndicator
+                        .padding(6)
+                    // Floating camera + view-toggle cluster, top-right
+                    // of the canvas.
+                    HStack { Spacer(); canvasViewControls }
                         .padding(6)
                     if showConfirmNewTown {
                         confirmNewTownOverlay
