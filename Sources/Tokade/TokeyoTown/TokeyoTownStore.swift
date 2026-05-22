@@ -15,6 +15,77 @@ final class TokeyoTownStore {
     /// Camera view transform — scrubbed in the UI by zoom buttons + drag.
     var view: IsoMath.ViewTransform = .identity
 
+    /// How buildings label themselves in the world. Cycled by a header
+    /// button. Not persisted (resets to icon each launch).
+    var labelMode: LabelMode = .icon
+
+    enum LabelMode: Equatable, CaseIterable {
+        case icon, name, none
+        var next: LabelMode {
+            switch self {
+            case .icon: return .name
+            case .name: return .none
+            case .none: return .icon
+            }
+        }
+
+        var glyph: String {
+            switch self {
+            case .icon: return "🔠"
+            case .name: return "🆎"
+            case .none: return "🚫"
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .icon: return "Icons"
+            case .name: return "Names"
+            case .none: return "No labels"
+            }
+        }
+    }
+
+    func cycleLabelMode() {
+        labelMode = labelMode.next
+    }
+
+    // MARK: - Resource trading
+
+    /// Buy `1` unit of the given resource for the published coin cost.
+    /// Returns true if the purchase happened.
+    @discardableResult
+    func buyResource(_ kind: TradeKind) async -> Bool {
+        guard var s = state else { return false }
+        let cost = TokeyoTownState.Resources(coin: Self.tradeCost(for: kind))
+        guard s.resources.canAfford(cost) else { return false }
+        snapshot()
+        _ = s.resources.deduct(cost)
+        switch kind {
+        case .knowledge: s.resources.knowledge += 1
+        case .lumber: s.resources.lumber += 1
+        case .industry: s.resources.industry += 1
+        case .growth: s.resources.growth += 1
+        }
+        state = s
+        await flush()
+        return true
+    }
+
+    enum TradeKind { case knowledge, lumber, industry, growth }
+
+    /// Coin cost to buy one unit of each tradable resource. Calibrated
+    /// so coin (the most abundant earned resource) is the universal
+    /// purchase currency.
+    static func tradeCost(for kind: TradeKind) -> Int {
+        switch kind {
+        case .knowledge: return 8
+        case .lumber: return 8
+        case .industry: return 12
+        case .growth: return 15
+        }
+    }
+
     enum Tool: Equatable, Hashable {
         case hand                  // universal Remove — buildings, trees, rocks, flowers, roads, decor
         case pan                   // drag the camera

@@ -92,11 +92,11 @@ struct IsoTileRenderer: View {
     let state: TokeyoTownState
     let phase: Double
     let placementPreview: PlacementPreview?
-    /// Tile the user is hovering over with a non-build tool — the
-    /// renderer highlights it with a yellow outline so the player sees
-    /// exactly what will change on click.
     let hoverHighlight: HoverHighlight?
     let view: IsoMath.ViewTransform
+    /// How to label buildings in the world: glyph (default), display
+    /// name, or nothing.
+    var labelMode: TokeyoTownStore.LabelMode = .icon
 
     struct PlacementPreview {
         let kind: String
@@ -292,7 +292,13 @@ struct IsoTileRenderer: View {
     }
 
     private func groundColor(for tile: TerrainTile, biome: BiomeCatalog.BiomeInfo) -> Color {
+        // v3.10 — every tile fill is fully opaque. The lushness blend
+        // was using `.opacity()` (alpha), which is wrong for an
+        // isometric ground tile — it let the dark sky bleed through and
+        // made tiles look washed out. Now we mix toward black for low
+        // lushness, no transparency.
         let lush = state.repo.lushness
+        let lushMix = 1.0 - (lush * 0.5 + 0.5) // 0 at full lush, 0.5 at min
         switch tile {
         case .water:
             return biome.waterColor ?? Color(red: 0.30, green: 0.55, blue: 0.80)
@@ -301,15 +307,13 @@ struct IsoTileRenderer: View {
                 ? biome.groundColor
                 : Color(red: 0.96, green: 0.88, blue: 0.62)
         case .grass:
-            return biome.groundColor.opacity(lush * 0.5 + 0.5)
+            return darken(biome.groundColor, by: lushMix * 0.5)
         case .rock:
             return Color(red: 0.62, green: 0.60, blue: 0.55)
         case .tree, .flower, .decor:
-            return biome.groundColor.opacity(lush * 0.5 + 0.5)
+            return darken(biome.groundColor, by: lushMix * 0.5)
         case .road:
-            // Roads sit on the underlying grass/sand color so the sidewalks
-            // sticker correctly on top. The road strip itself draws later.
-            return biome.groundColor.opacity(lush * 0.5 + 0.5)
+            return darken(biome.groundColor, by: lushMix * 0.5)
         }
     }
 
@@ -938,11 +942,42 @@ struct IsoTileRenderer: View {
             )
         }
 
-        // Glyph above the roof apex with a soft halo so the meaning is
-        // readable against any roof color.
+        // Building label on top of the roof — icon, name, or omitted
+        // depending on the player's label-mode toggle.
         if alpha >= 0.99 {
-            drawRoofGlyph(context: context, glyph: building.glyph, at: topCenter)
+            switch labelMode {
+            case .icon:
+                drawRoofGlyph(context: context, glyph: building.glyph, at: topCenter)
+            case .name:
+                drawRoofName(context: context, name: building.displayName, at: topCenter)
+            case .none:
+                break
+            }
         }
+    }
+
+    /// Draws the building's display name above its roof apex, with a
+    /// dark pill behind so the text is legible against any roof color.
+    private func drawRoofName(context: GraphicsContext, name: String, at top: CGPoint) {
+        let zoom = CGFloat(view.zoom)
+        let p = CGPoint(x: top.x, y: top.y - 9 * zoom)
+        let size = 8 * zoom
+        let text = Text(name)
+            .font(.system(size: size, weight: .semibold, design: .monospaced))
+            .foregroundColor(.white)
+        let resolved = context.resolve(text)
+        let textSize = resolved.measure(in: CGSize(width: 200, height: 200))
+        let padX: CGFloat = 4
+        let padY: CGFloat = 2
+        let pillRect = CGRect(
+            x: p.x - textSize.width / 2 - padX,
+            y: p.y - textSize.height / 2 - padY,
+            width: textSize.width + padX * 2,
+            height: textSize.height + padY * 2
+        )
+        context.fill(Path(roundedRect: pillRect, cornerRadius: 3),
+                     with: .color(Color.black.opacity(0.7)))
+        context.draw(resolved, at: p, anchor: .center)
     }
 
     private func drawBuildingDetail(

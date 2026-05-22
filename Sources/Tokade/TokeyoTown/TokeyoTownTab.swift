@@ -107,6 +107,8 @@ struct TokeyoTownGameView: View {
             iconButton("−") { town.zoomOut() }
             iconButton("\(Int(town.view.zoom * 100))%") { town.recenterCamera() }
             iconButton("+") { town.zoomIn() }
+            iconButton(town.labelMode.glyph) { town.cycleLabelMode() }
+                .help("Building labels: \(town.labelMode.label)")
             iconButton("🖥") { cycleCRT() }
                 .help("CRT effect: \(notifier.crtMode.label)")
         }
@@ -135,28 +137,54 @@ struct TokeyoTownGameView: View {
 
     private var resourceBar: some View {
         let r = town.state?.resources ?? .zero
-        // v3.6 — stability + inspiration retired; only the five
-        // earning-resources are shown.
+        // v3.10 — non-coin chips are clickable. One tap buys +1 of that
+        // resource using coin at the published trade rate. Coin chip
+        // stays display-only (no point buying coin with coin).
         return HStack(spacing: 8) {
-            chip("💰", r.coin)
-            chip("📜", r.knowledge)
-            chip("🔨", r.lumber)
-            chip("⚙️", r.industry)
-            chip("🌱", r.growth)
+            chip("💰", r.coin, kind: nil)
+            chip("📜", r.knowledge, kind: .knowledge)
+            chip("🔨", r.lumber, kind: .lumber)
+            chip("⚙️", r.industry, kind: .industry)
+            chip("🌱", r.growth, kind: .growth)
         }
         .padding(.vertical, 2)
     }
 
-    private func chip(_ icon: String, _ value: Int) -> some View {
-        HStack(spacing: 2) {
+    private func chip(_ icon: String, _ value: Int, kind: TokeyoTownStore.TradeKind?) -> some View {
+        let canBuy: Bool = {
+            guard let kind, let s = town.state else { return false }
+            return s.resources.coin >= TokeyoTownStore.tradeCost(for: kind)
+        }()
+        let chipBody = HStack(spacing: 2) {
             Text(icon).font(.system(size: 11))
             Text("\(value)")
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(.white)
+            if let kind {
+                Text("+\(TokeyoTownStore.tradeCost(for: kind))💰")
+                    .font(.system(size: 7, design: .monospaced))
+                    .foregroundStyle(canBuy
+                        ? Color(red: 0.95, green: 0.85, blue: 0.30)
+                        : .white.opacity(0.3))
+            }
         }
         .padding(.horizontal, 4).padding(.vertical, 2)
         .background(Color(red: 0.12, green: 0.12, blue: 0.16))
-        .overlay(Rectangle().stroke(Color(white: 0.25), lineWidth: 0.5))
+        .overlay(Rectangle().stroke(
+            (kind != nil && canBuy)
+                ? Color(red: 0.95, green: 0.85, blue: 0.30).opacity(0.6)
+                : Color(white: 0.25),
+            lineWidth: 0.5
+        ))
+        if let kind {
+            return AnyView(Button {
+                Task { _ = await town.buyResource(kind) }
+            } label: { chipBody }
+            .buttonStyle(.plain)
+            .help("Trade: spend \(TokeyoTownStore.tradeCost(for: kind)) coin to gain 1."))
+        } else {
+            return AnyView(chipBody)
+        }
     }
 
     private var toolSidebar: some View {
@@ -245,7 +273,8 @@ struct TokeyoTownGameView: View {
                         phase: phase,
                         placementPreview: currentPreview,
                         hoverHighlight: currentHoverHighlight,
-                        view: town.view
+                        view: town.view,
+                        labelMode: town.labelMode
                     )
                     .contentShape(Rectangle())
                     .onContinuousHover { phase in
