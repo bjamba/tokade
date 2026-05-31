@@ -237,6 +237,52 @@ final class TokeyoTownTests: XCTestCase {
         )
     }
 
+    // MARK: - #39 — the 2× bonus follows the statusline session, not the latest event
+
+    func testActiveSessionCwdResolvesFromActiveSessionId() {
+        let now = Date()
+        let repo = "/Users/me/code/widget"
+        // Two interleaved sessions in different cwds. The most-recent event
+        // belongs to the out-of-repo session, but the statusline's active
+        // session is the in-repo one — so the resolved cwd must be in-repo.
+        let events = [
+            makeEvent(ts: now, cwd: "\(repo)/Sources", sessionId: "in-repo"),
+            makeEvent(ts: now.addingTimeInterval(1), cwd: "/Users/me/code/other", sessionId: "elsewhere"),
+        ]
+        XCTAssertEqual(
+            TokeyoTownStore.activeSessionCwd(events: events, activeSessionId: "in-repo"),
+            "\(repo)/Sources"
+        )
+        // Unknown active session id → fall back to the latest-event cwd.
+        XCTAssertEqual(
+            TokeyoTownStore.activeSessionCwd(events: events, activeSessionId: nil),
+            "/Users/me/code/other"
+        )
+    }
+
+    func testActiveSessionBonusFollowsStatuslineSessionNotLatestEvent() {
+        let now = Date()
+        let repo = "/Users/me/code/widget"
+        // The latest event is an out-of-repo session; the active (statusline)
+        // session is the in-repo one. The in-repo event must earn the 2× tool
+        // bonus because the resolved active-session cwd is in-repo.
+        let events = [
+            makeEvent(ts: now, tools: ["Read"], cwd: "\(repo)/Sources", sessionId: "in-repo", messageId: "a"),
+            makeEvent(ts: now.addingTimeInterval(1), tools: ["Read"], cwd: "/Users/me/code/other", sessionId: "elsewhere", messageId: "b"),
+        ]
+        let activeCwd = TokeyoTownStore.activeSessionCwd(events: events, activeSessionId: "in-repo")
+        let (delta, _) = ResourceAccrual.accrue(
+            events: events,
+            repoPath: repo,
+            accounted: .init(),
+            currentSessionCwd: activeCwd
+        )
+        // Only the in-repo Read funds the town; with the 2× active-session
+        // bonus it grants 2 knowledge (1 Read × 2). Without the #39 fix the
+        // resolved cwd would be the out-of-repo session and the multiplier 1×.
+        XCTAssertEqual(delta.knowledge, 2)
+    }
+
     // MARK: - Resources arithmetic
 
     func testResourcesCanAffordAndDeduct() {
