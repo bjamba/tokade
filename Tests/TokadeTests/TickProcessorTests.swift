@@ -58,9 +58,11 @@ final class TickProcessorTests: XCTestCase {
         let opus = wearOnce(mix: TickProcessor.ModelMix(multiplier: 2.0, label: "Opus"))
 
         // Aging takes the full multiplier: Opus ages ~2× Sonnet, Haiku ~0.5×.
-        XCTAssertEqual(sonnet.age, 750_000)        // 0.5 window * 1.5M
-        XCTAssertEqual(opus.age, 1_500_000)        // ×2.0
-        XCTAssertEqual(haiku.age, 375_000)         // ×0.5
+        // The 0→50 jump is capped at the 8% per-tick delta (issue #57), so the
+        // Sonnet base is 1_500_000 * 0.08 = 120_000.
+        XCTAssertEqual(sonnet.age, 120_000)        // 0.08 window * 1.5M
+        XCTAssertEqual(opus.age, 240_000)          // ×2.0
+        XCTAssertEqual(haiku.age, 60000)          // ×0.5
         // HP takes the softened (half-strength) multiplier, so Opus drains
         // more than Sonnet but not double.
         XCTAssertGreaterThan(opus.hp, sonnet.hp)
@@ -94,18 +96,49 @@ final class TickProcessorTests: XCTestCase {
         XCTAssertEqual(s1.identity.lastUsedPercentage, 0)
         XCTAssertEqual(s1.vitals.hp, state.vitals.hpMax)
         XCTAssertEqual(r1.count, 0)
-        // 50% jump → half a window's worth of wear. With current constants:
-        // 60 HP * 0.5 = 30, ageTokensPerFullWindow * 0.5 = 750_000.
+        // 50% jump, but the per-tick delta is capped at maxDeltaPercentPerTick
+        // (8%), so only 8%'s worth of wear lands this tick (issue #57). With
+        // current constants: 60 HP * 0.08 = 4.8 → 5, 1_500_000 * 0.08 = 120_000.
         let (s2, r2) = TickProcessor.applyBudgetWear(state: s1, usedPercentage: 50)
-        XCTAssertEqual(s2.vitals.hp, state.vitals.hpMax - 30)
-        XCTAssertEqual(s2.identity.ageTokens, 750_000)
-        XCTAssertTrue(r2.contains(.hpChanged(delta: -30)))
+        XCTAssertEqual(s2.vitals.hp, state.vitals.hpMax - 5)
+        XCTAssertEqual(s2.identity.ageTokens, 120_000)
+        XCTAssertTrue(r2.contains(.hpChanged(delta: -5)))
+        // The baseline still advances to the TRUE current pct so the remaining
+        // delta is absorbed over subsequent ticks, not lost.
         XCTAssertEqual(s2.identity.lastUsedPercentage, 50)
         // Window rollover (pct decreases) is treated as no wear.
         let (s3, r3) = TickProcessor.applyBudgetWear(state: s2, usedPercentage: 10)
         XCTAssertEqual(s3.vitals.hp, s2.vitals.hp)
         XCTAssertEqual(s3.identity.ageTokens, s2.identity.ageTokens)
         XCTAssertEqual(r3.count, 0)
+    }
+
+    func testApplyBudgetWearClampsLargeJump() {
+        // A huge one-tick window jump (e.g. the app was backgrounded and the
+        // 5-hour budget rolled up +50% before we observed it) must not deliver
+        // a full 50%'s worth of wear — that would one-shot the pet via the
+        // elder-band death roll. The per-tick delta is capped at
+        // maxDeltaPercentPerTick (8%), so a 0→50 jump applies exactly the same
+        // wear as a 0→8 jump, and the baseline still advances to the true pct
+        // so the remainder is absorbed over later ticks (issue #57).
+        let appearance = TokegotchiState.Appearance(
+            skinSwatch: "lavender", irisSwatch: "blue",
+            hairStyle: "horns", hairSwatch: "ivory"
+        )
+        func wearAfterJump(to pct: Double) -> (hp: Int, age: Int, last: Double?) {
+            var state = TokegotchiState.newStarter(name: "Boba", appearance: appearance)
+            state.vitals.hp = state.vitals.hpMax
+            let (s1, _) = TickProcessor.applyBudgetWear(state: state, usedPercentage: 0)
+            let (s2, _) = TickProcessor.applyBudgetWear(state: s1, usedPercentage: pct)
+            return (state.vitals.hpMax - s2.vitals.hp, s2.identity.ageTokens, s2.identity.lastUsedPercentage)
+        }
+        let big = wearAfterJump(to: 50)
+        let capped = wearAfterJump(to: TickProcessor.maxDeltaPercentPerTick)
+        // 0→50 produces the same wear as 0→8 (the cap).
+        XCTAssertEqual(big.hp, capped.hp)
+        XCTAssertEqual(big.age, capped.age)
+        // But the baseline advances to the TRUE current pct, not the cap.
+        XCTAssertEqual(big.last, 50)
     }
 
     func testToolDropsRequireThreshold() {
