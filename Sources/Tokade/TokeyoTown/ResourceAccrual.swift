@@ -2,7 +2,15 @@ import Foundation
 
 /// Derives flow resources from a slice of `UsageEvent`s. Pure function —
 /// the store calls this with whatever events arrived since `lastTickAt`.
-/// Conversions defined in ADR-0006 §5.
+///
+/// Shipped economy (v3.x — see ADR-0006 "Revision: economy v3.x"):
+///   - coin:      `grandTotal / 1000` per in-repo event (no per-token nerf)
+///   - knowledge: 1 per `Read` tool call
+///   - lumber:    1 per `Edit` / `Write` tool call
+///   - industry:  1 per `Bash` tool call
+///   - growth:    1 per distinct session seen
+///   - stability / inspiration: RETIRED — always zero (see `normalize`)
+/// Only events whose `cwd` is in the adopted repo fund the town (issue #31).
 enum ResourceAccrual {
     /// Process events newer than the town's `lastTickAt` and not yet
     /// `accountedEvents.lastTimestamp`. Returns the resource delta plus the
@@ -36,10 +44,9 @@ enum ResourceAccrual {
             // building costs so it stays meaningful.
             delta.coin += event.grandTotal / 1000
 
-            // v3.6 — `stability` and `inspiration` retired. They earned
-            // too rarely to matter for buying anything and added UI
-            // noise. Their costs in `BuildingCatalog` have been folded
-            // into industry/knowledge.
+            // `stability` and `inspiration` are retired (always zero); see
+            // `normalize`. Their building costs were folded into
+            // industry/knowledge in `BuildingCatalog`.
 
             // Per-tool credits, with active-session boost
             let multiplier = activeSessionMultiplier(eventCwd: event.cwd, sessionCwd: currentSessionCwd, repoPath: repoPath)
@@ -56,8 +63,8 @@ enum ResourceAccrual {
         // Growth ticks: count distinct sessions newly seen since high water.
         delta.growth += sessionsSeen.count
 
-        // Apply conversion ratios with integer division — accumulate fractional
-        // counts via the multiplier so we don't lose them entirely.
+        // Force-zero the retired resources (stability / inspiration). Tool
+        // credits are already 1-per-call; there is no division step.
         let normalized = normalize(delta)
 
         var newAccounted = accounted
@@ -89,11 +96,12 @@ enum ResourceAccrual {
         return (sessionMatchesRepo && eventMatchesSession) ? 2.0 : 1.0
     }
 
-    /// One internal "raw count" per per-event tool invocation; converted to
-    /// resources by `normalize`.
+    /// Grants one resource per tool invocation (the shipped 1:1 economy),
+    /// scaled by the active-session multiplier. `Read`→knowledge,
+    /// `Edit`/`Write`→lumber, `Bash`→industry.
     private static func applyTool(_ tool: String, multiplier: Double, delta: inout TokeyoTownState.Resources) {
-        // We carry fractional raw counts in the resource fields by storing
-        // multiplier-weighted ints (rounded down by `normalize`).
+        // 1 resource per call, weighted by the active-session multiplier
+        // (1× normally, 2× when working in the town's repo).
         let weighted = max(1, Int(multiplier.rounded()))
         switch tool.lowercased() {
         case "read":
@@ -102,28 +110,20 @@ enum ResourceAccrual {
             delta.lumber += weighted
         case "bash":
             delta.industry += weighted
-            // Heuristic for test runs — Bash with test-looking commands gives stability.
-            // The tool string itself doesn't carry the command; we keep this simple
-            // for MVP and let `stability` grow more slowly than the others.
         default:
             break
         }
     }
 
-    /// Apply ratio divisors to convert raw tool-call counts into resources.
-    /// v2 ratios (ADR-0006 addendum):
-    ///   - knowledge: 1 / 10 reads (v1 was 1/5)
-    ///   - lumber:    1 / 3 edits (unchanged — edits stay the main scarce signal)
-    ///   - industry:  1 / 8 bashes (v1 was 1/5)
-    ///   - stability: 1 / 40 bashes (~1/5 of industry, was 1/25)
+    /// Force-zeros the retired resources. As of the v3.x economy, tool
+    /// calls grant 1 resource each (`applyTool` already does this — there
+    /// is no division step), so this only clears `stability` and
+    /// `inspiration`, which are retired and never displayed but kept on
+    /// the struct for save-file compatibility.
     private static func normalize(_ raw: TokeyoTownState.Resources) -> TokeyoTownState.Resources {
-        // v3.8 — full buff. Tool calls now grant 1 resource each (was
-        // 1 per 4 reads, 2 edits, 4 bashes). Tool calls happen far less
-        // often than tokens accumulate, so a 1:1 ratio keeps the
-        // tool-resource pool from being the perpetual bottleneck while
-        // coin keeps pace via tokens.
         var out = raw
-        // raw counts already are 1 per tool invocation, so no division.
+        // Tool credits are already 1-per-call; no division. Only the
+        // retired resources need clamping.
         out.stability = 0
         out.inspiration = 0
         return out
