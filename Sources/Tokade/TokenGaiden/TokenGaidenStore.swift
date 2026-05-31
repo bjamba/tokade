@@ -311,8 +311,16 @@ final class TokenGaidenStore {
     /// effect is recorded in `lastResults` for UI feedback.
     func useItem(_ itemId: String) async {
         guard let current = state else { return }
-        let (next, result) = ItemUsage.use(itemId, state: current)
+        var (next, result) = ItemUsage.use(itemId, state: current)
         guard next != current else { return }
+        // Recovery is atomic with feeding (issue #38): if the heal pushed HP
+        // back above zero, clear the critical stamp here rather than waiting
+        // for the next store tick's `advanceCriticalClock`. Otherwise a fresh
+        // event that re-drops HP to 0 before that tick could resume a stale
+        // `criticalSince` near the death threshold.
+        if next.vitals.hp > 0, next.criticalSince != nil {
+            next.criticalSince = nil
+        }
         state = next
         switch result {
         case let .healed(hp):

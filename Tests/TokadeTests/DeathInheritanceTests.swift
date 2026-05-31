@@ -56,6 +56,27 @@ final class DeathInheritanceTests: XCTestCase {
         XCTAssertEqual(after.deathState?.cause, .natural)
     }
 
+    func testFeedingClearsCriticalAtomically() async throws {
+        // Issue #38: feeding a critical pet must clear `criticalSince` in the
+        // same step as the heal, not on the next store tick. Otherwise an
+        // event that re-drops HP to 0 before that tick resumes a stale stamp
+        // near the death threshold.
+        let g = TokenGaidenStore(notifier: nil)
+        await g.startNewLineage(name: "Boba", appearance: appearance())
+        var pet = try XCTUnwrap(g.state)
+        pet.vitals.hp = 0
+        pet.criticalSince = Date()
+        pet.inventory.items = ["hearty-meat": 1]
+        g.setStateForTesting(pet)
+
+        await g.useItem("hearty-meat")
+
+        let after = try XCTUnwrap(g.state)
+        XCTAssertGreaterThan(after.vitals.hp, 0)
+        XCTAssertNil(after.criticalSince)
+        await g.eraseHistory()
+    }
+
     func testInheritanceCarriesThirtyPercentAndItems() async throws {
         let g = TokenGaidenStore(notifier: nil)
         await g.startNewLineage(name: "Boba", appearance: appearance())
