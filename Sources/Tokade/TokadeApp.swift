@@ -41,6 +41,10 @@ struct TokadeApp: App {
             while !Task.isCancelled {
                 await g.tick(against: s.events,
                              usedPercentage: s.rateLimits?.fiveHour?.usedPercentage)
+                // ADR-0006 §7 — this app-wide tick always accrues town
+                // resources, but `TokeyoTownStore.tick` only runs the heavy
+                // simulation (townsfolk A* pathing + upkeep eviction) when
+                // `town.isForeground` is set by the visible tab (#54).
                 await t.tick(against: s.events, activeSessionId: s.rateLimits?.sessionId)
                 alerter.evaluate(events: s.events, rateLimits: s.rateLimits)
                 try? await Task.sleep(nanoseconds: 3_000_000_000)

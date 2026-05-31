@@ -24,6 +24,18 @@ final class TokeyoTownStore {
     /// screenshots).
     var dayNightMode: TimeOfDay.Mode = .auto
 
+    /// True only while the Tokeyo Town tab is on screen. The town view
+    /// sets this on `.onAppear` / `.onDisappear`.
+    ///
+    /// ADR-0006 §7 makes the heavy simulation (townsfolk A* movement +
+    /// upkeep eviction) a *foreground* responsibility — it should only run
+    /// while the town is visible. Cheap resource accrual still runs every
+    /// tick regardless of this flag, so the town keeps growing from your
+    /// Claude usage in the background; only the expensive per-NPC pathing
+    /// is gated on visibility. Defaults to `false` so a town nobody is
+    /// looking at never pays the simulation cost (#54).
+    var isForeground = false
+
     func cycleDayNightMode() {
         dayNightMode = dayNightMode.next
     }
@@ -183,6 +195,15 @@ final class TokeyoTownStore {
         index = await save.readIndex()
         state = await save.readActiveTown()
     }
+
+    #if DEBUG
+        /// Test-only seam: replace the live state so tests can stage exact
+        /// townsfolk/resource setups (`state` is otherwise `private(set)`).
+        /// Compiled out of release builds.
+        func setStateForTesting(_ s: TokeyoTownState) {
+            state = s
+        }
+    #endif
 
     // MARK: - Town lifecycle
 
@@ -710,19 +731,27 @@ final class TokeyoTownStore {
         s.accountedEvents = newAccounted
         s.lastTickAt = .now
 
-        // v3.15 — upkeep: every townsfolk eats 1 coin per tick. If we
-        // can't fund the bill, the town slowly loses people. Pure logic
-        // lives in `applyUpkeep` so it's unit-testable (#53).
-        (s.resources.coin, s.townsfolk) = Self.applyUpkeep(
-            coin: s.resources.coin, townsfolk: s.townsfolk
-        )
+        // ADR-0006 §7 — the cheap accrual above always runs (the town
+        // grows from your usage even when nobody's looking), but the
+        // expensive simulation below — per-townsfolk A* pathing and upkeep
+        // eviction — only runs when the tab is on screen. On a large map
+        // re-planning A* for many NPCs on the main actor every 3s while
+        // the view is hidden is wasted work (#54).
+        if isForeground {
+            // v3.15 — upkeep: every townsfolk eats 1 coin per tick. If we
+            // can't fund the bill, the town slowly loses people. Pure logic
+            // lives in `applyUpkeep` so it's unit-testable (#53).
+            (s.resources.coin, s.townsfolk) = Self.applyUpkeep(
+                coin: s.resources.coin, townsfolk: s.townsfolk
+            )
 
-        s.townsfolk = TownsfolkAI.step(
-            townsfolk: s.townsfolk,
-            buildings: s.buildings,
-            terrain: s.terrain,
-            mapSize: s.repo.mapSize
-        )
+            s.townsfolk = TownsfolkAI.step(
+                townsfolk: s.townsfolk,
+                buildings: s.buildings,
+                terrain: s.terrain,
+                mapSize: s.repo.mapSize
+            )
+        }
         state = s
         scheduleWrite()
     }
