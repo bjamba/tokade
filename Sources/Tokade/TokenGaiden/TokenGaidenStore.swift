@@ -465,7 +465,10 @@ final class TokenGaidenStore {
             state = current
             lastResults = newResults
             await save.write(current)
-            announce(newResults)
+            // Cosmetic verb flavor (issue #41): the dominant tool family this
+            // tick enriches the existing (already rate-limited) drop toast —
+            // no extra toast, no mechanical effect.
+            announce(newResults, toolVerb: dominantToolVerb(for: events))
         }
         // Idle autopilot: one decision per tick, after telemetry. Lets the pet
         // self-sustain when the player isn't actively babysitting it.
@@ -585,7 +588,22 @@ final class TokenGaidenStore {
     /// Surface the most notable results to the notifier. Item drops are batched
     /// (one notification per tick with a summary) so the player doesn't get
     /// spammed.
-    private func announce(_ results: [TickResult]) {
+    /// The verb for the most-used tool family across this tick's events, used
+    /// only to flavor the drop toast (issue #41). Returns nil when no event
+    /// carried a tool with a themed verb.
+    private func dominantToolVerb(for events: [UsageEvent]) -> String? {
+        var counts: [String: Int] = [:]
+        for e in events {
+            for t in e.tools {
+                if let verb = TickProcessor.toolVerb(for: t) {
+                    counts[verb, default: 0] += 1
+                }
+            }
+        }
+        return counts.max(by: { $0.value < $1.value })?.key
+    }
+
+    private func announce(_ results: [TickResult], toolVerb: String? = nil) {
         guard let notifier else { return }
         var dropCount = 0
         var firstDrop: String?
@@ -619,7 +637,10 @@ final class TokenGaidenStore {
         }
         if dropCount > 0, let firstDrop {
             let extra = dropCount > 1 ? " (+\(dropCount - 1) more)" : ""
-            notifier.notify(title: "Drop", body: "\(firstDrop)\(extra)", kind: .info)
+            // Prefix the verb flavor when this tick's work had a dominant tool
+            // family (e.g. "While you forge — ") — purely cosmetic.
+            let prefix = toolVerb.map { "While you \($0) — " } ?? ""
+            notifier.notify(title: "Drop", body: "\(prefix)\(firstDrop)\(extra)", kind: .info)
         }
     }
 
