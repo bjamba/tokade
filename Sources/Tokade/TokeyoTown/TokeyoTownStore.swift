@@ -168,12 +168,16 @@ final class TokeyoTownStore {
 
     // MARK: - Save plumbing
 
-    private let save = TokeyoTownSave()
+    private let save: TokeyoTownSave
     private let log = Logger(subsystem: "com.bjamba.tokade", category: "TokeyoTown")
     private var dirty = false
     private var lastWriteAt: Date = .distantPast
 
-    init() {}
+    /// `save` is injectable so tests can point the store at a temp
+    /// directory instead of `~/.tokade`. Production uses the default.
+    init(save: TokeyoTownSave = TokeyoTownSave()) {
+        self.save = save
+    }
 
     func load() async {
         index = await save.readIndex()
@@ -216,14 +220,23 @@ final class TokeyoTownStore {
         undoStack.removeAll()
         redoStack.removeAll()
         state = fresh
-        index = TokeyoTownIndex(
-            activeTownId: townId,
-            towns: [.init(
-                townId: townId, displayName: repo.displayName,
-                repoPath: repo.path, biome: repo.biome,
-                lastOpenedAt: now
-            )]
+        // #50 — merge the new town into the existing index rather than
+        // replacing the whole `towns` list. Re-adopting an already-listed
+        // repo (same townId) updates its entry in place; adopting a new
+        // repo appends. Either way, previously-listed towns survive.
+        let entry = TokeyoTownIndex.Entry(
+            townId: townId, displayName: repo.displayName,
+            repoPath: repo.path, biome: repo.biome,
+            lastOpenedAt: now
         )
+        var idx = index
+        idx.activeTownId = townId
+        if let existing = idx.towns.firstIndex(where: { $0.townId == townId }) {
+            idx.towns[existing] = entry
+        } else {
+            idx.towns.append(entry)
+        }
+        index = idx
         await save.writeTown(fresh)
         await save.writeIndex(index)
     }
@@ -402,22 +415,7 @@ final class TokeyoTownStore {
         }
 
         let tile = s.terrain.tile(x: x, y: y)
-        let refund: TokeyoTownState.Resources
-        let restoreElevation: Bool
-        switch tile {
-        case .tree: refund = Self.plantTreeCost; restoreElevation = false
-        case .flower: refund = Self.plantFlowerCost; restoreElevation = false
-        case .decor: refund = Self.lanternCost; restoreElevation = false
-        case .road: refund = Self.roadCost; restoreElevation = false
-        case .rock: refund = .zero; restoreElevation = false
-        case .water:
-            // Player-painted ponds (elev was lowered to -1) refund the
-            // pond cost. Naturally-generated water at the map edges
-            // doesn't — but we have no way to distinguish, so we refund
-            // the pond cost either way. Cheap enough not to break.
-            refund = Self.pondCost; restoreElevation = true
-        default: return false
-        }
+        guard let (refund, restoreElevation) = Self.removalRefund(for: tile) else { return false }
         snapshot()
         var ns = s
         ns.terrain.setTile(.grass, x: x, y: y)
@@ -428,6 +426,31 @@ final class TokeyoTownStore {
         state = ns
         await flush()
         return true
+    }
+
+    /// Refund (and whether to restore elevation) for removing a terrain
+    /// `tile` with the hand tool. Returns `nil` for tiles the hand can't
+    /// act on. Pure so it's unit-testable.
+    ///
+    /// #51 — water refunds NOTHING. Player-painted ponds and naturally-
+    /// generated coastline water both sit at elevation -1 (see
+    /// `TerrainGrid.init`), so there's no way to tell them apart;
+    /// refunding the pond cost turned every beach tile into a coin
+    /// printer. Refunding nothing is the smallest correct fix: never
+    /// print coin for water we can't prove the player paid for. The tile
+    /// is still flattened back to grass (elevation restored) by the caller.
+    nonisolated static func removalRefund(
+        for tile: TerrainTile
+    ) -> (refund: TokeyoTownState.Resources, restoreElevation: Bool)? {
+        switch tile {
+        case .tree: (plantTreeCost, false)
+        case .flower: (plantFlowerCost, false)
+        case .decor: (lanternCost, false)
+        case .road: (roadCost, false)
+        case .rock: (.zero, false)
+        case .water: (.zero, true)
+        default: nil
+        }
     }
 
     /// Place a water tile on grass/sand at elevation 0, dropping it to
@@ -502,6 +525,44 @@ final class TokeyoTownStore {
     /// actively-played game funds the town on autopilot; absentee
     /// players slowly see townsfolk leave town.
     static let upkeepPerTownsfolkPerTick = 1
+
+    /// #53 — upkeep eviction never drops a town below this many
+    /// townsfolk. An idle, broke town shrinks toward this floor and then
+    /// holds, so absenteeism can't silently empty the town. Matches the
+    /// `populationCap` floor (a one-cottage hamlet keeps ~2 folks).
+    static let minPopulationFloor = 2
+
+    /// Charge one tick of upkeep and resolve any shortfall into (at most)
+    /// one eviction. Pure so it's unit-testable.
+    ///
+    /// #53 — the old rule evicted one townsfolk per missing coin *block*
+    /// every tick (every ~3s), so an idle, broke town drained to zero
+    /// within minutes. Eviction is now throttled two ways:
+    ///   1. At most ONE townsfolk leaves per tick, regardless of how
+    ///      large the shortfall is.
+    ///   2. Eviction never drops the population below
+    ///      `minPopulationFloor`, so an idle town shrinks to a small core
+    ///      and then holds — it never empties.
+    /// Homeless townsfolk leave before housed ones.
+    nonisolated static func applyUpkeep(
+        coin: Int, townsfolk: [TokeyoTownState.Townsfolk]
+    ) -> (coin: Int, townsfolk: [TokeyoTownState.Townsfolk]) {
+        let upkeep = townsfolk.count * upkeepPerTownsfolkPerTick
+        guard upkeep > 0 else { return (coin, townsfolk) }
+        let payable = min(upkeep, coin)
+        let newCoin = coin - payable
+        let shortfall = upkeep - payable
+        guard shortfall > 0, townsfolk.count > minPopulationFloor else {
+            return (newCoin, townsfolk)
+        }
+        var folk = townsfolk
+        if let i = folk.firstIndex(where: { $0.homeBuildingId == nil }) {
+            folk.remove(at: i)
+        } else {
+            folk.removeLast()
+        }
+        return (newCoin, folk)
+    }
 
     private func isHomeBuilding(_ id: String) -> Bool {
         BuildingCatalog.find(id)?.isHome ?? false
@@ -650,25 +711,11 @@ final class TokeyoTownStore {
         s.lastTickAt = .now
 
         // v3.15 — upkeep: every townsfolk eats 1 coin per tick. If we
-        // can't fully fund the bill, the shortfall converts to losses
-        // — one townsfolk leaves town per missing coin block, homeless
-        // first, then random.
-        let upkeep = s.townsfolk.count * Self.upkeepPerTownsfolkPerTick
-        if upkeep > 0 {
-            let payable = min(upkeep, s.resources.coin)
-            s.resources.coin -= payable
-            var shortfall = upkeep - payable
-            while shortfall > 0, !s.townsfolk.isEmpty {
-                // Remove a homeless townsfolk first if any; otherwise
-                // anyone.
-                if let i = s.townsfolk.firstIndex(where: { $0.homeBuildingId == nil }) {
-                    s.townsfolk.remove(at: i)
-                } else {
-                    s.townsfolk.removeLast()
-                }
-                shortfall -= Self.upkeepPerTownsfolkPerTick
-            }
-        }
+        // can't fund the bill, the town slowly loses people. Pure logic
+        // lives in `applyUpkeep` so it's unit-testable (#53).
+        (s.resources.coin, s.townsfolk) = Self.applyUpkeep(
+            coin: s.resources.coin, townsfolk: s.townsfolk
+        )
 
         s.townsfolk = TownsfolkAI.step(
             townsfolk: s.townsfolk,
