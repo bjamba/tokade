@@ -123,6 +123,22 @@ enum TownsfolkAI {
             buildings: buildings,
             mapSize: mapSize
         )
+
+        // #52 — the destination may be unreachable (e.g. orphaned behind
+        // water by an L-shaped road that never connected). A* returns an
+        // empty path, and the old code left `goalX/goalY` pointing at the
+        // unreachable building with an empty `pathKeys`. Next tick we'd be
+        // "not at goal, no path" → replan to the *same* dead goal forever,
+        // freezing the npc. Recover by retargeting the goal to where we
+        // already stand so the next tick reads as "at goal" and picks a
+        // fresh (possibly reachable) errand instead of holding a dead path.
+        if path.isEmpty {
+            n.goalX = curX
+            n.goalY = curY
+            n.pathKeys = []
+            return n
+        }
+
         n.pathKeys = path.map { $0.y * mapSize + $0.x }
         return n
     }
