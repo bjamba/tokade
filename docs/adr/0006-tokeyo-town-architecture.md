@@ -106,6 +106,11 @@ ancient vs. modern shop sprite).
 | ✨ Inspiration | Slash commands | 1 inspiration / 1 slash command |
 | 🌱 Growth | Sessions ended | 1 growth / 1 session |
 
+> **Superseded.** The ratios above are the original v1 design. The
+> shipped economy is documented in "Revision: economy v3.x" at the end of
+> this ADR — coin still mints at 1 / 1,000 tokens (in-repo only), but tool
+> credits are now 1-per-call and `stability` / `inspiration` are retired.
+
 **Terrain resources** (one-time at town creation, recomputed only on full rescan):
 
 - `mapSize` — `min(64, max(16, sqrt(LOC/100)))` tiles square
@@ -361,6 +366,48 @@ The renderer lifts each tile diamond by `elev × stepHeight × zoom` and draws s
 New tools `raise` (industry 6) and `lower` (industry 6) bump elevation one tier per click. Tier transitions auto-flip terrain kind: lower to -1 becomes water; raise to 2 becomes rock.
 
 All elevation changes go through the same undo/redo stack, so #B2 covers #9 reversibility for free.
+
+## Revision: economy v3.x (2026-05-31)
+
+This revision is **canonical** for the flow-resource economy and
+supersedes §5 and the v2 addendum's §A7 ratio table. It documents what
+the code in `ResourceAccrual.swift` actually ships, after several
+playtest iterations (v3.6–v3.8) drifted away from the earlier spec. No
+balance is changed by this revision; it only reconciles the docs and the
+in-file comments with the shipped behavior (issue #40).
+
+**Shipped flow economy:**
+
+| Resource | Source | Conversion |
+|---|---|---|
+| 💰 Coin | Tokens spent on **in-repo** events | 1 coin / 1,000 tokens |
+| 📜 Knowledge | `Read` tool calls | 1 knowledge / read |
+| 🔨 Lumber | `Edit` / `Write` tool calls | 1 lumber / edit |
+| ⚙️ Industry | `Bash` tool calls | 1 industry / bash |
+| 🌱 Growth | Distinct sessions seen | 1 growth / session |
+| 🛡️ Stability | — | **RETIRED** (always 0) |
+| ✨ Inspiration | — | **RETIRED** (always 0) |
+
+Notes:
+
+- **In-repo gating (issue #31).** Only events whose `cwd` is the town's
+  repo (or nested inside it) fund the town. Out-of-repo usage still
+  advances the high-water mark so it isn't reprocessed, but grants
+  nothing.
+- **Tool credits are 1-per-call.** `normalize` no longer divides; the old
+  divisor ratios (1/10 reads, 1/3 edits, 1/8 bashes, etc.) are gone. Tool
+  calls occur far less often than tokens accumulate, so a 1:1 ratio keeps
+  the tool-resource pool from being a perpetual bottleneck while coin
+  keeps pace via tokens.
+- **`stability` and `inspiration` are retired.** They earned too rarely to
+  matter and added UI noise; their building costs were folded into
+  industry/knowledge. `ResourceAccrual.normalize` force-zeros both, and
+  neither is displayed. The fields **remain** on
+  `TokeyoTownState.Resources` (and in the save schema) so existing saves
+  decode unchanged — they are simply always zero going forward. The test
+  `testAccrualDoesNotAccrueRetiredResources` locks this in.
+- **Active-session bonus (§6) still applies** as a 2× multiplier on tool
+  credits when the active session's `cwd` is in the town's repo.
 
 ## Threading to CLAUDE.md
 
