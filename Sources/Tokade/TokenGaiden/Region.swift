@@ -147,6 +147,30 @@ enum Region {
         return (0.07 + xRaw * 0.86, 0.07 + yRaw * 0.86)
     }
 
+    /// The region key with the highest consumed-event count — i.e. the
+    /// project the player works in most. Returns nil when no region has any
+    /// recorded events. Used to spawn region bosses (issue #42).
+    static func mostUsedRegion(state: TokegotchiState) -> String? {
+        guard let counts = state.world.eventCounts, !counts.isEmpty else { return nil }
+        // Tie-break on region key so the choice is deterministic.
+        return counts.max(by: { lhs, rhs in
+            lhs.value != rhs.value ? lhs.value < rhs.value : lhs.key > rhs.key
+        })?.key
+    }
+
+    /// Stack-themed gear drop for a region boss victory. Each region flavor
+    /// maps to a thematically-fitting existing `GearCatalog` item (issue #42).
+    static func themedGear(forFlavor flavor: Flavor) -> String? {
+        switch flavor {
+        case .stonework:     return "war-hammer"     // stone/mason's heavy striker
+        case .ironFortress:  return "iron-sword"     // forged iron blade
+        case .gardenVillage: return "elder-staff"    // growth, nature magic
+        case .bazaar:        return "silver-band"    // a merchant's prize
+        case .openSteppe:    return "swift-ring"     // speed across open plains
+        case .wilderness:    return "leather-armor"  // a survivalist's hide
+        }
+    }
+
     enum Flavor: String, Codable, CaseIterable {
         case stonework      // Swift / Xcode
         case ironFortress   // Rust

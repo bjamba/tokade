@@ -22,6 +22,9 @@ final class TokenGaidenStore {
     /// Ensures a freshly hatched pet only reacts to events that arrive *after*
     /// hatching, regardless of how stale the caller's event snapshot was.
     private var pendingSeed: Bool = false
+    /// Stack-themed gear id to award when the current active-mode region-boss
+    /// battle is won (issue #42). Cleared once the battle resolves either way.
+    private var pendingBossGear: String?
 
     init(notifier: Notifier? = nil) {
         self.notifier = notifier
@@ -726,6 +729,66 @@ final class TokenGaidenStore {
         await save.write(current)
     }
 
+    // MARK: - Region bosses
+
+    /// Challenge the boss of the region you work in most (issue #42). The
+    /// boss is a `.dungeon`-tier monster themed to that region's flavor.
+    /// Like `enterDungeon()`, it respects combat mode (passive auto-resolves,
+    /// active stages an ActiveBattle) and has no up-front cost. On victory it
+    /// drops one stack-themed gear piece in addition to the usual rewards.
+    func challengeRegionBoss() async {
+        guard var current = state, current.activeBattle == nil else { return }
+        guard let region = Region.mostUsedRegion(state: current) else { return }
+        let flavor = current.world.flavors?[region] ?? .wilderness
+        guard let monster = EncounterEngine.choose(
+            for: flavor, playerStats: current.vitals.stats, salt: 0, tier: .dungeon
+        ) else { return }
+        let themed = Region.themedGear(forFlavor: flavor)
+        // Auto-play forces passive combat — fights resolve instantly so the
+        // autopilot never gets stuck waiting for a manual Attack press.
+        let mode: CombatMode = (notifier?.autoPlay == true) ? .passive : (notifier?.combatMode ?? .passive)
+        if mode == .active {
+            current.activeBattle = ActiveBattle(encounter: monster)
+            current.activeBattle?.log = [
+                "The boss of \(region) emerges. \(monster.monsterName) stands in your way!",
+            ]
+            // Stash the themed drop so the victory handler in `runCombat`
+            // can award it once the active battle resolves.
+            pendingBossGear = themed
+            state = current
+            notifier?.notify(
+                title: "👑 Region boss: \(monster.monsterName)",
+                body: "Active battle started.",
+                kind: .warning
+            )
+        } else {
+            let (afterFight, outcome) = EncounterEngine.resolve(monster, against: current)
+            current = afterFight
+            state = current
+            switch outcome {
+            case let .victory(exp, gold):
+                notifier?.notify(
+                    title: "👑 Region boss felled",
+                    body: "Defeated \(monster.monsterName) — +\(exp) EXP, +\(gold)g",
+                    kind: .info
+                )
+                current.questTelemetryOrEmpty.monstersDefeated += 1
+                current.questTelemetryOrEmpty.cumulativeGold += gold
+                if let themed, let g = GearCatalog.find(themed) {
+                    current.inventory.items[themed, default: 0] += 1
+                    notifier?.notify(title: "🎁 Stack-themed loot", body: "\(g.glyph) \(g.name)", kind: .info)
+                }
+            case .fled:
+                notifier?.notify(
+                    title: "👑 Boss retreat",
+                    body: "\(monster.monsterName) was too strong.",
+                    kind: .warning
+                )
+            }
+        }
+        await save.write(current)
+    }
+
     // MARK: - Active combat
 
     /// Combat actions used by the in-panel ActiveBattleCard.
@@ -807,10 +870,19 @@ final class TokenGaidenStore {
                     notifier?.notify(title: "🎁 Gear drop", body: "\(drop.glyph) \(drop.name)", kind: .info)
                 }
             }
+            // Region-boss victories (issue #42) drop one stack-themed piece.
+            if let themed = pendingBossGear, let g = GearCatalog.find(themed) {
+                saved.inventory.items[themed, default: 0] += 1
+                state = saved
+                notifier?.notify(title: "🎁 Stack-themed loot", body: "\(g.glyph) \(g.name)", kind: .info)
+            }
+            pendingBossGear = nil
         case .fled:
             notifier?.notify(title: "🏃 Fled", body: "Escaped the encounter.", kind: .info)
+            pendingBossGear = nil
         case .playerDown:
             notifier?.notify(title: "💀 Knocked down", body: "Your pet is in critical state.", kind: .danger)
+            pendingBossGear = nil
         case .ongoing:
             break
         }
