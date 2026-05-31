@@ -33,12 +33,7 @@ struct YTDCumulativeCard: View {
         let remainingDays = max(0, totalDays - elapsedDays)
 
         let ytdRate = Double(cum) / Double(elapsedDays)
-        let last30Cutoff = cal.date(byAdding: .day, value: -30, to: now) ?? yearStart
-        let last30Total = ytd
-            .filter { $0.timestamp >= last30Cutoff }
-            .reduce(0) { $0 + $1.grandTotal }
-        let last30Days = min(30, elapsedDays)
-        let last30Rate = Double(last30Total) / Double(max(1, last30Days))
+        let last30Rate = Self.last30DayRate(events: store.events, now: now, calendar: cal)
 
         let lowRate = min(ytdRate, last30Rate)
         let highRate = max(ytdRate, last30Rate)
@@ -126,6 +121,30 @@ struct YTDCumulativeCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    /// Average daily token rate over the trailing 30-day window ending at
+    /// `now`. Both the numerator (summed tokens) and the denominator (day
+    /// count) cover the *same* window, which may cross the calendar-year
+    /// boundary. Early in January this matters: the previous code summed
+    /// events back 30 days (reaching into December) but divided by the
+    /// number of days elapsed since Jan 1, inflating the rate. Here the
+    /// window is always the trailing 30 days and the denominator is the
+    /// actual span of that window, so numerator and denominator always
+    /// agree. Synthetic events are excluded.
+    static func last30DayRate(events: [UsageEvent], now: Date,
+                              calendar cal: Calendar) -> Double {
+        let cutoff = cal.date(byAdding: .day, value: -30, to: now) ?? now
+        let total = events
+            .filter { $0.timestamp >= cutoff && $0.timestamp <= now
+                && $0.model != "<synthetic>"
+            }
+            .reduce(0) { $0 + $1.grandTotal }
+        // The window spans exactly 30 days (cutoff ..< now). Denominator and
+        // numerator therefore cover the identical interval, including any
+        // tail in the previous calendar year.
+        let windowDays = max(1, cal.dateComponents([.day], from: cutoff, to: now).day ?? 30)
+        return Double(total) / Double(windowDays)
     }
 
     private func chip(_ value: String, _ label: String) -> some View {
