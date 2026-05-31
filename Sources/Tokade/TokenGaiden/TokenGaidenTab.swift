@@ -561,6 +561,7 @@ struct TokenGaidenTab: View {
                     Divider().padding(.vertical, 2)
                     wanderRow(state: state, flavor: flavor)
                     dungeonRow(state: state, flavor: flavor)
+                    regionBossRow(state: state)
                 }
             }
         } else {
@@ -730,6 +731,34 @@ struct TokenGaidenTab: View {
             PixelButton(label: "Enter", prominent: true,
                         disabled: state.activeBattle != nil || preview == nil || !unlocked) {
                 Task { await gaiden.enterDungeon() }
+            }
+        }
+    }
+
+    /// Challenge the boss of the project you work in most (issue #42). Always
+    /// available once any region has recorded activity; drops stack-themed
+    /// gear on victory.
+    private func regionBossRow(state: TokegotchiState) -> some View {
+        let region = Region.mostUsedRegion(state: state)
+        let flavor = region.flatMap { state.world.flavors?[$0] } ?? .wilderness
+        let preview = region.flatMap { _ in
+            EncounterEngine.choose(for: flavor, playerStats: state.vitals.stats, salt: 0, tier: .dungeon)
+        }
+        return HStack {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("👑 Region boss").gameFont(.small).fontWeight(.semibold)
+                if let region, let m = preview {
+                    Text("\(region) · \(m.monsterName) · ATK \(m.attack) · \(m.expReward) EXP / \(m.goldReward)g")
+                        .gameFont(.xsmall).foregroundStyle(.secondary)
+                } else {
+                    Text("Work in a project to summon its boss.")
+                        .gameFont(.xsmall).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            PixelButton(label: "Challenge", prominent: true,
+                        disabled: state.activeBattle != nil || preview == nil) {
+                Task { await gaiden.challengeRegionBoss() }
             }
         }
     }
