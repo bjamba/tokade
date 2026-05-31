@@ -624,9 +624,21 @@ final class TokeyoTownStore {
 
     // MARK: - Tick
 
-    func tick(against events: [UsageEvent]) async {
+    /// Resolve the active session's cwd for the 2× accrual bonus.
+    ///
+    /// ADR-0006 §6: the "active session cwd" is the cwd of the session the
+    /// statusline reports as current — not just whichever event happened to
+    /// land last. Keying off the active session id keeps the bonus from
+    /// misfiring on interleaved multi-repo activity (#39). Falls back to the
+    /// latest-event cwd when the active session id is unknown.
+    nonisolated static func activeSessionCwd(events: [UsageEvent], activeSessionId: String?) -> String? {
+        events.last(where: { $0.sessionId == activeSessionId && $0.cwd != nil })?.cwd
+            ?? events.last(where: { $0.cwd != nil })?.cwd
+    }
+
+    func tick(against events: [UsageEvent], activeSessionId: String? = nil) async {
         guard var s = state else { return }
-        let currentCwd = events.last(where: { $0.cwd != nil })?.cwd
+        let currentCwd = Self.activeSessionCwd(events: events, activeSessionId: activeSessionId)
         let (delta, newAccounted) = ResourceAccrual.accrue(
             events: events,
             repoPath: s.repo.path,

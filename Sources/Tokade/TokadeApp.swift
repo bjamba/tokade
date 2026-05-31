@@ -41,7 +41,7 @@ struct TokadeApp: App {
             while !Task.isCancelled {
                 await g.tick(against: s.events,
                              usedPercentage: s.rateLimits?.fiveHour?.usedPercentage)
-                await t.tick(against: s.events)
+                await t.tick(against: s.events, activeSessionId: s.rateLimits?.sessionId)
                 alerter.evaluate(events: s.events, rateLimits: s.rateLimits)
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
             }
