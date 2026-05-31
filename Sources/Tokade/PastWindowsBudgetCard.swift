@@ -25,6 +25,48 @@ struct PastWindowsBudgetCard: View {
         max(1, Int((rangeSeconds / (5 * 3600)).rounded(.up)))
     }
 
+    /// Computes the ordered window-end boundaries for the chart, from newest to
+    /// oldest (index 0 = in-progress window).
+    ///
+    /// Naively, each end is `currentResetsAt - offset * 5h`. But after a window
+    /// rolls over with no fresh statusline write, `effectiveFiveHourResetsAt`
+    /// projects `currentResetsAt` *forward* by whole 5h cycles, while the
+    /// snapshots already on disk are keyed on the *old* server `fiveResetsAt`.
+    /// The projected boundaries then drift off the recorded ones by up to a few
+    /// minutes (server windows aren't perfectly 5h-aligned to each other), so
+    /// `perWindow[end]` misses and a server-truth bar silently degrades to an
+    /// approximation — or worse, lands in the wrong slot.
+    ///
+    /// Fix: for every projected boundary, snap it to a recorded `fiveResetsAt`
+    /// when one falls within `tolerance`. That re-anchors each completed window
+    /// on the reset-time its snapshots actually belong to, independent of
+    /// statusline timing. Windows with no recorded snapshot keep the projected
+    /// boundary (and fall through to approximation downstream as before).
+    ///
+    /// Pure on its inputs so it can be unit-tested without a `UsageStore`.
+    /// `nonisolated` because it touches no view state — lets tests call it
+    /// synchronously despite the enclosing `@MainActor` view.
+    nonisolated static func windowEnds(
+        currentResetsAt: Date,
+        recordedResets: [Date],
+        windowCount: Int,
+        tolerance: TimeInterval = 30 * 60
+    ) -> [Date] {
+        let sortedRecorded = recordedResets.sorted()
+        var ends: [Date] = []
+        for offset in 0 ..< windowCount {
+            let projected = currentResetsAt.addingTimeInterval(-Double(offset) * 5 * 3600)
+            // Snap to the nearest recorded reset within tolerance, if any. This
+            // is what makes the server bar align to the window its snapshots
+            // were keyed under, even when the projection has drifted.
+            let snapped = sortedRecorded
+                .filter { abs($0.timeIntervalSince(projected)) <= tolerance }
+                .min(by: { abs($0.timeIntervalSince(projected)) < abs($1.timeIntervalSince(projected)) })
+            ends.append(snapped ?? projected)
+        }
+        return ends
+    }
+
     var body: some View {
         let now = Date()
         let allEvents = store.events.filter { $0.model != "<synthetic>" }
@@ -61,12 +103,20 @@ struct PastWindowsBudgetCard: View {
             return estimates.max()
         }()
 
-        // Build the requested span of windows, anchored to the current resets_at.
-        // Prefer server-truth from snapshots; fall back to JSONL-derived approximation.
+        // Build the requested span of windows. Boundaries are anchored on the
+        // recorded snapshot reset-times where they exist (see `windowEnds`), so a
+        // server-truth bar lands in the window its snapshots actually belong to
+        // even when the projected `currentResetsAt` has drifted past a rollover.
+        // Prefer server-truth from snapshots; fall back to JSONL approximation.
         var allEntries: [WindowEntry] = []
         let totalWanted = windowCount
+        let ends = Self.windowEnds(
+            currentResetsAt: currentResetsAt,
+            recordedResets: Array(perWindow.keys),
+            windowCount: totalWanted
+        )
         for offset in stride(from: totalWanted - 1, through: 0, by: -1) {
-            let end = currentResetsAt.addingTimeInterval(-Double(offset) * 5 * 3600)
+            let end = ends[offset]
             let start = end.addingTimeInterval(-5 * 3600)
             let isCurrent = offset == 0
             if let pct = perWindow[end] {
