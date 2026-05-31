@@ -374,6 +374,14 @@ final class TokenGaidenStore {
             return
         }
         var newResults: [TickResult] = []
+        // Daily usage streak bonus (issue #46): once per local calendar day
+        // on which the player used Claude, grant a modest pick-me-up — a
+        // little SP back and one loaf of bread — and surface the streak
+        // count. Gated on `lastStreakDay` so it fires at most once per day,
+        // and never on the seed/hatch tick (handled by the early return
+        // above). Deliberately small so it doesn't warp the economy or the
+        // pet's wear/aging.
+        current = applyStreakBonusIfNewDay(state: current, events: events)
         // Plan-normalized wear: HP drain + aging keyed off Δ% of the
         // 5-hour rate-limit budget. Done once per tick batch (not per
         // event) so all plans tick at similar wall-clock cadence — then
@@ -916,6 +924,44 @@ final class TokenGaidenStore {
             if r <= 0 { return c }
         }
         return pool.last
+    }
+
+    /// Grant the once-per-local-day usage streak bonus (issue #46) if the
+    /// player hasn't already received it today. Returns the (possibly
+    /// unchanged) state. Pure aside from the streak toast.
+    ///
+    /// The bonus is intentionally tiny: restore up to 5 SP and drop one
+    /// bread. It's keyed off `lastStreakDay` so repeated ticks within the
+    /// same calendar day are no-ops.
+    private func applyStreakBonusIfNewDay(
+        state: TokegotchiState,
+        events: [UsageEvent],
+        now: Date = .now,
+        calendar: Calendar = .current
+    ) -> TokegotchiState {
+        var current = state
+        let today = calendar.startOfDay(for: now)
+        if let last = current.lastStreakDay,
+           calendar.startOfDay(for: last) == today {
+            return current // already rewarded today
+        }
+        let streak = Streak.currentStreak(
+            eventTimestamps: events.map(\.timestamp),
+            now: now,
+            calendar: calendar
+        )
+        // No live streak (e.g. no events yet today) → nothing to reward.
+        guard streak >= 1 else { return current }
+        current.lastStreakDay = today
+        // Modest restore: a little SP and a loaf of bread.
+        current.vitals.sp = min(current.vitals.spMax, current.vitals.sp + 5)
+        current.inventory.items["bread", default: 0] += 1
+        notifier?.notify(
+            title: "🔥 Day \(streak) streak!",
+            body: "Used Claude today — here's a snack. (+1 bread, +SP)",
+            kind: .info
+        )
+        return current
     }
 
     private func eventKey(_ e: UsageEvent) -> String {

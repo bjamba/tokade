@@ -17,6 +17,12 @@ struct TokeyoTownState: Codable, Equatable {
     /// fallback below in `init(from:)`.
     var terrain: TerrainGrid
 
+    /// Start-of-local-day timestamp of the most recent day a daily-usage
+    /// streak bonus was granted (issue #46). Optional so saves written
+    /// before this field existed still decode; nil means "no bonus granted
+    /// yet." Gates the once-per-local-day coin bonus in `TokeyoTownStore`.
+    var lastStreakDay: Date?
+
     init(
         schemaVersion: Int = 2,
         townId: String,
@@ -27,7 +33,8 @@ struct TokeyoTownState: Codable, Equatable {
         accountedEvents: AccountedEvents,
         buildings: [PlacedBuilding],
         townsfolk: [Townsfolk],
-        terrain: TerrainGrid
+        terrain: TerrainGrid,
+        lastStreakDay: Date? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.townId = townId
@@ -39,11 +46,12 @@ struct TokeyoTownState: Codable, Equatable {
         self.buildings = buildings
         self.townsfolk = townsfolk
         self.terrain = terrain
+        self.lastStreakDay = lastStreakDay
     }
 
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, townId, createdAt, lastTickAt, repo, resources,
-             accountedEvents, buildings, townsfolk, terrain
+             accountedEvents, buildings, townsfolk, terrain, lastStreakDay
     }
 
     init(from decoder: Decoder) throws {
@@ -69,6 +77,7 @@ struct TokeyoTownState: Codable, Equatable {
                 biome: repo.biome
             )
         }
+        lastStreakDay = try c.decodeIfPresent(Date.self, forKey: .lastStreakDay)
     }
 
     struct RepoSnapshot: Codable, Equatable {

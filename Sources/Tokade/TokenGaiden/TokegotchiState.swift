@@ -16,6 +16,13 @@ struct TokegotchiState: Codable, Equatable {
     /// app restarts (issue #30). Mutate via `questTelemetryOrEmpty`.
     var questTelemetry: QuestTelemetry?
 
+    /// Start-of-local-day timestamp of the most recent day a daily-usage
+    /// streak bonus was granted (issue #46). Optional so saves written
+    /// before this field existed still decode; nil means "no bonus granted
+    /// yet." Compared against `calendar.startOfDay(for: now)` so the bonus
+    /// fires at most once per local calendar day.
+    var lastStreakDay: Date?
+
     /// Non-optional accessor: reads as empty telemetry when unset and
     /// materializes it on write.
     var questTelemetryOrEmpty: QuestTelemetry {

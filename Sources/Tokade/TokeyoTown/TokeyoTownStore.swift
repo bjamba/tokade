@@ -726,6 +726,37 @@ final class TokeyoTownStore {
             ?? events.last(where: { $0.cwd != nil })?.cwd
     }
 
+    /// Fixed coin granted once per local calendar day the player used Claude
+    /// (issue #46). Small relative to ongoing accrual so it's a pleasant
+    /// daily nudge, not an economy-warping windfall.
+    static let dailyStreakCoinBonus = 10
+
+    /// Grant the once-per-local-day usage streak bonus if the player hasn't
+    /// already received it today. Pure so it's unit-testable. Returns the
+    /// (possibly unchanged) state.
+    nonisolated static func applyStreakBonusIfNewDay(
+        state: TokeyoTownState,
+        events: [UsageEvent],
+        now: Date = .now,
+        calendar: Calendar = .current
+    ) -> TokeyoTownState {
+        var s = state
+        let today = calendar.startOfDay(for: now)
+        if let last = s.lastStreakDay, calendar.startOfDay(for: last) == today {
+            return s // already rewarded today
+        }
+        let streak = Streak.currentStreak(
+            eventTimestamps: events.map(\.timestamp),
+            now: now,
+            calendar: calendar
+        )
+        // No live streak (e.g. no events yet today) → nothing to reward.
+        guard streak >= 1 else { return s }
+        s.lastStreakDay = today
+        s.resources.coin += dailyStreakCoinBonus
+        return s
+    }
+
     func tick(against events: [UsageEvent], activeSessionId: String? = nil) async {
         // #45 — refresh the usage-driven "bustle" each tick so the town's
         // liveliness tracks the user's real weekday/hour coding pattern.
@@ -742,6 +773,12 @@ final class TokeyoTownStore {
         s.resources.add(delta)
         s.accountedEvents = newAccounted
         s.lastTickAt = .now
+
+        // Daily usage streak bonus (issue #46): once per local calendar day
+        // on which the player used Claude, drop a small fixed handful of
+        // coin into the treasury. Gated on `lastStreakDay` so it fires at
+        // most once per day. Kept tiny so it doesn't warp the town economy.
+        s = Self.applyStreakBonusIfNewDay(state: s, events: events)
 
         // ADR-0006 §7 — the cheap accrual above always runs (the town
         // grows from your usage even when nobody's looking), but the
