@@ -78,11 +78,14 @@ enum TickProcessor {
             }
         }
 
-        // ---- Slash command → SP potion ----
-        if event.slashCommand != nil {
-            let potion = "small-sp-potion"
-            s.inventory.items[potion, default: 0] += 1
-            results.append(.itemDropped(itemId: potion, count: 1))
+        // ---- Slash command → themed item drop ----
+        // Maps the command to an item the player must still *use* (heal or SP
+        // potion) rather than a direct stat change, so it can't be exploited
+        // into infinite healing. Default preserves the original SP-potion drop.
+        if let command = event.slashCommand {
+            let itemId = slashDrop(for: command)
+            s.inventory.items[itemId, default: 0] += 1
+            results.append(.itemDropped(itemId: itemId, count: 1))
         }
 
         // ---- Region tracking ----
@@ -413,6 +416,35 @@ enum TickProcessor {
             return "mixed"
         }()
         return ModelMix(multiplier: multiplier, label: label)
+    }
+
+    /// Map a slash command to the item it drops (issue #41). Returns an item
+    /// *id* the player must still consume — never a direct stat change — so a
+    /// command stream can't be turned into infinite free healing. Defaults to
+    /// the original "small-sp-potion" drop to preserve existing behavior.
+    static func slashDrop(for command: String) -> String {
+        let c = command.lowercased()
+        if c.contains("test") { return "bread" }
+        if c.contains("review") { return "small-sp-potion" }
+        return "small-sp-potion"
+    }
+
+    /// Map a tool family to a short cosmetic verb used only to flavor an
+    /// existing toast/log (issue #41). Returns nil for families without a
+    /// themed verb. Pure: no mechanical effect, no drops.
+    static func toolVerb(for tool: String) -> String? {
+        switch tool {
+        case "Bash":
+            return "forge"
+        case "Edit", "Write", "NotebookEdit":
+            return "construct"
+        case "Grep", "Read", "Glob":
+            return "scout"
+        case "WebFetch", "WebSearch":
+            return "research"
+        default:
+            return nil
+        }
     }
 
     /// Map a tool name to the item it drops. User-controllable tools drop
