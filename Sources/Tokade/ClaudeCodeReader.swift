@@ -54,8 +54,18 @@ actor ClaudeCodeReader {
             }
 
             for event in events {
-                let key = "\(event.sessionId ?? "")|\(event.messageId ?? UUID().uuidString)"
-                if event.messageId != nil, !seen.insert(key).inserted { continue }
+                // Prefer the messageId-based key. When the line has no
+                // message.id (some resume/fork-duplicated records), fall back
+                // to a composite key that stably identifies the event, so
+                // identical lines parsed from two files still collapse to one.
+                let key: String = if let messageId = event.messageId {
+                    "\(event.sessionId ?? "")|\(messageId)"
+                } else {
+                    "\(event.sessionId ?? "")|\(event.timestamp.timeIntervalSince1970)"
+                        + "|\(event.inputTokens)|\(event.cacheCreationTokens)"
+                        + "|\(event.cacheReadTokens)|\(event.outputTokens)"
+                }
+                if !seen.insert(key).inserted { continue }
                 out.append(event)
             }
         }
