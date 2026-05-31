@@ -6,6 +6,39 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-05-31
+
+A correctness-and-contracts hotfix release. No new features — these fix data
+loss, two silent game bugs, and a privacy guarantee found in a full
+read-through (issues #30–#35).
+
+### Fixed
+
+- **Token Gaiden quest progress no longer resets on restart.** Quest counters
+  (e.g. "use Bash 50 times") were held only in memory and zeroed on every
+  launch, making those quests effectively impossible to finish. They are now
+  persisted with the save. (#30)
+- **Tokeyo Town resources now come from the repo you adopted.** The main
+  currency previously accrued from *all* Claude Code usage, so unrelated
+  projects grew your town. Coin and tool resources are now credited only for
+  usage inside the adopted repo's folder. (#31)
+- **Usage history no longer drops same-timestamp events.** The event archive
+  used a strict "newer-than" check that silently discarded a distinct event
+  sharing the latest timestamp; it now keeps them, deduplicated by message id
+  and durable across restarts. (#32)
+- **Budget charts no longer miss a window-start sample.** The snapshot archive
+  could skip the first sample of a new 5-hour window when it opened at the
+  same percentage; the window reset-time is now part of the de-duplication
+  key. (#33)
+
+### Security
+
+- **Game save files keep their `0600` (owner-only) permissions on overwrite.**
+  Both Token Gaiden and Tokeyo Town saves could lose owner-only permissions on
+  the atomic-overwrite path, potentially exposing adopted-repo paths to other
+  local accounts. Permissions are now re-asserted after every write, with
+  behavioral tests proving it. (#34, #35)
+
 ## [0.5.0] — 2026-05-22
 
 ### Added
