@@ -19,7 +19,9 @@ final class UsageStore {
     static let fiveHours: TimeInterval = 5 * 3600
     static let sevenDays: TimeInterval = 7 * 24 * 3600
 
-    func startPolling(every interval: TimeInterval = 30) {
+    /// Default matches the app's real cadence (TokadeApp calls every: 3). The
+    /// game tick reads the same events every 3s; an mtime cache keeps re-polls cheap.
+    func startPolling(every interval: TimeInterval = 3) {
         pollingTask?.cancel()
         pollingTask = Task { [weak self] in
             while !Task.isCancelled {

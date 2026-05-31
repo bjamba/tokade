@@ -20,7 +20,9 @@ configured to invoke. No network calls; all data stays on the machine.
 ## Architecture
 Single-process menu bar app with `LSUIElement=true` (no Dock icon). The SwiftUI
 `MenuBarExtra` scene drives a panel with three tabs (Budget, Models, Trends) on
-top of a single `UsageStore` observable. The store polls every 30 seconds: reads
+top of a single `UsageStore` observable. The store polls every 3 seconds (the
+game tick reads the same events at that cadence; an mtime cache keeps re-polls
+cheap): reads
 all `.jsonl` files under `~/.claude/projects/`, reads the most recent statusline
 snapshot from `~/.tokade/last-status.json`, and appends both raw events and
 server-snapshot deltas to JSONL archives in `~/.tokade/history/`. All view
@@ -31,8 +33,8 @@ flowchart LR
   CC[Claude Code] -->|writes JSONL| JL[~/.claude/projects/*.jsonl]
   CC -->|invokes on each<br/>statusline render| SH[statusline-shim.sh]
   SH -->|writes JSON| ST[~/.tokade/last-status.json]
-  JL -->|reads every 30s| US[UsageStore]
-  ST -->|reads every 30s| US
+  JL -->|reads every 3s| US[UsageStore]
+  ST -->|reads every 3s| US
   US -->|appends new events| EA[~/.tokade/history/events.jsonl]
   US -->|appends new pct snapshots| SA[~/.tokade/history/snapshots.jsonl]
   US -->|@Observable| UI[SwiftUI MenuBarExtra]
@@ -40,7 +42,7 @@ flowchart LR
 
 ## Entry points
 - `Sources/Tokade/TokadeApp.swift:4` — `@main struct TokadeApp` creates the
-  `UsageStore`, starts the 30-second polling task, and declares the
+  `UsageStore`, starts the 3-second polling task, and declares the
   `MenuBarExtra` scene
 - `Sources/Tokade/MenuView.swift:4` — `MenuView` is the panel root; switches
   between `BudgetTab`, `ModelsTab`, `TrendsTab`
