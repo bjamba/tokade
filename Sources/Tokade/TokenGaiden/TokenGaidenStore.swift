@@ -365,10 +365,14 @@ final class TokenGaidenStore {
         var newResults: [TickResult] = []
         // Plan-normalized wear: HP drain + aging keyed off Δ% of the
         // 5-hour rate-limit budget. Done once per tick batch (not per
-        // event) so all plans tick at similar wall-clock cadence.
+        // event) so all plans tick at similar wall-clock cadence — then
+        // modulated by the model mix consumed this tick so Opus-heavy work
+        // ages the pet faster than Haiku-heavy work (issue #36).
+        let mix = TickProcessor.modelMix(for: events)
         let (afterWear, wearResults) = TickProcessor.applyBudgetWear(
             state: current,
-            usedPercentage: usedPercentage
+            usedPercentage: usedPercentage,
+            modelMix: mix
         )
         current = afterWear
         newResults.append(contentsOf: wearResults)

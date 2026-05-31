@@ -19,8 +19,9 @@ enum TickResult: Equatable {
 ///
 /// This is layer 1 of Token Gaiden — the tick economy from
 /// `docs/02-design/TOKADE_TAB.md`. Tool calls drop themed stat items, edits
-/// drop food, slash commands drop SP potions, tokens consumed drain HP and
-/// advance age (model-weighted).
+/// drop food, slash commands drop SP potions; HP drain and aging are keyed off
+/// % of the 5-hour budget window (plan-normalized) and then weighted by the
+/// model mix consumed — Haiku gentler, Opus harsher (see `applyBudgetWear`).
 enum TickProcessor {
     // MARK: - Public
 
@@ -231,9 +232,17 @@ enum TickProcessor {
     /// - Parameter usedPercentage: current 5-hour `fiveHour.usedPercentage`
     ///   from the live rate-limit snapshot. nil → no rate-limit data this
     ///   tick; we skip wear and update nothing.
+    /// Fraction of the model multiplier that applies to HP drain. Aging takes
+    /// the full multiplier (longevity is the headline model signal); HP takes
+    /// half-strength so an Opus-heavy window is demanding but not instantly
+    /// lethal, preserving the "enough to require feeding, not enough to kill"
+    /// guarantee for the neutral case.
+    static let hpModelWeightStrength: Double = 0.5
+
     static func applyBudgetWear(
         state: TokegotchiState,
-        usedPercentage: Double?
+        usedPercentage: Double?,
+        modelMix: ModelMix = .neutral
     ) -> (TokegotchiState, [TickResult]) {
         var s = state
         var results: [TickResult] = []
@@ -254,17 +263,19 @@ enum TickProcessor {
         guard delta > 0 else { return (s, results) }
         // pct is on 0..100 scale; convert to fraction.
         let fraction = delta / 100.0
-        let hpCost = Int((fraction * hpDrainPerFullWindow).rounded())
+        // HP takes a softened model weighting; aging takes the full weighting.
+        let hpMultiplier = 1.0 + (modelMix.multiplier - 1.0) * hpModelWeightStrength
+        let hpCost = Int((fraction * hpDrainPerFullWindow * hpMultiplier).rounded())
         if hpCost > 0 {
             s.vitals.hp = max(0, s.vitals.hp - hpCost)
             results.append(.hpChanged(delta: -hpCost))
         }
-        let agePoints = Int((fraction * ageTokensPerFullWindow).rounded())
+        let agePoints = Int((fraction * ageTokensPerFullWindow * modelMix.multiplier).rounded())
         if agePoints > 0 {
             s.identity.ageTokens += agePoints
-            // Use "plan" as the model tag so the UI surfaces a generic
-            // origin rather than a stale model name.
-            results.append(.ageAdvanced(byPoints: agePoints, fromModel: "plan"))
+            // Tag the toast with the dominant model family so the player sees
+            // *why* the pet aged the way it did (Opus ages faster than Haiku).
+            results.append(.ageAdvanced(byPoints: agePoints, fromModel: modelMix.label))
         }
         // Probabilistic natural death past the 60% "elder" threshold. The
         // hazard rate scales as danger² where danger = (ageRatio - 0.6)/0.4,
@@ -307,25 +318,63 @@ enum TickProcessor {
     /// because bread is the primary HP-recovery item.
     static let foodDropThreshold = 20
 
-    /// HP drained per token, by model family. Calibrated so a moderate day
-    /// of usage drains a noticeable chunk of HP — enough that the player
-    /// needs to feed the pet regularly, but not so much that one prompt
-    /// kills it.
-    static func hpDrain(model: String, tokens: Int) -> Int {
+    /// Per-model wear severity, Sonnet-centered at 1.0 so the existing
+    /// plan-normalized calibration is unchanged for a Sonnet user. Haiku is
+    /// gentler, Opus harsher — this is what turns "which model you run" into a
+    /// survival/longevity signal (issue #36).
+    static func modelSeverity(model: String) -> Double {
         let m = model.lowercased()
-        if m.contains("haiku") { return tokens / 200_000 }
-        if m.contains("sonnet") { return tokens / 100_000 }
-        if m.contains("opus") { return tokens / 40000 }
-        return tokens / 160_000     // default for unknown / future models
+        if m.contains("haiku") { return 0.5 }
+        if m.contains("sonnet") { return 1.0 }
+        if m.contains("opus") { return 2.0 }
+        return 1.0  // unknown / future models stay neutral
     }
 
-    /// Age points per token, model-weighted: Haiku ×0.5, Sonnet ×1.0, Opus ×2.0.
-    static func ageAdvance(model: String, tokens: Int) -> Int {
+    /// Friendly family label for the wear toast.
+    static func modelFamily(_ model: String) -> String {
         let m = model.lowercased()
-        if m.contains("haiku") { return tokens / 2 }
-        if m.contains("sonnet") { return tokens }
-        if m.contains("opus") { return tokens * 2 }
-        return tokens
+        if m.contains("haiku") { return "Haiku" }
+        if m.contains("sonnet") { return "Sonnet" }
+        if m.contains("opus") { return "Opus" }
+        return "plan"
+    }
+
+    /// The model character of a tick batch: a token-weighted severity
+    /// multiplier plus a label naming the dominant family (or "mixed").
+    struct ModelMix: Equatable {
+        /// Token-weighted mean of `modelSeverity` across the batch. 1.0 when
+        /// there are no billable tokens, so wear is unchanged.
+        let multiplier: Double
+        /// Dominant model family (> 60% of tokens), else "mixed", else "plan".
+        let label: String
+
+        static let neutral = ModelMix(multiplier: 1.0, label: "plan")
+    }
+
+    /// Derive the `ModelMix` from the events processed this tick. Weighted by
+    /// each event's `grandTotal` so a few huge Opus turns outweigh many tiny
+    /// Haiku ones.
+    static func modelMix(for events: [UsageEvent]) -> ModelMix {
+        var totalTokens = 0
+        var weighted = 0.0
+        var byFamily: [String: Int] = [:]
+        for e in events {
+            let tok = e.grandTotal
+            guard tok > 0 else { continue }
+            weighted += Double(tok) * modelSeverity(model: e.model)
+            totalTokens += tok
+            byFamily[modelFamily(e.model), default: 0] += tok
+        }
+        guard totalTokens > 0 else { return .neutral }
+        let multiplier = weighted / Double(totalTokens)
+        let label: String = {
+            if let top = byFamily.max(by: { $0.value < $1.value }),
+               Double(top.value) / Double(totalTokens) > 0.6 {
+                return top.key
+            }
+            return "mixed"
+        }()
+        return ModelMix(multiplier: multiplier, label: label)
     }
 
     /// Map a tool name to the item it drops. User-controllable tools drop
