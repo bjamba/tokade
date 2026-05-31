@@ -135,9 +135,10 @@ account read it. The README promises 0600 for `~/.tokade/`.
 **Enforcement**:
 - Source-side: `scripts/check.sh` greps `0o600` in
   `Sources/Tokade/TokenGaiden/TokegotchiSave.swift`.
-- Behavior-side: covered transitively by the existing archive-perms
-  pattern; a dedicated test will land when the save format gains a v2
-  schema.
+- Behavior-side: `Tests/TokadeTests/TokegotchiSavePersistenceTests.swift`
+  writes a real save, overwrites it (exercising the `replaceItemAt` path,
+  which does not inherit the tmp file's mode), and asserts `0o600` both
+  times.
 
 ### Tokeyo Town save file permissions
 
@@ -160,8 +161,11 @@ for scanning.
   `Sources/Tokade/TokeyoTown/TokeyoTownSave.swift` and greps for
   `URLSession|URLRequest|URLDownload` inside
   `Sources/Tokade/TokeyoTown/` (in addition to the project-wide check).
-- Behavior-side: `Tests/TokadeTests/TokeyoTownTests.swift` round-trip-
-  serializes the state to catch schema regressions.
+- Behavior-side: `Tests/TokadeTests/TokeyoTownSavePermissionsTests.swift`
+  writes a town save and the index, overwrites each (exercising the
+  `replaceItemAt` path), and asserts `0o600` every time;
+  `Tests/TokadeTests/TokeyoTownTests.swift` round-trip-serializes the state
+  to catch schema regressions.
 
 ### No LLM-attribution noise
 

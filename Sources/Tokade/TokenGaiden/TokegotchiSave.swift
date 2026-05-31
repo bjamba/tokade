@@ -9,9 +9,18 @@ actor TokegotchiSave {
 
     static let filename = "tokegotchi.json"
 
+    /// Override the games directory (tests only). Production uses the default.
+    private let baseDirOverride: URL?
+
+    init(directory: URL? = nil) {
+        self.baseDirOverride = directory
+    }
+
     private var fileURL: URL {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        return home.appendingPathComponent(".tokade/games/\(Self.filename)")
+        let base = baseDirOverride
+            ?? FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".tokade/games")
+        return base.appendingPathComponent(Self.filename)
     }
 
     /// Read the save, or nil if missing / unreadable. Logs but does not throw
@@ -51,6 +60,12 @@ actor TokegotchiSave {
             } else {
                 try FileManager.default.moveItem(at: tmp, to: url)
             }
+            // `replaceItemAt` may create a new inode whose mode is not the tmp's
+            // 0600, so re-assert owner-only perms on the final file (issue #34).
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: url.path
+            )
         } catch {
             log.warning("Failed to write save: \(String(describing: error), privacy: .public)")
         }

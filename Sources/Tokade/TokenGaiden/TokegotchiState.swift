@@ -11,6 +11,17 @@ struct TokegotchiState: Codable, Equatable {
     var world: World
     var inventory: Inventory
     var bloodline: Bloodline
+    /// Cumulative quest counters. Optional so saves written before this field
+    /// existed still decode; persisted in the save so quest progress survives
+    /// app restarts (issue #30). Mutate via `questTelemetryOrEmpty`.
+    var questTelemetry: QuestTelemetry?
+
+    /// Non-optional accessor: reads as empty telemetry when unset and
+    /// materializes it on write.
+    var questTelemetryOrEmpty: QuestTelemetry {
+        get { questTelemetry ?? QuestTelemetry() }
+        set { questTelemetry = newValue }
+    }
 
     struct Identity: Codable, Equatable {
         var name: String
