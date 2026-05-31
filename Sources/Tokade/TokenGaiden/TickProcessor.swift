@@ -207,6 +207,16 @@ enum TickProcessor {
     /// usage, but heavy continuous usage burns through faster.
     static let ageTokensPerFullWindow: Double = 1_500_000
 
+    /// Maximum per-tick budget delta (in percentage points) that counts
+    /// toward wear in a single tick. The elder-band death-hazard math assumes
+    /// many small ticks; if the app is backgrounded and the 5-hour window
+    /// rolls up a large jump (e.g. +40% observed at once), an unclamped delta
+    /// would deliver a huge `agePoints`/`hpCost` and a near-certain one-tick
+    /// natural-death roll with no warning. We cap the delta used for wear but
+    /// still advance the baseline to the true current pct, so the remainder is
+    /// absorbed over subsequent ticks instead of being lost (issue #57).
+    static let maxDeltaPercentPerTick: Double = 8
+
     /// Apply plan-budget-driven HP drain + aging since the last sampled
     /// percentage. Returns the updated state and any results (hp change,
     /// age advance, critical/death) the UI should surface. Called once
@@ -241,7 +251,11 @@ enum TickProcessor {
         // Rate-limit windows roll. When pct drops (window rollover) we
         // treat it as "no consumption this tick" — only positive deltas
         // age the pet.
-        let delta = max(0, pct - prior)
+        // Clamp the per-tick delta so a single backgrounded-window jump can't
+        // one-shot the pet (issue #57). The baseline still advances to the
+        // TRUE current pct, so the uncounted remainder is absorbed over the
+        // following ticks rather than lost.
+        let delta = min(max(0, pct - prior), maxDeltaPercentPerTick)
         s.identity.lastUsedPercentage = pct
         guard delta > 0 else { return (s, results) }
         // pct is on 0..100 scale; convert to fraction.
