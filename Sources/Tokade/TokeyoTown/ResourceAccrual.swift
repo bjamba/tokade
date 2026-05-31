@@ -60,6 +60,12 @@ enum ResourceAccrual {
             }
         }
 
+        // Model-mix shaping (issue #43, model-mix half): which model you ran
+        // *on this repo* nudges WHICH resources you earn. Additive on top of
+        // the base v3.x economy — flavor, not a rebalance. Gated identically
+        // to coin: only in-repo events count.
+        delta.add(modelResourceBonus(events: candidates, repoPath: repoPath))
+
         // Growth ticks: count distinct sessions newly seen since high water.
         delta.growth += sessionsSeen.count
 
@@ -113,6 +119,72 @@ enum ResourceAccrual {
         default:
             break
         }
+    }
+
+    // MARK: - Model-mix resource shaping (issue #43, model-mix half)
+
+    /// The model family that ran an event, mirroring Token Gaiden's
+    /// `modelFamily` (TickProcessor.swift) but kept local so Tokeyo Town
+    /// doesn't import game internals. Unknown / plan-mode models fall through
+    /// to `.other` and earn no model bonus (neutral).
+    enum ModelFamily {
+        case opus, sonnet, haiku, other
+    }
+
+    static func modelFamily(_ model: String) -> ModelFamily {
+        let m = model.lowercased()
+        if m.contains("haiku") { return .haiku }
+        if m.contains("sonnet") { return .sonnet }
+        if m.contains("opus") { return .opus }
+        return .other
+    }
+
+    /// Tokens of a given family that buy one bonus point. 300,000 tokens ≈ a
+    /// few substantial turns, so over a working session you accrue a handful
+    /// of bonus points — noticeable, but small next to per-tool credits
+    /// (1 per call, dozens per session) and coin (`grandTotal / 1000`, i.e.
+    /// ~300 coin per 300k tokens). The bonus flavors the mix; it never
+    /// dominates the base v3.x economy. Sonnet is deliberately absent so the
+    /// shipped balance stays the baseline (issue #43).
+    static let modelBonusTokensPerPoint = 300_000
+
+    /// Additive, model-mix-driven resource bonus for the events that funded
+    /// this tick. Pure and unit-testable.
+    ///
+    /// Shaping by family (keyed off each event's `grandTotal`, in-repo only):
+    ///   - Opus   → "thinking" resources: +knowledge, +industry
+    ///   - Haiku  → "building" resources: +lumber, +coin
+    ///   - Sonnet → neutral (no bonus) — the existing balance is the baseline
+    ///   - other / plan-mode → neutral
+    ///
+    /// Bonus points are awarded per family on that family's *summed* in-repo
+    /// tokens (so many small turns of one model still accrue), at a rate of
+    /// one point per `modelBonusTokensPerPoint` tokens.
+    static func modelResourceBonus(events: [UsageEvent], repoPath: String) -> TokeyoTownState.Resources {
+        var opusTokens = 0
+        var haikuTokens = 0
+        for event in events {
+            guard eventInRepo(event.cwd, repoPath: repoPath) else { continue }
+            let tokens = event.grandTotal
+            guard tokens > 0 else { continue }
+            switch modelFamily(event.model) {
+            case .opus: opusTokens += tokens
+            case .haiku: haikuTokens += tokens
+            case .sonnet, .other: break // neutral baseline
+            }
+        }
+
+        let opusPoints = opusTokens / modelBonusTokensPerPoint
+        let haikuPoints = haikuTokens / modelBonusTokensPerPoint
+
+        var bonus = TokeyoTownState.Resources.zero
+        // Opus → thinking.
+        bonus.knowledge += opusPoints
+        bonus.industry += opusPoints
+        // Haiku → building.
+        bonus.lumber += haikuPoints
+        bonus.coin += haikuPoints
+        return bonus
     }
 
     /// Force-zeros the retired resources. As of the v3.x economy, tool
