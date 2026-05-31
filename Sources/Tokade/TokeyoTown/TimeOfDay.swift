@@ -62,4 +62,41 @@ struct TimeOfDay: Equatable {
         case .night: return forcedNight
         }
     }
+
+    /// #45 — "bustle": how busy the user's current weekday/hour bucket is
+    /// relative to their busiest bucket, normalized to `[0, 1]`.
+    ///
+    /// This layers liveliness ON TOP of the wall-clock day/night light: the
+    /// town feels liveliest in the weekday-hour slots where the user actually
+    /// codes (peak bucket → ~1.0) and quiet in their dead hours (→ ~0.0). It
+    /// does NOT replace `lightLevel`; the renderer consumes both.
+    ///
+    /// Uses the same weekday×hour token bucketing as `HeatmapCard`: sum
+    /// `grandTotal` per (weekday, hour), dropping `<synthetic>` events.
+    /// Returns `0` (a safe, quiet default) when there's no real usage to
+    /// learn a pattern from, so a brand-new install reads as a calm town
+    /// rather than a falsely-bustling one.
+    ///
+    /// Pure (no clock or I/O beyond the injected `now`) so it's unit-testable.
+    nonisolated static func bustleFactor(events: [UsageEvent], now: Date = .now) -> Double {
+        let cal = Calendar.current
+        var bucket: [Bucket: Int] = [:]
+        for e in events where e.model != "<synthetic>" {
+            let c = cal.dateComponents([.weekday, .hour], from: e.timestamp)
+            guard let w = c.weekday, let h = c.hour else { continue }
+            bucket[Bucket(weekday: w, hour: h), default: 0] += e.grandTotal
+        }
+        guard let peak = bucket.values.max(), peak > 0 else { return 0 }
+
+        let nowComps = cal.dateComponents([.weekday, .hour], from: now)
+        guard let w = nowComps.weekday, let h = nowComps.hour else { return 0 }
+        let here = bucket[Bucket(weekday: w, hour: h)] ?? 0
+        let factor = Double(here) / Double(peak)
+        return min(1.0, max(0.0, factor))
+    }
+
+    private struct Bucket: Hashable {
+        let weekday: Int
+        let hour: Int
+    }
 }
