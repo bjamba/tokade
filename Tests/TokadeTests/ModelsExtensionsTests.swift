@@ -97,6 +97,24 @@ final class ModelsExtensionsTests: XCTestCase {
         XCTAssertEqual(grouped.first?.project, "—")
     }
 
+    /// Regression for #48: `<synthetic>` events must be excluded from
+    /// per-project totals so they match the stacked-by-model overlay (which
+    /// already filters synthetic). Without the filter, project totals were
+    /// inflated relative to the stacked bars.
+    func testGroupedByProjectExcludesSynthetic() {
+        let events = [
+            event(model: "claude-opus-4-7", tokens: 100, cwd: "/Users/me/foo/bar"),
+            event(model: "<synthetic>", tokens: 999, cwd: "/Users/me/foo/bar"),
+            event(model: "<synthetic>", tokens: 500, cwd: "/Users/me/other"),
+        ]
+        let grouped = events.groupedByProject()
+        let totals = Dictionary(uniqueKeysWithValues: grouped.map { ($0.project, $0.total) })
+        XCTAssertEqual(totals["bar"], 100)
+        // "other" had only synthetic tokens, so it should not appear at all.
+        XCTAssertNil(totals["other"])
+        XCTAssertEqual(grouped.reduce(0) { $0 + $1.total }, 100)
+    }
+
     // MARK: toolCallCounts
 
     func testToolCallCountsAggregatesAcrossEvents() {

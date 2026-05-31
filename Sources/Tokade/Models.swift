@@ -42,7 +42,7 @@ extension Sequence<UsageEvent> {
 
     func groupedByProject() -> [(project: String, total: Int)] {
         var d: [String: Int] = [:]
-        for e in self {
+        for e in self where e.model != "<synthetic>" {
             let p = e.cwd.flatMap { (URL(fileURLWithPath: $0)).lastPathComponent } ?? "—"
             d[p, default: 0] += e.grandTotal
         }
