@@ -100,6 +100,12 @@ struct IsoTileRenderer: View {
     /// 0 = midnight, 1 = noon. Drives sky / ground darkening, lantern
     /// glow, and star visibility. Default 1 = bright daylight.
     var lightLevel: Double = 1.0
+    /// #45 — "bustle" ∈ [0, 1]: how busy the user's current weekday/hour
+    /// usage bucket is vs. their peak. Layered on top of `lightLevel` to
+    /// make lanterns burn brighter during the hours the user actually
+    /// codes. Default 0 = calm streets, so it never alters the base look
+    /// until real usage data exists.
+    var bustle: Double = 0
 
     struct PlacementPreview {
         let kind: String
@@ -723,10 +729,16 @@ struct IsoTileRenderer: View {
         // the halo doubles in radius and opacity, so lanterns become a
         // real source of light when night falls.
         let darkness = 1.0 - lightLevel
-        let glowR = 7.0 + darkness * 14.0
+        // #45 — usage bustle layers a subtle extra warmth on top of the
+        // night glow: during the user's peak coding hours (bustle → 1) the
+        // lantern's halo grows ~25% larger and brighter, so the streets
+        // visibly liven up when they're actually working. At bustle 0 these
+        // terms vanish and the lantern looks exactly as it did before.
+        let bustleBoost = min(1.0, max(0.0, bustle))
+        let glowR = 7.0 + darkness * 14.0 + bustleBoost * 3.5
         let glow = CGRect(x: center.x - glowR, y: center.y - 12 - glowR / 2,
                           width: glowR * 2, height: glowR * 2 - 8)
-        let glowAlpha = 0.30 + darkness * 0.60
+        let glowAlpha = 0.30 + darkness * 0.60 + bustleBoost * 0.12
         context.fill(Path(ellipseIn: glow),
                      with: .color(Color(red: 1.0, green: 0.92, blue: 0.62)
                          .opacity(glowAlpha)))

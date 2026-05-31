@@ -24,6 +24,14 @@ final class TokeyoTownStore {
     /// screenshots).
     var dayNightMode: TimeOfDay.Mode = .auto
 
+    /// #45 — "bustle" ∈ [0, 1]: how busy the user's *current* weekday/hour
+    /// usage bucket is relative to their peak bucket. Refreshed every
+    /// `tick` from the live event list via `TimeOfDay.bustleFactor`. The
+    /// renderer layers this on top of the wall-clock day/night light so the
+    /// town's lanterns burn brighter during the hours the user actually
+    /// codes. Defaults to `0` (calm) until the first tick has events.
+    private(set) var bustle: Double = 0
+
     /// True only while the Tokeyo Town tab is on screen. The town view
     /// sets this on `.onAppear` / `.onDisappear`.
     ///
@@ -719,6 +727,10 @@ final class TokeyoTownStore {
     }
 
     func tick(against events: [UsageEvent], activeSessionId: String? = nil) async {
+        // #45 — refresh the usage-driven "bustle" each tick so the town's
+        // liveliness tracks the user's real weekday/hour coding pattern.
+        // Cheap and clock-free beyond `now`; runs even if no town is active.
+        bustle = TimeOfDay.bustleFactor(events: events)
         guard var s = state else { return }
         let currentCwd = Self.activeSessionCwd(events: events, activeSessionId: activeSessionId)
         let (delta, newAccounted) = ResourceAccrual.accrue(

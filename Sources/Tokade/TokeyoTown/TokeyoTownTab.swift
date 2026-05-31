@@ -320,7 +320,10 @@ struct TokeyoTownGameView: View {
                         view: town.view,
                         labelMode: town.labelMode,
                         lightLevel: TimeOfDay.from(mode: town.dayNightMode,
-                                                   now: context.date).lightLevel
+                                                   now: context.date).lightLevel,
+                        // #45 — usage-driven liveliness, layered on top of
+                        // the wall-clock light without replacing it.
+                        bustle: town.bustle
                     )
                     .contentShape(Rectangle())
                     .onContinuousHover { phase in
