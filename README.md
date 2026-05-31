@@ -192,7 +192,9 @@ Two data sources:
 
 1. **Claude Code JSONL** at `~/.claude/projects/**/*.jsonl` — every assistant
    message includes its model and token usage. Tokade parses these on each
-   30-second poll. This gives raw token counts but no plan-budget context.
+   3-second poll (the game tick reads the same events at that cadence; an
+   mtime cache keeps re-polls cheap). This gives raw token counts but no
+   plan-budget context.
 2. **Statusline JSON** at `~/.tokade/last-status.json` — written by the shim
    each time Claude Code refreshes its statusline. Contains the server's
    current 5h and 7d utilization `%`, the next reset timestamps, the current
