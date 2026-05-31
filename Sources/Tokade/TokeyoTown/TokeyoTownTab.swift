@@ -13,6 +13,17 @@ struct TokeyoTownTab: View {
     @State private var showConfirmNewTown = false
 
     var body: some View {
+        content
+            // ADR-0006 §7 — the town's heavy simulation (townsfolk A*
+            // pathing + upkeep eviction) only runs while this tab is on
+            // screen. Toggling `isForeground` here is what gates it; the
+            // background tick keeps accruing resources regardless (#54).
+            .onAppear { town.isForeground = true }
+            .onDisappear { town.isForeground = false }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         if town.state != nil {
             TokeyoTownGameView(
                 town: town,
