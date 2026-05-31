@@ -131,6 +131,30 @@ final class ClaudeCodeReaderTests: XCTestCase {
         XCTAssertEqual(events.count, 1)
     }
 
+    /// Regression for #50: assistant lines without a `message.id` used to
+    /// bypass dedup entirely, so a resume/fork that duplicates the JSONL line
+    /// across two files double-counted. They must now collapse via a composite
+    /// key (session + timestamp + token counts).
+    func testDedupesAssistantWithoutMessageIdAcrossFiles() async throws {
+        let line = """
+        {"type":"assistant","timestamp":"2026-05-09T18:00:00Z","sessionId":"s1","message":{"model":"claude-opus-4-7","usage":{"input_tokens":7,"cache_creation_input_tokens":3,"cache_read_input_tokens":11,"output_tokens":2}}}
+        """
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tokade-tests-dedup-noid-\(UUID().uuidString)")
+        let p1 = dir.appendingPathComponent("a")
+        let p2 = dir.appendingPathComponent("b")
+        try FileManager.default.createDirectory(at: p1, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: p2, withIntermediateDirectories: true)
+        try line.write(to: p1.appendingPathComponent("s.jsonl"), atomically: true, encoding: .utf8)
+        try line.write(to: p2.appendingPathComponent("s.jsonl"), atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let reader = ClaudeCodeReader(projectsURL: dir)
+        let events = await reader.readAllEvents()
+        XCTAssertEqual(events.count, 1)
+        XCTAssertNil(events.first?.messageId)
+    }
+
     func testReturnsEmptyForMissingDirectory() async {
         let bogus = FileManager.default.temporaryDirectory
             .appendingPathComponent("does-not-exist-\(UUID().uuidString)")
