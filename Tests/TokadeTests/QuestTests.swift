@@ -47,6 +47,33 @@ final class QuestTests: XCTestCase {
         XCTAssertEqual(QuestEngine.active(state: after).count, 0)
     }
 
+    /// Regression for #56: the "Wanderer's Way" quest ("visit 3 distinct
+    /// regions") must count distinct regions, not reputation in any one
+    /// region. Distinct regions are the keys of `world.eventCounts`.
+    func testVisitRegionsTracksDistinctRegionCount() throws {
+        var s = freshState()
+        let q = try XCTUnwrap(QuestCatalog.byId("steppe-explore"))
+        if case let .visitRegions(count) = q.objective {
+            XCTAssertEqual(count, 3)
+        } else {
+            XCTFail("steppe-explore should use .visitRegions, got \(q.objective)")
+        }
+        let (accepted, _) = QuestEngine.accept(q, state: s)
+        s = accepted
+
+        // Two distinct regions visited: not done, progress capped at 2.
+        s.world.eventCounts = ["projA": 5, "projB": 1]
+        s = QuestEngine.evaluate(state: s, telemetry: QuestTelemetry())
+        XCTAssertEqual(QuestEngine.active(state: s).first?.progress, 2)
+        XCTAssertEqual(QuestEngine.active(state: s).first?.completed, false)
+
+        // A third distinct region tips it over the line.
+        s.world.eventCounts = ["projA": 5, "projB": 1, "projC": 9]
+        s = QuestEngine.evaluate(state: s, telemetry: QuestTelemetry())
+        XCTAssertEqual(QuestEngine.active(state: s).first?.progress, 3)
+        XCTAssertEqual(QuestEngine.active(state: s).first?.completed, true)
+    }
+
     func testHaggleDiscountCappedAt24() {
         XCTAssertEqual(NPCInteraction.haggleDiscount(cha: 0), 0)
         XCTAssertEqual(NPCInteraction.haggleDiscount(cha: 10), 0.10)

@@ -22,6 +22,8 @@ struct Quest: Identifiable, Hashable {
         case defeatMonsters(count: Int)
         /// Reach reputation N in any region.
         case reachReputation(amount: Int)
+        /// Visit N distinct regions (tracked via `world.eventCounts` keys).
+        case visitRegions(count: Int)
     }
 }
 
@@ -101,7 +103,7 @@ enum QuestCatalog {
                 Quest(id: "steppe-explore",
                       name: "Wanderer's Way",
                       description: "Visit at least 3 distinct regions (build reputation).",
-                      objective: .reachReputation(amount: 1),
+                      objective: .visitRegions(count: 3),
                       rewardGold: 25, rewardExp: 15, rewardItem: nil),
             ]
         case .wilderness:
@@ -246,6 +248,9 @@ enum QuestEngine {
         case let .reachReputation(amount):
             let v = state.world.reputation.values.max() ?? 0
             return (min(v, amount), v >= amount)
+        case let .visitRegions(count):
+            let distinct = state.world.eventCounts?.count ?? 0
+            return (min(distinct, count), distinct >= count)
         }
     }
 }
