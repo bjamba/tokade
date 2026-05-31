@@ -80,7 +80,8 @@ final class TokeyoTownTests: XCTestCase {
 
     func testAccrualConvertsTokensToCoin() {
         let now = Date()
-        let events = [makeEvent(ts: now, tokens: 5000, messageId: "a")]
+        // Coin now requires the event to be in the adopted repo (issue #31).
+        let events = [makeEvent(ts: now, tokens: 5000, cwd: "/repo", messageId: "a")]
         let (delta, _) = ResourceAccrual.accrue(
             events: events,
             repoPath: "/repo",
@@ -89,6 +90,38 @@ final class TokeyoTownTests: XCTestCase {
         )
         // v3.7 ratio: 1 coin / 1,000 tokens. 5,000 tokens → 5 coin.
         XCTAssertEqual(delta.coin, 5)
+    }
+
+    // MARK: - #31 — resources are gated on the adopted repo's cwd
+
+    func testEventInRepoMatchesNestedAndRejectsOthers() {
+        let repo = "/Users/me/code/widget"
+        XCTAssertTrue(ResourceAccrual.eventInRepo(repo, repoPath: repo))
+        XCTAssertTrue(ResourceAccrual.eventInRepo("\(repo)/Sources/App", repoPath: repo))
+        XCTAssertFalse(ResourceAccrual.eventInRepo("/Users/me/code/other", repoPath: repo))
+        XCTAssertFalse(ResourceAccrual.eventInRepo("/Users/me/code/widget-extra", repoPath: repo))
+        XCTAssertFalse(ResourceAccrual.eventInRepo(nil, repoPath: repo))
+    }
+
+    func testOutOfRepoUsageDoesNotFundTheTown() {
+        let now = Date()
+        // Heavy usage, but in a different repo — the town must not grow.
+        let events = [
+            makeEvent(ts: now, tokens: 50000, tools: ["Read", "Edit", "Bash"],
+                      cwd: "/some/other/repo", messageId: "x"),
+        ]
+        let (delta, accounted) = ResourceAccrual.accrue(
+            events: events,
+            repoPath: "/repo",
+            accounted: .init(),
+            currentSessionCwd: nil
+        )
+        XCTAssertEqual(delta.coin, 0)
+        XCTAssertEqual(delta.knowledge, 0)
+        XCTAssertEqual(delta.lumber, 0)
+        XCTAssertEqual(delta.industry, 0)
+        // High-water still advances so out-of-repo events aren't reprocessed.
+        XCTAssertEqual(accounted.lastTimestamp, now)
     }
 
     func testAccrualConvertsToolsToResources() {
@@ -100,6 +133,7 @@ final class TokeyoTownTests: XCTestCase {
             events.append(makeEvent(
                 ts: now.addingTimeInterval(Double(i)),
                 tools: ["Read", "Read", "Read", "Read", "Read"],
+                cwd: "/repo",
                 messageId: "r\(i)"
             ))
         }
@@ -108,6 +142,7 @@ final class TokeyoTownTests: XCTestCase {
             events.append(makeEvent(
                 ts: now.addingTimeInterval(Double(100 + i)),
                 tools: ["Edit"],
+                cwd: "/repo",
                 messageId: "e\(i)"
             ))
         }
@@ -116,6 +151,7 @@ final class TokeyoTownTests: XCTestCase {
             events.append(makeEvent(
                 ts: now.addingTimeInterval(Double(200 + i)),
                 tools: ["Bash"],
+                cwd: "/repo",
                 messageId: "b\(i)"
             ))
         }
@@ -151,7 +187,7 @@ final class TokeyoTownTests: XCTestCase {
     func testAccrualIdempotentViaAccountedHighWater() {
         let now = Date()
         // v3.7 ratio: 1 coin / 1,000 tokens. 3,000 tokens → 3 coin.
-        let events = [makeEvent(ts: now, tokens: 3000, messageId: "a")]
+        let events = [makeEvent(ts: now, tokens: 3000, cwd: "/repo", messageId: "a")]
         let (delta1, accounted) = ResourceAccrual.accrue(
             events: events,
             repoPath: "/repo",

@@ -22,8 +22,6 @@ final class TokenGaidenStore {
     /// Ensures a freshly hatched pet only reacts to events that arrive *after*
     /// hatching, regardless of how stale the caller's event snapshot was.
     private var pendingSeed: Bool = false
-    /// Counters used to evaluate quest objectives. Reset on hatch.
-    private var questTelemetry = QuestTelemetry()
 
     init(notifier: Notifier? = nil) {
         self.notifier = notifier
@@ -69,7 +67,6 @@ final class TokenGaidenStore {
         let pet = TokegotchiState.newStarter(name: name, appearance: appearance)
         state = pet
         accountedTokens.removeAll()
-        questTelemetry = QuestTelemetry()
         pendingSeed = true
         await save.write(pet)
     }
@@ -137,7 +134,6 @@ final class TokenGaidenStore {
         fresh.inventory.discoveredCosmetics = merged
         state = fresh
         accountedTokens.removeAll()
-        questTelemetry = QuestTelemetry()
         pendingSeed = true
         await save.write(fresh)
     }
@@ -398,8 +394,8 @@ final class TokenGaidenStore {
         for r in newResults {
             switch r {
             case let .encounter(_, .victory(_, gold)):
-                questTelemetry.monstersDefeated += 1
-                questTelemetry.cumulativeGold += gold
+                current.questTelemetryOrEmpty.monstersDefeated += 1
+                current.questTelemetryOrEmpty.cumulativeGold += gold
                 if Int.random(in: 1...3) == 1 {
                     let atk = current.effectiveStats.str + current.effectiveStats.dex / 2 + current.gearAttackBonus
                     if let drop = GearCatalog.randomDrop(playerATK: atk) {
@@ -425,11 +421,11 @@ final class TokenGaidenStore {
         }
         for e in events {
             for t in e.tools {
-                questTelemetry.toolCounts[t, default: 0] += 1
+                current.questTelemetryOrEmpty.toolCounts[t, default: 0] += 1
             }
         }
         // Re-evaluate active quests so the UI shows progress + completion.
-        current = QuestEngine.evaluate(state: current, telemetry: questTelemetry)
+        current = QuestEngine.evaluate(state: current, telemetry: current.questTelemetryOrEmpty)
 
         // Cosmetic unlocks tied to achievements that just fired. Adding
         // them inline so the same tick that earned the achievement also
@@ -639,8 +635,8 @@ final class TokenGaidenStore {
             switch outcome {
             case let .victory(exp, gold):
                 notifier?.notify(title: "⚔️ Wander victory", body: "Defeated \(monster.monsterName) — +\(exp) EXP, +\(gold)g", kind: .info)
-                questTelemetry.monstersDefeated += 1
-                questTelemetry.cumulativeGold += gold
+                current.questTelemetryOrEmpty.monstersDefeated += 1
+                current.questTelemetryOrEmpty.cumulativeGold += gold
             case .fled:
                 notifier?.notify(title: "🏃 Wander retreat", body: "\(monster.monsterName) was too strong.", kind: .warning)
             }
@@ -680,8 +676,8 @@ final class TokenGaidenStore {
             switch outcome {
             case let .victory(exp, gold):
                 notifier?.notify(title: "🏰 Dungeon cleared", body: "Defeated \(monster.monsterName) — +\(exp) EXP, +\(gold)g", kind: .info)
-                questTelemetry.monstersDefeated += 1
-                questTelemetry.cumulativeGold += gold
+                current.questTelemetryOrEmpty.monstersDefeated += 1
+                current.questTelemetryOrEmpty.cumulativeGold += gold
             case .fled:
                 notifier?.notify(title: "🏰 Dungeon retreat", body: "\(monster.monsterName) was too strong.", kind: .warning)
             }
@@ -759,8 +755,8 @@ final class TokenGaidenStore {
         switch outcome.2 {
         case let .victory(exp, gold):
             notifier?.notify(title: "⚔️ Victory", body: "+\(exp) EXP, +\(gold)g", kind: .info)
-            questTelemetry.monstersDefeated += 1
-            questTelemetry.cumulativeGold += gold
+            saved.questTelemetryOrEmpty.monstersDefeated += 1
+            saved.questTelemetryOrEmpty.cumulativeGold += gold
             // Active-mode victories also have a gear drop chance.
             if Int.random(in: 1...3) == 1 {
                 let atk = saved.effectiveStats.str + saved.effectiveStats.dex / 2 + saved.gearAttackBonus

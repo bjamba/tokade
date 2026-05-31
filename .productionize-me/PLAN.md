@@ -173,3 +173,37 @@ Concrete first hour of M0:
 
 If you'd rather just take the plan and run, that's Path A and the plan
 files above are yours to execute on your own time.
+
+---
+
+## Post-v0.5.0 backlog — bug + arcade-coupling roadmap (2026-05-31)
+
+M0–M2 shipped (v0.1.0 → v0.5.0). A full read-through of the main app and
+both arcade games surfaced a fresh batch of correctness bugs and
+coupling-feature opportunities, now tracked as GitHub issues #30–#57 on the
+"Tokade Roadmap" project across three new milestones. Theme of the batch:
+**both games consume only a thin slice of the rich Claude Code signal Tokade
+already reads, and in both the headline mechanic is decoupled from the
+richest signal** — fixing that coupling is simultaneously the biggest bug
+class and the biggest feature opportunity.
+
+### v0.5.1 — Hotfix & Contracts (6 issues — being fixed now)
+Correctness P0s + durable-contract / data-loss / permissions P1s.
+- #30 [Token Gaiden] QuestTelemetry never persisted → quest progress resets on restart (P0)
+- #31 [Tokeyo Town] Coin accrual ignores adopted repo cwd → core premise unenforced (P0)
+- #32 EventArchive high-water strict `>` drops same-timestamp events (P1, archive contract)
+- #33 SnapshotArchive dedup ignores `fiveResetsAt` → window-start anchor dropped (P1)
+- #34 [Token Gaiden] TokegotchiSave may drop 0600 via `replaceItemAt` + add perms test (P1)
+- #35 [Tokeyo Town] Add 0600 behavioral test for town saves + index (P1, CLAUDE.md honesty gap)
+
+### v0.6.0 — Arcade Coupling (8 issues)
+Make the games actually about Claude usage + arcade gameplay-correctness bugs
+the rework touches. #36–#43.
+
+### v0.7.0 — Polish & Backlog (14 issues)
+Main-app P2 cleanups, remaining correctness, polish features. #44–#57.
+
+**Threading note:** the archive/permissions P1s (#32, #33, #34, #35) are
+regression-risk against existing CLAUDE.md contracts. Their fixes must land
+with paired enforcement — behavioral perms tests + `scripts/check.sh`
+coverage — per the "rules without enforcement are wishes" rule.

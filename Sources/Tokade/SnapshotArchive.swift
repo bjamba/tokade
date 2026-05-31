@@ -43,12 +43,17 @@ actor SnapshotArchive {
         self.decoder.dateDecodingStrategy = .iso8601
     }
 
-    /// Append a snapshot. Skips writes that don't change `5h%` or `7d%`
-    /// from the most recent record (no point archiving identical samples).
+    /// Append a snapshot. Skips writes that don't change `5h%`/`7d%`, their
+    /// reset-at anchors, or the session from the most recent record. Comparing
+    /// `fiveResetsAt`/`sevenResetsAt` (not just the %) ensures a window rollover
+    /// that happens to open at the same % still writes its window-start anchor,
+    /// which the budget cards group by (issue #33).
     func append(_ snapshot: UsageSnapshot) {
         if let last = lastWritten,
            last.fiveHour == snapshot.fiveHour,
+           last.fiveResetsAt == snapshot.fiveResetsAt,
            last.sevenDay == snapshot.sevenDay,
+           last.sevenResetsAt == snapshot.sevenResetsAt,
            last.sessionId == snapshot.sessionId {
             return
         }

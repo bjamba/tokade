@@ -24,6 +24,12 @@ enum ResourceAccrual {
         var pendingSessionEvents: [String: Date] = [:] // last seen timestamp per session
 
         for event in candidates {
+            // The town is funded by *your work on this repo*. Usage in other
+            // repos advances the high-water mark (so we don't reprocess it) but
+            // grants nothing — otherwise a town grows identically regardless of
+            // which project you actually worked in (issue #31).
+            guard eventInRepo(event.cwd, repoPath: repoPath) else { continue }
+
             // Coin: 1 / 1,000 tokens. v3.7 — v2's 1/4k nerf was too
             // aggressive; an hour of light Claude use couldn't buy a
             // single cottage. Back to the v1 rate but with smaller
@@ -60,6 +66,15 @@ enum ResourceAccrual {
             newAccounted.lastEventId = last.messageId
         }
         return (normalized, newAccounted)
+    }
+
+    /// True when an event's cwd is the town's repo path or nested inside it.
+    /// Out-of-repo usage does not fund the town (issue #31).
+    static func eventInRepo(_ eventCwd: String?, repoPath: String) -> Bool {
+        guard let eventCwd else { return false }
+        let repo = (repoPath as NSString).standardizingPath
+        let ev = (eventCwd as NSString).standardizingPath
+        return ev == repo || ev.hasPrefix(repo + "/")
     }
 
     /// 2x bonus when this event's cwd is inside the active Claude Code session's cwd

@@ -252,7 +252,7 @@ enum QuestEngine {
 
 /// Telemetry shared with the quest engine. Tracks cumulative counters the
 /// game state doesn't already store.
-struct QuestTelemetry {
+struct QuestTelemetry: Codable, Equatable {
     var toolCounts: [String: Int] = [:]
     var cumulativeGold: Int = 0
     var monstersDefeated: Int = 0

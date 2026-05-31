@@ -14,9 +14,17 @@ import os.log
 actor TokeyoTownSave {
     private let log = Logger(subsystem: "com.bjamba.tokade", category: "TokeyoTownSave")
 
+    /// Override the tokeyotown directory (tests only). Production uses default.
+    private let baseDirOverride: URL?
+
+    init(directory: URL? = nil) {
+        self.baseDirOverride = directory
+    }
+
     private var baseDir: URL {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        return home.appendingPathComponent(".tokade/games/tokeyotown")
+        baseDirOverride
+            ?? FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".tokade/games/tokeyotown")
     }
 
     private var indexURL: URL { baseDir.appendingPathComponent("index.json") }
@@ -84,6 +92,12 @@ actor TokeyoTownSave {
             } else {
                 try FileManager.default.moveItem(at: tmp, to: url)
             }
+            // `replaceItemAt` may not carry the tmp's 0600, so re-assert it on
+            // the final file (issue #35; same fix as TokegotchiSave #34).
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: url.path
+            )
         } catch {
             log.warning("Failed to write town: \(String(describing: error), privacy: .public)")
         }
@@ -105,6 +119,11 @@ actor TokeyoTownSave {
             } else {
                 try FileManager.default.moveItem(at: tmp, to: indexURL)
             }
+            // Re-assert 0600 after replace (issue #35).
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: indexURL.path
+            )
         } catch {
             log.warning("Failed to write index: \(String(describing: error), privacy: .public)")
         }

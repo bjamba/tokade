@@ -2,7 +2,11 @@
 
 - **Tier**: 2 — small public OSS
 - **Path**: B (in-place modernization)
-- **Phase**: M0 + M1 + M2 complete. v0.2.0 and v0.3.0 both shipped.
+- **Phase**: M0 + M1 + M2 complete. Through v0.5.0 shipped. Now in a
+  post-productionization bug + feature cycle (see PLAN.md "Post-v0.5.0
+  backlog"). Issues #30–#57 filed across milestones v0.5.1 / v0.6.0 / v0.7.0
+  on the Roadmap project. Actively fixing the v0.5.1 hotfix bundle (#30–#35)
+  on branch `fix/v0.5.1-hotfix-contracts`.
 - **Last action**:
   - PR #19 (M2 swiftformat) merged
   - PR #20 (M2 wave B: incremental parsing + a11y) merged
