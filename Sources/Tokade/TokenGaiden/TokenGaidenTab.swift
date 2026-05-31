@@ -790,6 +790,7 @@ struct TokenGaidenTab: View {
         case let .earnGold(amount):        return amount
         case let .defeatMonsters(count):   return count
         case let .reachReputation(amount): return amount
+        case let .visitRegions(count):     return count
         }
     }
 
