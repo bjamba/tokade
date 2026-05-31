@@ -135,27 +135,56 @@ final class TickProcessorTests: XCTestCase {
         XCTAssertEqual(state.inventory.items["dumbbell"], 1)
     }
 
-    func testProcessFiresEnteredCriticalOnce() {
+    func testCriticalClockEntersOncePersistsWhileIdleAndDiesAfterGrace() {
         let appearance = TokegotchiState.Appearance(
             skinSwatch: "lavender", irisSwatch: "blue",
             hairStyle: "horns", hairSwatch: "ivory"
         )
         var state = TokegotchiState.newStarter(name: "Boba", appearance: appearance)
-        // Stage HP at zero, then drive the critical state machine via process.
         state.vitals.hp = 0
-        let event = UsageEvent(
-            timestamp: Date(),
-            model: "claude-sonnet-4-6",
-            inputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, outputTokens: 1,
-            sessionId: "s1", messageId: "m1", cwd: nil, tools: [], slashCommand: nil
-        )
-        let (after, results) = TickProcessor.process(event, state: state, deltaTokens: 1)
-        XCTAssertEqual(after.vitals.hp, 0)
-        XCTAssertTrue(results.contains(.enteredCritical))
+        let t0 = Date()
 
-        // Second tick from critical state should not re-fire enteredCritical.
-        let (_, results2) = TickProcessor.process(event, state: after, deltaTokens: 1)
-        XCTAssertFalse(results2.contains(.enteredCritical))
+        // First clock tick at HP=0 enters Critical and stamps the time.
+        let (s1, r1) = TickProcessor.advanceCriticalClock(state: state, now: t0)
+        XCTAssertEqual(s1.criticalSince, t0)
+        XCTAssertTrue(r1.contains(.enteredCritical))
+
+        // An idle tick partway through the grace window: still critical, no
+        // re-entry, not dead — even though no Claude usage happened.
+        let (s2, r2) = TickProcessor.advanceCriticalClock(
+            state: s1, now: t0.addingTimeInterval(TokegotchiState.criticalGraceSeconds - 1)
+        )
+        XCTAssertFalse(r2.contains(.enteredCritical))
+        XCTAssertFalse(s2.isDead)
+
+        // Once the grace seconds elapse — purely by wall clock — the pet dies.
+        let (s3, r3) = TickProcessor.advanceCriticalClock(
+            state: s2, now: t0.addingTimeInterval(TokegotchiState.criticalGraceSeconds)
+        )
+        XCTAssertTrue(r3.contains(.died(cause: .hpZero)))
+        XCTAssertTrue(s3.isDead)
+    }
+
+    func testCriticalClockRecoversWhenHPRestored() {
+        let appearance = TokegotchiState.Appearance(
+            skinSwatch: "lavender", irisSwatch: "blue",
+            hairStyle: "horns", hairSwatch: "ivory"
+        )
+        var state = TokegotchiState.newStarter(name: "Boba", appearance: appearance)
+        state.vitals.hp = 0
+        let t0 = Date()
+        let (down, _) = TickProcessor.advanceCriticalClock(state: state, now: t0)
+        XCTAssertNotNil(down.criticalSince)
+
+        // Pet is fed back above zero, then the next clock tick clears the stamp
+        // and does not kill it even past the original grace window.
+        var fed = down
+        fed.vitals.hp = 20
+        let (recovered, _) = TickProcessor.advanceCriticalClock(
+            state: fed, now: t0.addingTimeInterval(TokegotchiState.criticalGraceSeconds + 10)
+        )
+        XCTAssertNil(recovered.criticalSince)
+        XCTAssertFalse(recovered.isDead)
     }
 
     func testProcessFiresDiedOnAgeOut() {

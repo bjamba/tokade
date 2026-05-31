@@ -428,6 +428,14 @@ final class TokenGaidenStore {
                 current.questTelemetryOrEmpty.toolCounts[t, default: 0] += 1
             }
         }
+        // Advance the wall-clock critical/death clock every tick — including
+        // ticks where no new Claude usage arrived — so a downed pet still
+        // dies after the grace period (or recovers if it was fed) while the
+        // player is idle (issue #37).
+        let (afterCritical, criticalResults) = TickProcessor.advanceCriticalClock(state: current)
+        current = afterCritical
+        newResults.append(contentsOf: criticalResults)
+
         // Re-evaluate active quests so the UI shows progress + completion.
         current = QuestEngine.evaluate(state: current, telemetry: current.questTelemetryOrEmpty)
 
