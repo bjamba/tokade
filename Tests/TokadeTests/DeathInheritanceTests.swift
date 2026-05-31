@@ -10,50 +10,34 @@ final class DeathInheritanceTests: XCTestCase {
         )
     }
 
-    func testCriticalGraceCountsThenDies() {
+    func testCriticalGraceElapsesThenDies() {
         var state = TokegotchiState.newStarter(name: "Boba", appearance: appearance())
         state.vitals.hp = 0
-        // First tick puts us into critical state with grace 0.
-        let stub = UsageEvent(
-            timestamp: Date(),
-            model: "claude-haiku-4-5",
-            inputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, outputTokens: 1,
-            sessionId: "s", messageId: "first", cwd: nil, tools: [], slashCommand: nil
-        )
-        var (s, _) = TickProcessor.process(stub, state: state, deltaTokens: 1)
-        XCTAssertEqual(s.criticalTicks, 0)
+        let t0 = Date()
+        // First clock tick enters critical and stamps the time.
+        let (s, _) = TickProcessor.advanceCriticalClock(state: state, now: t0)
+        XCTAssertEqual(s.criticalSince, t0)
         XCTAssertFalse(s.isDead)
 
-        // Run enough ticks to exhaust the grace.
-        for i in 0..<TokegotchiState.criticalGraceTicks {
-            let e = UsageEvent(
-                timestamp: Date(),
-                model: "claude-haiku-4-5",
-                inputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, outputTokens: 1,
-                sessionId: "s", messageId: "m\(i)", cwd: nil, tools: [], slashCommand: nil
-            )
-            let (next, _) = TickProcessor.process(e, state: s, deltaTokens: 1)
-            s = next
-        }
-        XCTAssertTrue(s.isDead)
-        XCTAssertEqual(s.deathState?.cause, .hpZero)
+        // Once the grace seconds elapse by wall clock, the pet dies — no Claude
+        // usage required (issue #37).
+        let (dead, _) = TickProcessor.advanceCriticalClock(
+            state: s, now: t0.addingTimeInterval(TokegotchiState.criticalGraceSeconds)
+        )
+        XCTAssertTrue(dead.isDead)
+        XCTAssertEqual(dead.deathState?.cause, .hpZero)
     }
 
     func testHealingCancelsCritical() {
         var state = TokegotchiState.newStarter(name: "Boba", appearance: appearance())
         state.vitals.hp = 0
-        let stub = UsageEvent(
-            timestamp: Date(),
-            model: "claude-haiku-4-5",
-            inputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, outputTokens: 1,
-            sessionId: "s", messageId: "first", cwd: nil, tools: [], slashCommand: nil
-        )
-        var (s, _) = TickProcessor.process(stub, state: state, deltaTokens: 1)
-        XCTAssertNotNil(s.criticalTicks)
-        // Heal manually.
+        let t0 = Date()
+        var (s, _) = TickProcessor.advanceCriticalClock(state: state, now: t0)
+        XCTAssertNotNil(s.criticalSince)
+        // Heal manually, then the next clock tick clears the stamp.
         s.vitals.hp = 50
-        let (next, _) = TickProcessor.process(stub, state: s, deltaTokens: 1)
-        XCTAssertNil(next.criticalTicks)
+        let (next, _) = TickProcessor.advanceCriticalClock(state: s, now: t0.addingTimeInterval(10))
+        XCTAssertNil(next.criticalSince)
         XCTAssertFalse(next.isDead)
     }
 

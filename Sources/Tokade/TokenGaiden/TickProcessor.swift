@@ -165,27 +165,10 @@ enum TickProcessor {
         // ---- Vital clamping + death detection ----
         s.vitals.clamp()
 
-        // Critical state machine. HP=0 starts a grace counter; recovery
-        // (HP > 0) resets it; running out of grace kills the pet.
-        if s.vitals.hp <= 0 {
-            if s.criticalTicks == nil {
-                s.criticalTicks = 0
-                results.append(.enteredCritical)
-            } else {
-                s.criticalTicks = (s.criticalTicks ?? 0) + 1
-            }
-            if (s.criticalTicks ?? 0) >= TokegotchiState.criticalGraceTicks {
-                s.deathState = TokegotchiState.PendingDeath(
-                    cause: .hpZero,
-                    diedAt: Date(),
-                    peakStats: s.vitals.stats,
-                    daysLived: s.daysLived
-                )
-                results.append(.died(cause: .hpZero))
-            }
-        } else {
-            s.criticalTicks = nil
-        }
+        // The HP=0 critical/death machine is NOT handled here — it's driven by
+        // wall-clock time in `advanceCriticalClock`, called every store tick
+        // (even when no Claude usage arrives) so a downed pet still dies or
+        // recovers while you're idle (issue #37).
 
         // Natural death wins over critical: aged-out always triggers, even
         // if HP > 0. Acts as the hard ceiling past which survival is impossible.
@@ -298,6 +281,47 @@ enum TickProcessor {
                     results.append(.died(cause: .natural))
                 }
             }
+        }
+        return (s, results)
+    }
+
+    /// Advance the HP=0 critical/death clock against wall-clock time. Called
+    /// once per store tick — including idle ticks with no Claude usage — so a
+    /// downed pet still dies after the grace period, and a fed pet still
+    /// recovers, even when you're not actively burning tokens (issue #37).
+    ///
+    /// - When HP ≤ 0 and not already counting: stamp `criticalSince` (enters
+    ///   Critical).
+    /// - When HP ≤ 0 and `criticalGraceSeconds` have elapsed since that stamp:
+    ///   the pet dies of `.hpZero`.
+    /// - When HP > 0: clear the stamp (recovered).
+    ///
+    /// `now` is injectable so tests don't depend on real time.
+    static func advanceCriticalClock(
+        state: TokegotchiState,
+        now: Date = Date()
+    ) -> (TokegotchiState, [TickResult]) {
+        var s = state
+        var results: [TickResult] = []
+        guard !s.isDead else { return (s, results) }
+
+        if s.vitals.hp <= 0 {
+            if let since = s.criticalSince {
+                if now.timeIntervalSince(since) >= TokegotchiState.criticalGraceSeconds {
+                    s.deathState = TokegotchiState.PendingDeath(
+                        cause: .hpZero,
+                        diedAt: now,
+                        peakStats: s.vitals.stats,
+                        daysLived: s.daysLived
+                    )
+                    results.append(.died(cause: .hpZero))
+                }
+            } else {
+                s.criticalSince = now
+                results.append(.enteredCritical)
+            }
+        } else {
+            s.criticalSince = nil
         }
         return (s, results)
     }

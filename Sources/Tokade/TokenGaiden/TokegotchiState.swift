@@ -177,17 +177,18 @@ struct TokegotchiState: Codable, Equatable {
         let daysLived: Int
     }
 
-    /// Ticks of critical state (HP=0) accumulated since the pet went down.
-    /// Reset to nil when HP > 0; when HP first hits 0 it becomes 0, then ticks
-    /// up. After `criticalGraceTicks` consecutive ticks in critical without
-    /// recovery, the pet dies via `.hpZero`. Optional for save-file
-    /// compatibility with earlier schemas.
-    var criticalTicks: Int?
+    /// Wall-clock instant the pet went down (HP=0). nil when HP > 0. The pet
+    /// dies of `.hpZero` once `criticalGraceSeconds` elapse from this stamp.
+    /// Driven by `TickProcessor.advanceCriticalClock` every tick — including
+    /// idle ticks — so death/recovery don't depend on active Claude usage
+    /// (issue #37). Optional for save-file compatibility; pre-#37 saves used a
+    /// `criticalTicks` counter, which is simply ignored on decode.
+    var criticalSince: Date?
 
-    /// Events of critical state allowed before HP=0 → death. Tuned to be
-    /// short enough to make the warning meaningful but long enough that the
-    /// player can use a food item to recover within a normal session.
-    static let criticalGraceTicks = 50
+    /// Wall-clock seconds a pet survives at HP=0 before dying. ~150s (the old
+    /// 50 ticks × 3s cadence) — long enough to feed it within a session, short
+    /// enough that the Critical warning means something.
+    static let criticalGraceSeconds: TimeInterval = 150
 
     /// In-progress active-combat battle, if any. nil when there's no
     /// encounter awaiting player input. Optional for save-file compatibility
