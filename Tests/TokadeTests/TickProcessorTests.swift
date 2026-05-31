@@ -2,19 +2,70 @@
 import XCTest
 
 final class TickProcessorTests: XCTestCase {
-    func testHpDrainRates() {
-        // Calibrated for real Claude usage — see TickProcessor.hpDrain.
-        XCTAssertEqual(TickProcessor.hpDrain(model: "claude-haiku-4-5",  tokens: 1_000_000), 5)
-        XCTAssertEqual(TickProcessor.hpDrain(model: "claude-sonnet-4-6", tokens: 1_000_000), 10)
-        XCTAssertEqual(TickProcessor.hpDrain(model: "claude-opus-4-7",   tokens: 1_000_000), 25)
-        // Unknown models fall back to a moderate rate.
-        XCTAssertEqual(TickProcessor.hpDrain(model: "future-model", tokens: 1_600_000), 10)
+    private func event(model: String, tokens: Int, messageId: String) -> UsageEvent {
+        UsageEvent(
+            timestamp: Date(), model: model,
+            inputTokens: tokens, cacheCreationTokens: 0, cacheReadTokens: 0, outputTokens: 0,
+            sessionId: "s", messageId: messageId, cwd: nil, tools: [], slashCommand: nil
+        )
     }
 
-    func testAgeMultipliers() {
-        XCTAssertEqual(TickProcessor.ageAdvance(model: "claude-haiku-4-5", tokens: 1000), 500)
-        XCTAssertEqual(TickProcessor.ageAdvance(model: "claude-sonnet-4-6", tokens: 1000), 1000)
-        XCTAssertEqual(TickProcessor.ageAdvance(model: "claude-opus-4-7",   tokens: 1000), 2000)
+    func testModelSeverityIsSonnetCentered() {
+        // Sonnet stays at 1.0 so the plan-normalized calibration is unchanged;
+        // Haiku gentler, Opus harsher; unknown models neutral (issue #36).
+        XCTAssertEqual(TickProcessor.modelSeverity(model: "claude-haiku-4-5"), 0.5)
+        XCTAssertEqual(TickProcessor.modelSeverity(model: "claude-sonnet-4-6"), 1.0)
+        XCTAssertEqual(TickProcessor.modelSeverity(model: "claude-opus-4-7"), 2.0)
+        XCTAssertEqual(TickProcessor.modelSeverity(model: "future-model"), 1.0)
+    }
+
+    func testModelMixIsTokenWeightedWithDominantLabel() {
+        // 90k Opus + 10k Haiku → weighted mean = (90k*2 + 10k*0.5)/100k = 1.85,
+        // and Opus is > 60% of tokens so it's the label.
+        let mix = TickProcessor.modelMix(for: [
+            event(model: "claude-opus-4-7", tokens: 90000, messageId: "a"),
+            event(model: "claude-haiku-4-5", tokens: 10000, messageId: "b"),
+        ])
+        XCTAssertEqual(mix.multiplier, 1.85, accuracy: 0.0001)
+        XCTAssertEqual(mix.label, "Opus")
+
+        // Even split → "mixed", multiplier the mean of the two severities.
+        let even = TickProcessor.modelMix(for: [
+            event(model: "claude-opus-4-7", tokens: 50000, messageId: "c"),
+            event(model: "claude-haiku-4-5", tokens: 50000, messageId: "d"),
+        ])
+        XCTAssertEqual(even.multiplier, 1.25, accuracy: 0.0001)
+        XCTAssertEqual(even.label, "mixed")
+
+        // No billable tokens → neutral.
+        XCTAssertEqual(TickProcessor.modelMix(for: []), .neutral)
+    }
+
+    func testApplyBudgetWearScalesAgingByModelMix() {
+        let appearance = TokegotchiState.Appearance(
+            skinSwatch: "lavender", irisSwatch: "blue",
+            hairStyle: "horns", hairSwatch: "ivory"
+        )
+        func wearOnce(mix: TickProcessor.ModelMix) -> (hp: Int, age: Int) {
+            var state = TokegotchiState.newStarter(name: "Boba", appearance: appearance)
+            state.vitals.hp = state.vitals.hpMax
+            let (s1, _) = TickProcessor.applyBudgetWear(state: state, usedPercentage: 0, modelMix: mix)
+            let (s2, _) = TickProcessor.applyBudgetWear(state: s1, usedPercentage: 50, modelMix: mix)
+            return (state.vitals.hpMax - s2.vitals.hp, s2.identity.ageTokens)
+        }
+        let haiku = wearOnce(mix: TickProcessor.ModelMix(multiplier: 0.5, label: "Haiku"))
+        let sonnet = wearOnce(mix: .neutral)
+        let opus = wearOnce(mix: TickProcessor.ModelMix(multiplier: 2.0, label: "Opus"))
+
+        // Aging takes the full multiplier: Opus ages ~2× Sonnet, Haiku ~0.5×.
+        XCTAssertEqual(sonnet.age, 750_000)        // 0.5 window * 1.5M
+        XCTAssertEqual(opus.age, 1_500_000)        // ×2.0
+        XCTAssertEqual(haiku.age, 375_000)         // ×0.5
+        // HP takes the softened (half-strength) multiplier, so Opus drains
+        // more than Sonnet but not double.
+        XCTAssertGreaterThan(opus.hp, sonnet.hp)
+        XCTAssertLessThan(haiku.hp, sonnet.hp)
+        XCTAssertLessThan(opus.hp, sonnet.hp * 2)
     }
 
     func testToolDropMapping() {
