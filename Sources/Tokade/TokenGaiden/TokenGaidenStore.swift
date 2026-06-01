@@ -112,7 +112,7 @@ final class TokenGaidenStore {
             agi: min(99, baseline.agi + bonus(death.peakStats.agi)),
             cha: min(99, baseline.cha + bonus(death.peakStats.cha))
         )
-        var carriedItems = dead.inventory.items
+        let carriedItems = dead.inventory.items
         // Achievement entries carry through, but stat-progress counters reset.
         // (Cosmetic inventory for v1 is implicit — every cosmetic the runtime
         // bundles is available, so nothing to carry here.)

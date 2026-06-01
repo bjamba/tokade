@@ -161,21 +161,24 @@ final class TokeyoTownStore {
 
     // MARK: - Action costs (centralized)
 
-    static let roadCost = TokeyoTownState.Resources(coin: 4)
-    static let clearTreeCost = TokeyoTownState.Resources(coin: 8)
-    static let clearTreeRefund = TokeyoTownState.Resources(lumber: 4)
-    static let plantTreeCost = TokeyoTownState.Resources(lumber: 6)
-    static let levelRockCost = TokeyoTownState.Resources(industry: 10)
-    static let plantFlowerCost = TokeyoTownState.Resources(growth: 3)
-    static let lanternCost = TokeyoTownState.Resources(coin: 12)
+    // `nonisolated` — these are pure value constants referenced from both the
+    // @MainActor store and nonisolated pure helpers; isolating them to the main
+    // actor is meaningless and trips Swift 6 isolation checking.
+    nonisolated static let roadCost = TokeyoTownState.Resources(coin: 4)
+    nonisolated static let clearTreeCost = TokeyoTownState.Resources(coin: 8)
+    nonisolated static let clearTreeRefund = TokeyoTownState.Resources(lumber: 4)
+    nonisolated static let plantTreeCost = TokeyoTownState.Resources(lumber: 6)
+    nonisolated static let levelRockCost = TokeyoTownState.Resources(industry: 10)
+    nonisolated static let plantFlowerCost = TokeyoTownState.Resources(growth: 3)
+    nonisolated static let lanternCost = TokeyoTownState.Resources(coin: 12)
     /// Pond: paint a water tile on grass/sand. Cheap so players can use
     /// it to compose "parks" of any size + shape from water + flowers
     /// + trees + lanterns, without needing a dedicated park building.
-    static let pondCost = TokeyoTownState.Resources(coin: 10)
+    nonisolated static let pondCost = TokeyoTownState.Resources(coin: 10)
     // v3.2 — terrain shaping now costs coin so it's accessible from day
     // one (industry is one of the slowest-earning resources).
-    static let raiseCost = TokeyoTownState.Resources(coin: 30)
-    static let lowerCost = TokeyoTownState.Resources(coin: 30)
+    nonisolated static let raiseCost = TokeyoTownState.Resources(coin: 30)
+    nonisolated static let lowerCost = TokeyoTownState.Resources(coin: 30)
 
     // MARK: - Undo / redo
 
@@ -553,13 +556,13 @@ final class TokeyoTownStore {
     /// Coin upkeep per townsfolk per AI tick. Modest enough that an
     /// actively-played game funds the town on autopilot; absentee
     /// players slowly see townsfolk leave town.
-    static let upkeepPerTownsfolkPerTick = 1
+    nonisolated static let upkeepPerTownsfolkPerTick = 1
 
     /// #53 — upkeep eviction never drops a town below this many
     /// townsfolk. An idle, broke town shrinks toward this floor and then
     /// holds, so absenteeism can't silently empty the town. Matches the
     /// `populationCap` floor (a one-cottage hamlet keeps ~2 folks).
-    static let minPopulationFloor = 2
+    nonisolated static let minPopulationFloor = 2
 
     /// Charge one tick of upkeep and resolve any shortfall into (at most)
     /// one eviction. Pure so it's unit-testable.
@@ -729,7 +732,7 @@ final class TokeyoTownStore {
     /// Fixed coin granted once per local calendar day the player used Claude
     /// (issue #46). Small relative to ongoing accrual so it's a pleasant
     /// daily nudge, not an economy-warping windfall.
-    static let dailyStreakCoinBonus = 10
+    nonisolated static let dailyStreakCoinBonus = 10
 
     /// Grant the once-per-local-day usage streak bonus if the player hasn't
     /// already received it today. Pure so it's unit-testable. Returns the
