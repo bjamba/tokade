@@ -4,7 +4,8 @@
 >
 > **Last reviewed**: 2026-05-31
 > **Owner**: @bjamba
-> **Status**: design (no implementation yet — needs sign-off before building)
+> **Status**: design **approved** 2026-05-31 — decisions locked (see below);
+> Phase 1 cleared to build.
 
 ## Problem
 
@@ -47,12 +48,15 @@ tokens, last-active) over time. This is the data spine and is cheap.
 
 ### 3. Geography & growth (render-time)
 
-Partition the town map into contiguous district zones (seeded
-deterministically by `townId`, e.g. a coarse Voronoi or grid split), sized by
-each sub-package's LOC. A district's lushness/population/growth then tracks
-**your ongoing activity in that sub-package**: a hot package's district
-booms; a neglected one stays sparse. `InitialTownPlanner` seeds starter
-buildings per district instead of one global cluster.
+Each district starts as a **seed tile** (placed deterministically by `townId`,
+spaced apart) and **grows outward as you work in that sub-package** —
+claiming adjacent tiles in proportion to its accumulated activity. A hot
+package's district sprawls; a neglected one stays a hamlet. This
+"growth-from-seed" model (chosen over grid/Voronoi) makes the map *alive*: the
+town's geography is a running picture of where you've been spending time.
+`InitialTownPlanner` seeds one starter cluster per district seed instead of
+one global cluster. (Growth is the most code/risk of the options considered —
+it is Phase 2, and it consumes the Phase 1 per-district activity counters.)
 
 ## Data model (additive, save-compatible)
 
@@ -88,16 +92,26 @@ per-district resource pools are a possible later refinement.
   notes terrain is frozen at creation) so new sub-packages appear as new
   districts over a repo's life.
 
-## Open questions (need a decision before Phase 2)
+## Decisions (locked 2026-05-31)
 
-1. **District cap** — 3–8? And how to present the "everything else" core.
-2. **Sub-package definition for manifest-less repos** — top-level source dirs
-   only, or a heuristic on directory size/file count?
-3. **Partition method** — grid (simple, blocky) vs Voronoi (organic) vs
-   growth-from-seed (prettiest, most code).
-4. **Save migration** — lazily synthesize a single default district for
-   existing towns, or require a rescan to populate districts?
-5. **Resource attribution** — keep global (proposed), or per-district pools?
+1. **District cap** — **top 5 sub-packages by LOC become districts; the
+   remainder folds into one "core" district.** A single-package repo is one
+   district (today's behavior).
+2. **Sub-package definition** — **manifest-anchored** (a subdir with its own
+   `Package.swift` / `package.json` / `pyproject.toml` / `go.mod` /
+   `Cargo.toml` / `build.gradle`), **falling back to top-level source dirs**
+   (`packages/*`, `services/*`, `src/`, `app/`) by LOC when a repo has no
+   manifests.
+3. **Partition method** — **growth-from-seed.** Districts start as spaced
+   seed tiles and expand outward in proportion to your ongoing activity in
+   that sub-package (see "Geography & growth"). Chosen over grid/Voronoi for
+   the living-map feel; it is the most code, hence Phase 2.
+4. **Save migration** — **lazy default district.** Old saves decode with one
+   implicit district spanning the whole map (no user action, nothing breaks);
+   real districts populate on the next rescan (Phase 3).
+5. **Resource attribution** — **global pool for v1.** Districts are
+   geographic/visual; one shared economy as today. Per-district pools are a
+   possible later refinement, not in scope.
 
 ## Risks
 
