@@ -110,6 +110,157 @@ enum RepoScanner {
         )
     }
 
+    // MARK: - Sub-package detection (issue #80, Phase 1)
+
+    /// A detected sub-package within a repo: a meaningful unit (a
+    /// manifest-anchored package, or — when a repo has no manifests — a
+    /// top-level source dir) that can become a district. `rootSubpath` is
+    /// relative to the scanned repo root. Local-only by construction (no
+    /// network); detection just walks the same tree `scan` does.
+    struct SubPackageInfo: Equatable {
+        let name: String
+        /// Path relative to the repo root (e.g. "packages/api").
+        let rootSubpath: String
+        let loc: Int
+    }
+
+    /// Manifest filenames that anchor a sub-package. A subdirectory
+    /// containing any of these is treated as its own package.
+    static let packageManifestNames: Set<String> = [
+        "Package.swift", "package.json", "pyproject.toml",
+        "go.mod", "Cargo.toml", "build.gradle", "build.gradle.kts"
+    ]
+
+    /// Top-level source directories used as the fallback unit when a repo
+    /// has no nested manifests. `packages/*` and `services/*` expand to
+    /// their immediate children; the others are taken whole.
+    static let fallbackSourceDirs = ["packages", "services", "src", "app", "lib"]
+
+    /// Dirs skipped during any walk (same set `countLOC` skips).
+    private static let skipDirNames: Set<String> = [
+        "node_modules", ".build", "build", "dist", "target", ".git",
+        "DerivedData", "Pods", ".venv", "venv", "__pycache__"
+    ]
+
+    /// Detect a repo's sub-packages, most-LOC first, capped at `max`.
+    ///
+    /// Manifest-anchored first: any subdir (below the root) that contains
+    /// its own package manifest. When the repo has no nested manifests, fall
+    /// back to top-level source dirs (`packages/*`, `services/*`, `src`,
+    /// `app`, `lib`) ranked by LOC. Returns `[]` for a single-package repo
+    /// (no nested manifests, no recognised source dirs) — the caller
+    /// synthesizes the lone "core" district in that case.
+    ///
+    /// 100% local — only reads the local filesystem (same file-walk caps,
+    /// skip list, and LOC counter as `scan`). No network, no Claude.
+    static func detectSubPackages(root: URL, max: Int = 5) -> [SubPackageInfo] {
+        let anchored = manifestAnchoredSubPackages(root: root)
+        let candidates = anchored.isEmpty ? fallbackSubPackages(root: root) : anchored
+        // Sort by LOC desc, tie-broken by rootSubpath asc for determinism.
+        return Array(
+            candidates
+                .sorted {
+                    $0.loc != $1.loc ? $0.loc > $1.loc : $0.rootSubpath < $1.rootSubpath
+                }
+                .prefix(max)
+        )
+    }
+
+    /// Walk the tree (respecting the same depth/file caps and skip list as
+    /// `countLOC`) collecting every directory below the root that holds one
+    /// of `packageManifestNames`. The root itself is excluded (its manifest
+    /// describes the whole repo, not a sub-package).
+    private static func manifestAnchoredSubPackages(root: URL) -> [SubPackageInfo] {
+        let rootPath = root.standardizedFileURL.path
+        var found: [URL] = []
+        var walked = 0
+
+        func walk(_ dir: URL, depth: Int) {
+            guard depth <= maxDepth, walked < fileWalkCap else { return }
+            let contents = (try? FileManager.default.contentsOfDirectory(
+                at: dir,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            )) ?? []
+            // Does *this* dir hold a manifest? (Skip the root itself.)
+            if dir.standardizedFileURL.path != rootPath,
+               contents.contains(where: { packageManifestNames.contains($0.lastPathComponent) }) {
+                found.append(dir)
+            }
+            for item in contents {
+                if walked >= fileWalkCap { return }
+                let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                guard isDir else {
+                    walked += 1
+                    continue
+                }
+                if skipDirNames.contains(item.lastPathComponent) { continue }
+                walk(item, depth: depth + 1)
+            }
+        }
+
+        walk(root, depth: 0)
+        return found.map { dir in
+            SubPackageInfo(
+                name: dir.lastPathComponent,
+                rootSubpath: relativeSubpath(of: dir, under: rootPath),
+                loc: locUnder(dir)
+            )
+        }
+    }
+
+    /// Fallback: top-level source dirs by LOC. `packages/` and `services/`
+    /// expand to their immediate child dirs (the conventional monorepo
+    /// layout); `src`, `app`, `lib` are taken whole if present.
+    private static func fallbackSubPackages(root: URL) -> [SubPackageInfo] {
+        let fm = FileManager.default
+        let rootPath = root.standardizedFileURL.path
+        var result: [SubPackageInfo] = []
+
+        for name in fallbackSourceDirs {
+            let dir = root.appendingPathComponent(name)
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue else { continue }
+
+            if name == "packages" || name == "services" {
+                let children = (try? fm.contentsOfDirectory(
+                    at: dir,
+                    includingPropertiesForKeys: [.isDirectoryKey],
+                    options: [.skipsHiddenFiles]
+                )) ?? []
+                for child in children {
+                    let childIsDir = (try? child.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                    guard childIsDir, !skipDirNames.contains(child.lastPathComponent) else { continue }
+                    result.append(SubPackageInfo(
+                        name: child.lastPathComponent,
+                        rootSubpath: relativeSubpath(of: child, under: rootPath),
+                        loc: locUnder(child)
+                    ))
+                }
+            } else {
+                result.append(SubPackageInfo(
+                    name: name,
+                    rootSubpath: relativeSubpath(of: dir, under: rootPath),
+                    loc: locUnder(dir)
+                ))
+            }
+        }
+        return result
+    }
+
+    /// Path of `url` relative to `rootPath` (no leading slash). "" if equal.
+    private static func relativeSubpath(of url: URL, under rootPath: String) -> String {
+        let p = url.standardizedFileURL.path
+        guard p.hasPrefix(rootPath + "/") else { return p == rootPath ? "" : p }
+        return String(p.dropFirst(rootPath.count + 1))
+    }
+
+    /// Total source LOC under a directory, summed across languages, using
+    /// the same counter + caps as `scan`.
+    private static func locUnder(_ dir: URL) -> Int {
+        countLOC(at: dir).values.reduce(0, +)
+    }
+
     /// SHA-256 of the resolved path, first 16 hex chars. Stable townId.
     static func townId(for path: URL) -> String {
         let resolved = path.standardizedFileURL.path

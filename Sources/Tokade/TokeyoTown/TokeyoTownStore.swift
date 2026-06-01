@@ -249,6 +249,11 @@ final class TokeyoTownStore {
         fresh.accountedEvents.lastEventId = nil
         // And explicitly zero resources in case anything slipped in.
         fresh.resources = .zero
+        // #80 Phase 1 — detect sub-packages and seed the district list
+        // (top sub-packages by LOC + a synthesized "core"). Data only;
+        // local-only scan, no map/geography change yet.
+        let subPackages = RepoScanner.detectSubPackages(root: path)
+        fresh.districts = Districts.makeDistricts(subPackages: subPackages, totalLOC: scan.loc)
         undoStack.removeAll()
         redoStack.removeAll()
         state = fresh
@@ -773,6 +778,24 @@ final class TokeyoTownStore {
             accounted: s.accountedEvents,
             currentSessionCwd: currentCwd
         )
+        // #80 Phase 1 — attribute this tick's in-repo events to districts
+        // (data only; no map change). Use the SAME high-water window the
+        // accrual just consumed so district activity matches resource
+        // accrual exactly. Read the prior high-water mark from the state
+        // we're about to overwrite. Old saves with nil districts lazily
+        // get one whole-repo "core" district (the locked migration).
+        let priorHighWater = s.accountedEvents.lastTimestamp ?? .distantPast
+        let tickEvents = events.filter { $0.timestamp > priorHighWater }
+        if s.districts == nil {
+            s.districts = Districts.coreOnly(totalLOC: s.repo.loc)
+        }
+        Districts.applyActivity(
+            &s.districts!,
+            events: tickEvents,
+            repoPath: s.repo.path,
+            now: .now
+        )
+
         s.resources.add(delta)
         s.accountedEvents = newAccounted
         s.lastTickAt = .now

@@ -23,6 +23,33 @@ struct TokeyoTownState: Codable, Equatable {
     /// yet." Gates the once-per-local-day coin bonus in `TokeyoTownStore`.
     var lastStreakDay: Date?
 
+    /// Per-repo districts (issue #80, Phase 1 — data only). The top
+    /// sub-packages by LOC plus a synthesized "core" district for the
+    /// remainder. Optional so saves written before this field existed
+    /// decode as `nil`; the store lazily synthesizes a single whole-repo
+    /// "core" district on the next tick (the locked "lazy default"
+    /// migration). Phase 1 tracks per-district activity only — there is no
+    /// map/geography change yet (Phase 2 consumes these counters).
+    var districts: [District]?
+
+    /// One district within a town. Phase 1 is data only: `activityTokens`
+    /// and `lastActiveAt` accumulate from cwd→district mapping; no spatial
+    /// bounds yet (Phase 2 adds geography).
+    struct District: Codable, Equatable {
+        /// Stable id derived from `rootSubpath`; "core" for the core district.
+        var id: String
+        /// Display name (the sub-package dir, or "core").
+        var name: String
+        /// Path relative to the repo root. "" for the core district.
+        var rootSubpath: String
+        /// LOC at scan time.
+        var originLOC: Int
+        /// Ongoing activity tokens attributed to this district.
+        var activityTokens: Int
+        /// Most recent time an in-repo event mapped to this district.
+        var lastActiveAt: Date?
+    }
+
     init(
         schemaVersion: Int = 2,
         townId: String,
@@ -34,7 +61,8 @@ struct TokeyoTownState: Codable, Equatable {
         buildings: [PlacedBuilding],
         townsfolk: [Townsfolk],
         terrain: TerrainGrid,
-        lastStreakDay: Date? = nil
+        lastStreakDay: Date? = nil,
+        districts: [District]? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.townId = townId
@@ -47,11 +75,13 @@ struct TokeyoTownState: Codable, Equatable {
         self.townsfolk = townsfolk
         self.terrain = terrain
         self.lastStreakDay = lastStreakDay
+        self.districts = districts
     }
 
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, townId, createdAt, lastTickAt, repo, resources,
-             accountedEvents, buildings, townsfolk, terrain, lastStreakDay
+             accountedEvents, buildings, townsfolk, terrain, lastStreakDay,
+             districts
     }
 
     init(from decoder: Decoder) throws {
@@ -78,6 +108,10 @@ struct TokeyoTownState: Codable, Equatable {
             )
         }
         lastStreakDay = try c.decodeIfPresent(Date.self, forKey: .lastStreakDay)
+        // Old saves predate districts → decode as nil. The store lazily
+        // synthesizes a single whole-repo "core" district on the next tick
+        // (issue #80, "lazy default" migration).
+        districts = try c.decodeIfPresent([District].self, forKey: .districts)
     }
 
     struct RepoSnapshot: Codable, Equatable {
