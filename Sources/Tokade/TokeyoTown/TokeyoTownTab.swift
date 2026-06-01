@@ -123,6 +123,13 @@ struct TokeyoTownGameView: View {
                     .foregroundStyle(.white.opacity(0.5))
             }
             Spacer()
+            // #80 Phase 3 — re-detect sub-packages so newly-added packages
+            // appear as districts. Districts only; terrain stays frozen.
+            Button("Rescan") { Task { await town.rescanRepo() } }
+                .buttonStyle(.plain)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.7))
+                .help("Rescan the repo for new sub-packages (adds districts; terrain stays the same)")
             Button("New…") { onStartNewTown() }
                 .buttonStyle(.plain)
                 .font(.system(.caption2, design: .monospaced))

@@ -454,6 +454,71 @@ final class TokeyoTownStore {
         await clearActiveTown(mode: .delete)
     }
 
+    /// Re-scan the active town's repo to pick up sub-packages added (or
+    /// removed) since adoption, merging them into the existing districts
+    /// WITHOUT losing accumulated activity or shifting existing districts
+    /// (issue #80, Phase 3 — rescan).
+    ///
+    /// Scope is **districts only**: terrain/biome/map-size stay frozen at
+    /// creation (ADR-0006 — terrain is a creation-time identity, deliberately
+    /// out of scope here). We re-run `RepoScanner.detectSubPackages` (local
+    /// only — no network, no Claude, same guarantee as adoption), merge via
+    /// `Districts.mergeDistricts`, place seeds for any brand-new districts
+    /// (leaving existing seeds put via `DistrictGeography.fillMissingSeeds`),
+    /// persist, then force an ownership recompute so the map updates.
+    ///
+    /// Guards: no-op when there's no active town, or when the repo path no
+    /// longer exists on disk (a moved/deleted repo) — surfaces nothing and
+    /// never crashes.
+    func rescanRepo() async {
+        guard var s = state else { return }
+        let repoURL = URL(fileURLWithPath: s.repo.path)
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: repoURL.path, isDirectory: &isDir),
+              isDir.boolValue else {
+            // Repo moved/deleted — gentle no-op (the town's frozen terrain and
+            // accrued activity remain intact and playable).
+            log.info("rescanRepo: repo path missing, skipping")
+            return
+        }
+
+        // Local-only sub-package detection (ADR-0006 §3).
+        let detected = RepoScanner.detectSubPackages(root: repoURL)
+        let existing = s.districts ?? Districts.coreOnly(totalLOC: s.repo.loc)
+        // Merge against the FROZEN creation-time LOC — terrain/size are out of
+        // scope, so the core's area math stays consistent with adoption.
+        var merged = Districts.mergeDistricts(
+            existing: existing,
+            detected: detected,
+            totalLOC: s.repo.loc
+        )
+
+        // Place seeds for any brand-new districts; existing seeds stay put.
+        let existingSeeds: [(x: Int, y: Int)?] = merged.map { d in
+            if let x = d.seedX, let y = d.seedY { return (x, y) }
+            return nil
+        }
+        let filled = DistrictGeography.fillMissingSeeds(
+            existingSeeds: existingSeeds,
+            mapSize: s.terrain.size,
+            terrain: s.terrain,
+            townId: s.townId
+        )
+        for (i, seed) in filled.enumerated() where i < merged.count {
+            if let seed {
+                merged[i].seedX = seed.x
+                merged[i].seedY = seed.y
+            }
+        }
+
+        s.districts = merged
+        state = s
+        await save.writeTown(s)
+        // Force the ownership grid to rebuild so new districts paint and any
+        // dropped district's territory reverts to core immediately.
+        recomputeDistrictOwnership(forced: true)
+    }
+
     // MARK: - Tools
 
     func selectTool(_ tool: Tool) {
