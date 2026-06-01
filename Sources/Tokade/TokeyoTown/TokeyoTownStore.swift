@@ -253,7 +253,23 @@ final class TokeyoTownStore {
         // (top sub-packages by LOC + a synthesized "core"). Data only;
         // local-only scan, no map/geography change yet.
         let subPackages = RepoScanner.detectSubPackages(root: path)
-        fresh.districts = Districts.makeDistricts(subPackages: subPackages, totalLOC: scan.loc)
+        var districts = Districts.makeDistricts(subPackages: subPackages, totalLOC: scan.loc)
+        // #80 Phase 2a — place each district's deterministic seed tile (data
+        // only). Seeds are spread across buildable land, keyed off townId so
+        // re-adopting the same repo yields the same layout. The full
+        // ownership grid is derived (Phase 2b computes it at render time from
+        // these seeds + per-district weights); we persist seeds only.
+        let seeds = DistrictGeography.placeSeeds(
+            districtCount: districts.count,
+            mapSize: fresh.terrain.size,
+            terrain: fresh.terrain,
+            townId: townId
+        )
+        for (i, seed) in seeds.enumerated() where i < districts.count {
+            districts[i].seedX = seed.x
+            districts[i].seedY = seed.y
+        }
+        fresh.districts = districts
         undoStack.removeAll()
         redoStack.removeAll()
         state = fresh

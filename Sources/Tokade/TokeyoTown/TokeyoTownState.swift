@@ -48,6 +48,13 @@ struct TokeyoTownState: Codable, Equatable {
         var activityTokens: Int
         /// Most recent time an in-repo event mapped to this district.
         var lastActiveAt: Date?
+        /// Seed tile X (issue #80, Phase 2a). Optional so saves written
+        /// before this field existed decode as `nil`. `DistrictGeography`
+        /// places seeds at adoption; a `nil` seed (old saves) is left for
+        /// Phase 2b/3 to backfill — never crashes.
+        var seedX: Int?
+        /// Seed tile Y (issue #80, Phase 2a). See `seedX`.
+        var seedY: Int?
     }
 
     init(
