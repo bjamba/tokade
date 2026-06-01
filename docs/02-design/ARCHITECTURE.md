@@ -5,7 +5,7 @@
 > **Status**: stable for v0.x
 
 Tokade is a single-process macOS menu bar app. It polls two local sources
-every 30 seconds, appends to two local archives, and renders three tabs of
+every 3 seconds, appends to two local archives, and renders three tabs of
 charts off a single observable store. No network calls; no IPC beyond the
 statusline shim's file-write.
 
@@ -16,8 +16,8 @@ flowchart LR
   CC[Claude Code] -->|writes JSONL| JL["~/.claude/projects/*.jsonl"]
   CC -->|invokes on each<br/>statusline render| SH[statusline-shim.sh]
   SH -->|writes JSON| ST["~/.tokade/last-status.json"]
-  JL -->|reads every 30s| US[UsageStore]
-  ST -->|reads every 30s| US
+  JL -->|reads every 3s| US[UsageStore]
+  ST -->|reads every 3s| US
   US -->|appends new events| EA["~/.tokade/history/events.jsonl"]
   US -->|appends new pct snapshots| SA["~/.tokade/history/snapshots.jsonl"]
   US -->|@Observable @MainActor| UI[SwiftUI MenuBarExtra]
