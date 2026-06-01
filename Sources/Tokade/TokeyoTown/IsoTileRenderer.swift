@@ -106,6 +106,17 @@ struct IsoTileRenderer: View {
     /// codes. Default 0 = calm streets, so it never alters the base look
     /// until real usage data exists.
     var bustle: Double = 0
+    /// #80 Phase 2b — row-major district-ownership grid (one entry per tile,
+    /// `mapSize * mapSize`), produced by `DistrictGeography.ownership(...)`
+    /// and cached on the store. Value is the index into `districtRenderInfo`
+    /// that owns the tile, or `-1` for unowned tiles. Empty when there are no
+    /// districts → no district rendering happens.
+    var districtOwnership: [Int] = []
+    /// #80 Phase 2b — parallel render metadata for `districtOwnership`:
+    /// `districtRenderInfo[ownership]` is the owning district's id (drives the
+    /// hue / neutral core), name, and seed tile (drives the label). Empty when
+    /// there are no districts.
+    var districtRenderInfo: [TokeyoTownStore.DistrictRenderInfo] = []
 
     struct PlacementPreview {
         let kind: String
@@ -145,6 +156,20 @@ struct IsoTileRenderer: View {
             for y in 0..<state.repo.mapSize {
                 for x in 0..<state.repo.mapSize {
                     drawTileSubDetail(context: context, x: x, y: y, biome: biome, canvas: size)
+                }
+            }
+
+            // #80 Phase 2b — per-district ground tint. Washes each owned
+            // grass/sand tile with a translucent hue from its district so the
+            // map reads as neighborhoods. Drawn here (over the ground +
+            // sub-detail, under decor / roads / buildings) so it never
+            // discolors structures, and the tint is darkened by the same
+            // night factor as the ground so it composites UNDER day/night.
+            if !districtOwnership.isEmpty {
+                for y in 0..<state.repo.mapSize {
+                    for x in 0..<state.repo.mapSize {
+                        drawDistrictTint(context: context, x: x, y: y, canvas: size)
+                    }
                 }
             }
 
@@ -242,7 +267,105 @@ struct IsoTileRenderer: View {
                               x: interpX, y: interpY, elevation: elev,
                               npc: npc, canvas: size)
             }
+
+            // #80 Phase 2b — district name banners at each district's seed
+            // tile. Drawn last so they stay legible over everything. The
+            // synthesized core district is labeled faintly ("downtown" read).
+            if !districtRenderInfo.isEmpty {
+                for info in districtRenderInfo {
+                    drawDistrictLabel(context: context, info: info, canvas: size)
+                }
+            }
         }
+    }
+
+    // MARK: - District rendering (#80 Phase 2b)
+
+    /// Washes one owned grass/sand tile with a translucent district hue.
+    /// No-op for water / road / building / decor tiles and for the neutral
+    /// core district, so structures and downtown stay untinted. The tint is
+    /// darkened by the same night factor as the ground (`groundColor`'s
+    /// `nightMix`) so it composites UNDER the day/night light.
+    private func drawDistrictTint(
+        context: GraphicsContext,
+        x: Int,
+        y: Int,
+        canvas: CGSize
+    ) {
+        let i = y * state.repo.mapSize + x
+        guard i >= 0, i < districtOwnership.count else { return }
+        let owner = districtOwnership[i]
+        guard owner >= 0, owner < districtRenderInfo.count else { return }
+
+        // Only wash buildable ground (grass / sand). Skip water, roads,
+        // trees, flowers, rocks, decor — those carry their own art.
+        let tile = state.terrain.tile(x: x, y: y)
+        guard tile == .grass || tile == .sand else { return }
+
+        let hue = DistrictGeography.districtHue(id: districtRenderInfo[owner].id)
+        // Sentinel `-1` → the neutral core district: a barely-there gray so
+        // downtown reads as a district without a colored tint.
+        let tint: Color = hue < 0
+            ? Color(white: 0.5)
+            : Color(hue: hue, saturation: 0.55, brightness: 0.85)
+        let opacity = hue < 0 ? 0.05 : 0.14
+
+        let elev = state.terrain.elev(x: x, y: y)
+        let center = IsoMath.project(x: Double(x), y: Double(y),
+                                     elevation: elev,
+                                     mapSize: state.repo.mapSize,
+                                     canvas: canvas, view: view)
+        let tw = IsoMath.tileWidth(forMapSize: state.repo.mapSize, zoom: view.zoom)
+        let th = IsoMath.tileHeight(forMapSize: state.repo.mapSize, zoom: view.zoom)
+        var path = Path()
+        path.move(to: CGPoint(x: center.x, y: center.y - th))
+        path.addLine(to: CGPoint(x: center.x + tw, y: center.y))
+        path.addLine(to: CGPoint(x: center.x, y: center.y + th))
+        path.addLine(to: CGPoint(x: center.x - tw, y: center.y))
+        path.closeSubpath()
+
+        // Composite under day/night: darken the tint by the same factor the
+        // ground uses, so the tint fades into the dark at night too.
+        let nightMix = (1.0 - lightLevel) * 0.6
+        context.fill(path, with: .color(darken(tint, by: nightMix).opacity(opacity)))
+    }
+
+    /// Draws a small, subtle district-name banner above the district's seed
+    /// tile. The core district is labeled very faintly; named districts get a
+    /// slightly more visible (but still unobtrusive) pill — reusing the same
+    /// dark-pill-behind-text pattern as the building name labels.
+    private func drawDistrictLabel(
+        context: GraphicsContext,
+        info: TokeyoTownStore.DistrictRenderInfo,
+        canvas: CGSize
+    ) {
+        let isCore = info.id == Districts.coreId
+        let elev = state.terrain.elev(x: info.seedX, y: info.seedY)
+        let center = IsoMath.project(x: Double(info.seedX), y: Double(info.seedY),
+                                     elevation: elev,
+                                     mapSize: state.repo.mapSize,
+                                     canvas: canvas, view: view)
+        let zoom = CGFloat(view.zoom)
+        let p = CGPoint(x: center.x, y: center.y - 14 * zoom)
+        let fontSize = 7.5 * zoom
+        let textOpacity = isCore ? 0.55 : 0.92
+        let pillOpacity = isCore ? 0.35 : 0.6
+        let text = Text(info.name)
+            .font(.system(size: fontSize, weight: .semibold, design: .monospaced))
+            .foregroundColor(.white.opacity(textOpacity))
+        let resolved = context.resolve(text)
+        let textSize = resolved.measure(in: CGSize(width: 240, height: 60))
+        let padX: CGFloat = 4
+        let padY: CGFloat = 2
+        let pillRect = CGRect(
+            x: p.x - textSize.width / 2 - padX,
+            y: p.y - textSize.height / 2 - padY,
+            width: textSize.width + padX * 2,
+            height: textSize.height + padY * 2
+        )
+        context.fill(Path(roundedRect: pillRect, cornerRadius: 3),
+                     with: .color(Color.black.opacity(pillOpacity)))
+        context.draw(resolved, at: p, anchor: .center)
     }
 
     // MARK: - Ground + cliffs

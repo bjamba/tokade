@@ -215,4 +215,42 @@ enum DistrictGeography {
         let activity = min(max(0, district.activityTokens) / 500, 24)
         return base + activity
     }
+
+    // MARK: - District hue (Phase 2b rendering)
+
+    /// A stable, well-spread hue ∈ [0, 1) for the ground tint of the
+    /// district with the given `id`. Deterministic (a hash of `id`), so the
+    /// same district always washes the same color across launches, and
+    /// distinct ids land on distinct, widely-separated hues.
+    ///
+    /// The synthesized **core** district renders NEUTRAL (downtown) — the
+    /// renderer skips tinting it — so `districtHue(id:)` returns a sentinel
+    /// of `-1` for `"core"` to make "no tint" explicit and testable. All
+    /// other ids return a value in `[0, 1)`.
+    ///
+    /// Spread strategy: a 64-bit FNV-1a hash of the id's UTF-8 bytes is
+    /// mapped to `[0, 1)` and offset by the golden-ratio conjugate
+    /// (`φ⁻¹ ≈ 0.618…`). The golden-ratio step is the classic
+    /// low-discrepancy hue sequence — it scatters even near-identical ids
+    /// (e.g. `packages/api` vs `packages/app`) far apart on the wheel. Pure
+    /// and integer-seeded → deterministic.
+    static func districtHue(id: String) -> Double {
+        if id == Districts.coreId { return -1 }
+        var hash: UInt64 = 0xCBF2_9CE4_8422_2325 // FNV-1a offset basis
+        for byte in id.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x0000_0100_0000_01B3 // FNV-1a prime
+        }
+        // SplitMix64 finalizer: avalanche the hash so a single changed byte
+        // (e.g. `packages/api` vs `packages/app`) flips bits across the whole
+        // word, not just the low end — otherwise near-identical ids land on
+        // near-identical hues.
+        hash = (hash ^ (hash >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        hash = (hash ^ (hash >> 27)) &* 0x94D0_49BB_1331_11EB
+        hash ^= hash >> 31
+        // Golden-ratio conjugate offset → low-discrepancy hue sequence.
+        let golden = 0.618_033_988_749_894_8
+        let unit = Double(hash >> 11) / Double(1 << 53) // [0, 1)
+        return (unit + golden).truncatingRemainder(dividingBy: 1.0)
+    }
 }
