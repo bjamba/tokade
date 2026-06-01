@@ -6,6 +6,57 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-05-31
+
+**Arcade Coupling** — the headline of this release. Both arcade games now react
+to *how* you actually use Claude Code, not just *how much*. Plus a wave of polish
+fixes across the games and the main app.
+
+### Added
+
+- **Token Gaiden — your model choice shapes your pet's life.** HP drain and
+  aging are now weighted by the model mix you run: Opus-heavy work ages the pet
+  ~2× faster, Haiku-heavy ~0.5×, with Sonnet as the neutral baseline. Model
+  discipline is now a survival mechanic. (#36)
+- **Token Gaiden — region bosses.** Challenge the boss of the project you work
+  in most; victory drops gear themed to that repo's stack. (#42)
+- **Token Gaiden — tool & slash-command verbs.** Slash commands drop themed
+  items (`/test` → a heal, `/review` → SP) and tool families flavor the world
+  (Bash → forge, Edit → construct, Grep/Read → scout). (#41)
+- **Tokeyo Town — model mix shapes your resources.** Opus tokens lean your
+  earnings toward knowledge + industry; Haiku toward lumber + coin. (#43)
+- **Tokeyo Town — the town follows your rhythm.** Liveliness (lantern glow)
+  rises during your real peak coding hours, derived from your usage heatmap. (#45)
+- **Both games — daily usage streaks** with a small once-per-day bonus for
+  using Claude Code. (#46)
+
+### Changed
+
+- **Token Gaiden death/recovery now tracks wall-clock time** — a downed pet no
+  longer freezes between sessions; the grace period is real seconds, not
+  usage-ticks. (#37, #38)
+- **Tokeyo Town resources come from the repo you adopted** — usage in other
+  repos no longer grows your town, and the active-session 2× bonus reads the
+  real statusline session. (#39)
+- **Tokeyo Town heavy simulation runs only when its tab is visible** (townsfolk
+  pathing + upkeep), while resource accrual continues in the background. (#54)
+- **Budget chart bars stay aligned after a 5-hour rollover**, anchored on
+  recorded server reset-times rather than a projection. (#44)
+- **Docs & economy reconciled** — poll interval corrected to 3s; the Tokeyo
+  resource economy now matches ADR-0006 (no balance change). (#57, #40)
+
+### Fixed
+
+- Token Gaiden: a backgrounded budget jump can no longer one-shot the pet (#56);
+  the "visit 3 distinct regions" quest now actually counts regions (#55).
+- Tokeyo Town: re-adopting a repo no longer clobbers the town index (#50);
+  removing natural coastline water no longer prints coin (#51); idle upkeep no
+  longer empties the town (#53); townsfolk recover instead of freezing when a
+  goal is walled off (#52).
+- Main app: per-project token totals exclude `<synthetic>` (#47); the YTD
+  early-January rate is no longer inflated (#48); events without a message id
+  no longer double-count (#49).
+
 ## [0.5.1] — 2026-05-31
 
 A correctness-and-contracts hotfix release. No new features — these fix data
