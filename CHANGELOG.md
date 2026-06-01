@@ -6,6 +6,28 @@ follows [semver](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-05-31
+
+### Added
+
+- **Tokeyo Town — per-repo districts.** A monorepo's sub-packages now grow
+  into distinct neighborhoods on your town map. Sub-packages are detected
+  locally (manifest-anchored — `Package.swift` / `package.json` / `go.mod` /
+  etc. — with a top-level source-dir fallback); the top 5 by size each become
+  a district, the rest fold into a "core" downtown. Each district grows
+  outward from a seed tile in proportion to how much you actually work in that
+  sub-package, shown as a subtle per-district ground tint plus a name label.
+  A **Rescan** button picks up new sub-packages over a repo's life. Existing
+  towns keep working as a single whole-repo district until rescanned. Built in
+  four phases (detection → ownership algorithm → rendering → rescan), all
+  local — no network, no Claude calls. (#80)
+
+### Changed
+
+- `docs/02-design/ARCHITECTURE.md` poll interval corrected to 3 seconds.
+- Pure-value Tokeyo store constants marked `nonisolated` for Swift 6 readiness
+  (no behavior change).
+
 ## [0.6.0] — 2026-05-31
 
 **Arcade Coupling** — the headline of this release. Both arcade games now react
