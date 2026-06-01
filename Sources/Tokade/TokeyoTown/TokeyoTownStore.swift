@@ -44,6 +44,117 @@ final class TokeyoTownStore {
     /// looking at never pays the simulation cost (#54).
     var isForeground = false
 
+    // MARK: - District ownership cache (#80 Phase 2b)
+
+    /// Row-major district-ownership grid for the active town — the output of
+    /// `DistrictGeography.ownership(...)`, computed from the current town's
+    /// district seeds + per-district weights. The renderer reads this to wash
+    /// each owned ground tile with its district's hue.
+    ///
+    /// NOT persisted and NOT observed: the BFS that produces it is O(n²) in
+    /// tile count, so it must never run per render frame. It is recomputed
+    /// only on adoption, when the town tab appears, and when district
+    /// activity has changed since the last compute (a cheap summed-token
+    /// dirty flag). `@ObservationIgnored` keeps mutating it from triggering
+    /// a SwiftUI invalidation storm.
+    @ObservationIgnored private(set) var districtOwnership: [Int] = []
+
+    /// Parallel render metadata for `districtOwnership`: `districtRenderInfo[i]`
+    /// describes the district that owns tiles whose ownership value is `i`.
+    /// Carries just what the renderer needs (id for hue/neutral-core, name +
+    /// seed for the label) so the renderer never reaches back into the store.
+    @ObservationIgnored private(set) var districtRenderInfo: [DistrictRenderInfo] = []
+
+    /// The summed `activityTokens` across all districts at the moment
+    /// `districtOwnership` was last computed. Comparing the current sum to
+    /// this is the cheap dirty flag that decides whether a recompute is due.
+    /// `nil` means "never computed" → always recompute.
+    @ObservationIgnored private var lastOwnershipActivitySum: Int?
+
+    /// Minimal per-district info the renderer needs to tint + label tiles
+    /// without depending on the store or the full `District` model.
+    struct DistrictRenderInfo: Equatable {
+        let id: String
+        let name: String
+        let seedX: Int
+        let seedY: Int
+    }
+
+    /// Pure decision: should the ownership grid be recomputed?
+    ///
+    /// Recompute when there is no prior compute (`lastActivitySum == nil`),
+    /// when forced (adoption / tab-appear), or when the districts' summed
+    /// activity has changed since the last compute. Kept pure + static so the
+    /// recompute-gating logic is unit-testable without a live store.
+    nonisolated static func shouldRecomputeOwnership(
+        currentActivitySum: Int,
+        lastActivitySum: Int?,
+        forced: Bool
+    ) -> Bool {
+        if forced { return true }
+        guard let last = lastActivitySum else { return true }
+        return currentActivitySum != last
+    }
+
+    /// Recompute `districtOwnership` + `districtRenderInfo` from the active
+    /// town's district seeds and `DistrictGeography.weight(for:)`. No-op when
+    /// there's no town. `forced` bypasses the activity dirty-flag (used on
+    /// adoption and tab-appear); otherwise the grid is only rebuilt when
+    /// district activity has moved since the last compute.
+    ///
+    /// Old saves whose districts predate seeds (Phase 2a) get their seeds
+    /// backfilled here via `DistrictGeography.placeSeeds` so existing towns
+    /// light up too. The backfill is in-memory only (drives this frame's
+    /// render); it isn't persisted from here.
+    func recomputeDistrictOwnership(forced: Bool = false) {
+        guard var s = state else {
+            districtOwnership = []
+            districtRenderInfo = []
+            lastOwnershipActivitySum = nil
+            return
+        }
+        if s.districts == nil {
+            s.districts = Districts.coreOnly(totalLOC: s.repo.loc)
+        }
+        var districts = s.districts ?? []
+        let activitySum = districts.reduce(0) { $0 + $1.activityTokens }
+        guard Self.shouldRecomputeOwnership(
+            currentActivitySum: activitySum,
+            lastActivitySum: lastOwnershipActivitySum,
+            forced: forced
+        ) else { return }
+
+        // Backfill missing seeds (old saves) so every district has one.
+        if districts.contains(where: { $0.seedX == nil || $0.seedY == nil }) {
+            let placed = DistrictGeography.placeSeeds(
+                districtCount: districts.count,
+                mapSize: s.terrain.size,
+                terrain: s.terrain,
+                townId: s.townId
+            )
+            for (i, seed) in placed.enumerated() where i < districts.count {
+                if districts[i].seedX == nil { districts[i].seedX = seed.x }
+                if districts[i].seedY == nil { districts[i].seedY = seed.y }
+            }
+        }
+
+        let seeds: [(x: Int, y: Int)] = districts.map { ($0.seedX ?? 0, $0.seedY ?? 0) }
+        let weights = districts.map { DistrictGeography.weight(for: $0) }
+        districtOwnership = DistrictGeography.ownership(
+            seeds: seeds,
+            weights: weights,
+            mapSize: s.terrain.size,
+            terrain: s.terrain
+        )
+        districtRenderInfo = districts.map {
+            DistrictRenderInfo(
+                id: $0.id, name: $0.name,
+                seedX: $0.seedX ?? 0, seedY: $0.seedY ?? 0
+            )
+        }
+        lastOwnershipActivitySum = activitySum
+    }
+
     func cycleDayNightMode() {
         dayNightMode = dayNightMode.next
     }
@@ -205,6 +316,10 @@ final class TokeyoTownStore {
     func load() async {
         index = await save.readIndex()
         state = await save.readActiveTown()
+        // #80 Phase 2b — prime the district-ownership grid for the loaded
+        // town (forced) so districts render on the very first frame, before
+        // any activity tick. No-op when there's no active town.
+        recomputeDistrictOwnership(forced: true)
     }
 
     #if DEBUG
@@ -273,6 +388,10 @@ final class TokeyoTownStore {
         undoStack.removeAll()
         redoStack.removeAll()
         state = fresh
+        // #80 Phase 2b — compute the district-ownership grid for the new
+        // town now (forced) so the freshly-adopted map paints its districts
+        // on first render rather than waiting for the first activity tick.
+        recomputeDistrictOwnership(forced: true)
         // #50 — merge the new town into the existing index rather than
         // replacing the whole `towns` list. Re-adopting an already-listed
         // repo (same townId) updates its entry in place; adopting a new
@@ -324,6 +443,9 @@ final class TokeyoTownStore {
         state = nil
         undoStack.removeAll()
         redoStack.removeAll()
+        // #80 Phase 2b — drop the cached ownership grid; it belongs to the
+        // town we just cleared.
+        recomputeDistrictOwnership(forced: true)
     }
 
     /// Legacy alias — old callers (and the "Erase Tokeyo Town history"
@@ -844,6 +966,14 @@ final class TokeyoTownStore {
             )
         }
         state = s
+        // #80 Phase 2b — refresh the district-ownership grid if this tick
+        // moved district activity (the hot districts grow). Only while the
+        // tab is on screen, and the internal summed-token dirty flag makes
+        // it a no-op when nothing changed — so this never runs the O(n²)
+        // BFS per render frame, only when geography actually shifts.
+        if isForeground {
+            recomputeDistrictOwnership()
+        }
         scheduleWrite()
     }
 

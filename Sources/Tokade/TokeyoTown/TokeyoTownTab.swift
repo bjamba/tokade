@@ -18,7 +18,14 @@ struct TokeyoTownTab: View {
             // pathing + upkeep eviction) only runs while this tab is on
             // screen. Toggling `isForeground` here is what gates it; the
             // background tick keeps accruing resources regardless (#54).
-            .onAppear { town.isForeground = true }
+            .onAppear {
+                town.isForeground = true
+                // #80 Phase 2b — recompute the district-ownership grid when
+                // the town comes on screen so the map reflects any activity
+                // accrued while the tab was hidden (background ticks skip the
+                // O(n²) BFS). Forced — guaranteed once per appearance.
+                town.recomputeDistrictOwnership(forced: true)
+            }
             .onDisappear { town.isForeground = false }
     }
 
@@ -323,7 +330,13 @@ struct TokeyoTownGameView: View {
                                                    now: context.date).lightLevel,
                         // #45 — usage-driven liveliness, layered on top of
                         // the wall-clock light without replacing it.
-                        bustle: town.bustle
+                        bustle: town.bustle,
+                        // #80 Phase 2b — district ownership grid + per-district
+                        // render info from the store's non-persisted cache.
+                        // Empty when no town / no districts → renderer paints
+                        // nothing extra.
+                        districtOwnership: town.districtOwnership,
+                        districtRenderInfo: town.districtRenderInfo
                     )
                     .contentShape(Rectangle())
                     .onContinuousHover { phase in
