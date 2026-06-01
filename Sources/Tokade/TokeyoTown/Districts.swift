@@ -49,6 +49,84 @@ enum Districts {
         return districts
     }
 
+    /// Re-detect a repo's sub-packages and merge them into an existing
+    /// district list (issue #80, Phase 3 — rescan) WITHOUT losing accumulated
+    /// activity or shifting existing districts.
+    ///
+    /// Rules:
+    /// - A detected sub-package that **matches** an existing district (by
+    ///   `rootSubpath`) keeps that district's accumulated `activityTokens`,
+    ///   `lastActiveAt`, and `seedX/seedY`; only its `originLOC` (and display
+    ///   `name`) is refreshed to the newly-measured size.
+    /// - A detected sub-package with **no existing match** becomes a new
+    ///   district (activity 0, no seed yet — the store/geography places one).
+    /// - We keep the top `max` sub-packages by LOC (detection already caps,
+    ///   but we re-cap defensively so a larger pre-existing list can't smuggle
+    ///   extra districts past the cap).
+    /// - The synthesized **core** district is preserved (its accumulated
+    ///   `activityTokens`/`lastActiveAt`/seed survive); only its `originLOC` is
+    ///   recomputed as `totalLOC − Σ kept-sub-package LOC` (clamped ≥ 0). If no
+    ///   core existed yet (shouldn't happen, but be defensive), one is
+    ///   synthesized.
+    /// - A previously-detected sub-package that is **no longer detected**
+    ///   (deleted from the repo) is dropped; its territory reverts to core on
+    ///   the next ownership compute.
+    ///
+    /// Pure + deterministic — no filesystem, no network. Order of returned
+    /// districts mirrors `detected` order (sub-packages first, core last) so
+    /// seed placement stays stable for unchanged districts.
+    static func mergeDistricts(
+        existing: [TokeyoTownState.District],
+        detected: [RepoScanner.SubPackageInfo],
+        totalLOC: Int,
+        max: Int = 5
+    ) -> [TokeyoTownState.District] {
+        // Re-cap defensively, preserving detection's LOC-desc ordering.
+        let kept = Array(detected.prefix(max))
+        let existingBySubpath = Dictionary(
+            existing.map { ($0.rootSubpath, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        var merged: [TokeyoTownState.District] = kept.map { sp in
+            if !sp.rootSubpath.isEmpty, let prior = existingBySubpath[sp.rootSubpath] {
+                // Matched: preserve activity + seed; refresh LOC + name.
+                var d = prior
+                d.name = sp.name
+                d.originLOC = sp.loc
+                return d
+            }
+            // New sub-package: fresh district, no seed yet.
+            return TokeyoTownState.District(
+                id: districtId(forSubpath: sp.rootSubpath),
+                name: sp.name,
+                rootSubpath: sp.rootSubpath,
+                originLOC: sp.loc,
+                activityTokens: 0,
+                lastActiveAt: nil
+            )
+        }
+
+        // Recompute the core's originLOC; preserve its accumulated state.
+        // (`Swift.max` — the `max` parameter shadows the global here.)
+        let claimedLOC = kept.reduce(0) { $0 + $1.loc }
+        let coreLOC = Swift.max(0, totalLOC - claimedLOC)
+        if var core = existing.first(where: { $0.rootSubpath.isEmpty }) {
+            core.originLOC = coreLOC
+            merged.append(core)
+        } else {
+            merged.append(TokeyoTownState.District(
+                id: coreId,
+                name: coreName,
+                rootSubpath: "",
+                originLOC: coreLOC,
+                activityTokens: 0,
+                lastActiveAt: nil
+            ))
+        }
+        return merged
+    }
+
     /// A single whole-repo core district — the lazy default for old saves
     /// (issue #80 migration). `originLOC` is the repo's total LOC.
     static func coreOnly(totalLOC: Int) -> [TokeyoTownState.District] {

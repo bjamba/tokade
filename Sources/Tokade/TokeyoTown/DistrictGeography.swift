@@ -87,6 +87,83 @@ enum DistrictGeography {
         return chosen
     }
 
+    /// Incrementally place seeds for ONLY the districts whose seed is `nil`
+    /// (issue #80, Phase 3 — rescan), leaving every already-placed seed
+    /// exactly where it is so existing districts never move.
+    ///
+    /// `existingSeeds[i]` is district `i`'s current seed, or `nil` if it has
+    /// none yet (a freshly-detected sub-package). Each missing seed is filled
+    /// with the buildable+passable land tile farthest (squared-Euclidean) from
+    /// the set of already-placed seeds — the same greedy farthest-point logic
+    /// `placeSeeds` uses, but anchored to the existing layout instead of
+    /// re-placing everything. Deterministic from `townId`: when there are no
+    /// existing seeds at all (every district is new), the first pick comes from
+    /// the same PRNG seed `placeSeeds` uses.
+    ///
+    /// Returns a full seed array of the same length as `existingSeeds`: kept
+    /// seeds pass through untouched, missing ones are filled. A district can
+    /// fail to receive a seed only if the map has no remaining distinct land
+    /// tile (tiny/saturated maps) — it stays `nil`.
+    static func fillMissingSeeds(
+        existingSeeds: [(x: Int, y: Int)?],
+        mapSize: Int,
+        terrain: TerrainGrid,
+        townId: String
+    ) -> [(x: Int, y: Int)?] {
+        guard mapSize > 0 else { return existingSeeds }
+
+        var candidates: [(x: Int, y: Int)] = []
+        for y in 0 ..< mapSize {
+            for x in 0 ..< mapSize {
+                let t = terrain.tile(x: x, y: y)
+                if t.isBuildable, t.isWalkable {
+                    candidates.append((x, y))
+                }
+            }
+        }
+        guard !candidates.isEmpty else { return existingSeeds }
+
+        // Seeds already in use — both the anchor for farthest-point and the
+        // tiles a new district may not be handed (no two districts share one).
+        var placed: [(x: Int, y: Int)] = existingSeeds.compactMap { $0 }
+        var result = existingSeeds
+        var rng = SplitMix64(seed: TerrainGenerator.seed(for: townId))
+
+        for i in result.indices where result[i] == nil {
+            // Drop candidates already taken by a placed seed.
+            let free = candidates.filter { c in !placed.contains(where: { $0 == c }) }
+            guard !free.isEmpty else { break }
+
+            let pick: (x: Int, y: Int)
+            if placed.isEmpty {
+                // No anchor yet — deterministic first pick from the PRNG,
+                // matching `placeSeeds`'s first seed for a fully-new town.
+                pick = free[Int(rng.next() % UInt64(free.count))]
+            } else {
+                // Greedy farthest-point from the already-placed seeds. Ties
+                // break by row-major index (free is built in row-major order).
+                var best = free[0]
+                var bestDist = -1
+                for c in free {
+                    var nearest = Int.max
+                    for s in placed {
+                        let dx = c.x - s.x
+                        let dy = c.y - s.y
+                        nearest = min(nearest, dx * dx + dy * dy)
+                    }
+                    if nearest > bestDist {
+                        bestDist = nearest
+                        best = c
+                    }
+                }
+                pick = best
+            }
+            result[i] = pick
+            placed.append(pick)
+        }
+        return result
+    }
+
     // MARK: - Weighted ownership (growth-from-seed)
 
     /// Assign each passable tile to a district index via a **weighted
