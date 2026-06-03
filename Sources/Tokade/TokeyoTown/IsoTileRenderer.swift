@@ -886,6 +886,36 @@ struct IsoTileRenderer: View {
 
     // MARK: - Roads (autotiled with sidewalks)
 
+    /// Pure autotiling logic for roads, factored out of the renderer so the
+    /// edge-decision math can be unit-tested without a `Canvas`. Inputs and
+    /// outputs are plain 4-bit masks (N=1, E=2, S=4, W=8); no geometry, no
+    /// `state`, no SwiftUI.
+    enum RoadAutotile {
+        static let n = 1
+        static let e = 2
+        static let s = 4
+        static let w = 8
+        static let all = 15
+
+        /// Given a road tile's neighbor mask (which of N/E/S/W are also part
+        /// of the road network), return the mask of *outer* edges that should
+        /// get a sidewalk curb — every edge facing a NON-road direction.
+        ///
+        /// Examples:
+        ///   - isolated tile (mask 0)            → all four edges (15)
+        ///   - straight horizontal road (E|W=10) → N and S only (5)
+        ///   - straight vertical road (N|S=5)    → E and W only (10)
+        ///   - T-junction (e.g. N|E|S=7)         → only W (8)
+        ///   - 4-way junction (15)               → none (0)
+        ///
+        /// Because sidewalks land only on edges with no road neighbor, outer
+        /// corners are wrapped by two adjacent curb strips while interior
+        /// junction edges stay clean — exactly the desired street look.
+        static func sidewalkEdges(roadMask: Int) -> Int {
+            (~roadMask) & all
+        }
+    }
+
     /// 4-bit neighbor mask — N=1, E=2, S=4, W=8 — bitwise OR of any neighbor
     /// that should "connect" (road tile or a building face).
     private func roadConnectivityMask(x: Int, y: Int) -> Int {
@@ -956,6 +986,18 @@ struct IsoTileRenderer: View {
         // had sharp 90° corners.
         let connectionCount = [connectsN, connectsE, connectsS, connectsW].filter { $0 }.count
         let roadWidth: CGFloat = max(4, tw * 0.32)
+
+        // Sidewalk curbs along the tile's OUTER edges — the diamond sides
+        // that face a non-road direction. Drawn first (under the asphalt and
+        // lane stripe) so road surfaces stay clean where streets connect, and
+        // so outer corners get wrapped by two adjacent curb strips while
+        // interior junction edges show none. #100.
+        drawSidewalks(
+            context: context,
+            center: center, tw: tw, th: th,
+            roadMask: mask, color: sidewalk
+        )
+
         let asphaltPath = buildRoadPath(
             center: center,
             connectsN: connectsN, connectsE: connectsE,
@@ -989,8 +1031,68 @@ struct IsoTileRenderer: View {
                                               lineCap: .butt,
                                               dash: [4, 3]))
         }
+    }
 
-        _ = sidewalk
+    /// Paint concrete curb strips along each outer edge of a road tile —
+    /// i.e. every diamond side whose tile-space direction has no road
+    /// neighbor (per `RoadAutotile.sidewalkEdges`). Each strip is a thin quad
+    /// inset from the diamond edge toward the tile center, so it reads as a
+    /// raised curb hugging the street. Composited UNDER the day/night light
+    /// by darkening with the same `nightMix` factor the ground uses, so the
+    /// curbs fade into the dark at night like everything else. #100.
+    private func drawSidewalks(
+        context: GraphicsContext,
+        center: CGPoint,
+        tw: CGFloat,
+        th: CGFloat,
+        roadMask: Int,
+        color: Color
+    ) {
+        let edges = RoadAutotile.sidewalkEdges(roadMask: roadMask)
+        guard edges != 0 else { return }
+
+        // Diamond corners in screen space.
+        let nC = CGPoint(x: center.x, y: center.y - th)
+        let eC = CGPoint(x: center.x + tw, y: center.y)
+        let sC = CGPoint(x: center.x, y: center.y + th)
+        let wC = CGPoint(x: center.x - tw, y: center.y)
+
+        // Each tile-direction edge runs between two diamond corners.
+        let edgeCorners: [(bit: Int, a: CGPoint, b: CGPoint)] = [
+            (RoadAutotile.n, nC, eC), // N edge = top-right side
+            (RoadAutotile.e, eC, sC), // E edge = right-bottom side
+            (RoadAutotile.s, sC, wC), // S edge = bottom-left side
+            (RoadAutotile.w, wC, nC), // W edge = left-top side
+        ]
+
+        // Curb thickness as a fraction of the tile half-height; inset the
+        // strip toward the tile center so it sits just inside the edge.
+        let curb = th * 0.30
+        let nightMix = (1.0 - lightLevel) * 0.6
+        let fill = darken(color, by: nightMix)
+
+        for edge in edgeCorners where (edges & edge.bit) != 0 {
+            // Unit vector from the edge midpoint toward the tile center gives
+            // the inward inset direction for this strip.
+            let mid = CGPoint(x: (edge.a.x + edge.b.x) / 2,
+                              y: (edge.a.y + edge.b.y) / 2)
+            var ix = center.x - mid.x
+            var iy = center.y - mid.y
+            let len = max(0.0001, (ix * ix + iy * iy).squareRoot())
+            ix /= len
+            iy /= len
+            let ai = CGPoint(x: edge.a.x + ix * curb, y: edge.a.y + iy * curb)
+            let bi = CGPoint(x: edge.b.x + ix * curb, y: edge.b.y + iy * curb)
+
+            var strip = Path()
+            strip.move(to: edge.a)
+            strip.addLine(to: edge.b)
+            strip.addLine(to: bi)
+            strip.addLine(to: ai)
+            strip.closeSubpath()
+            context.fill(strip, with: .color(fill))
+            context.stroke(strip, with: .color(.black.opacity(0.18)), lineWidth: 0.4)
+        }
     }
 
     /// Construct the centerline `Path` for a road tile given its
