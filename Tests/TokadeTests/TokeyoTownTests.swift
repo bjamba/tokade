@@ -490,6 +490,60 @@ final class TokeyoTownTests: XCTestCase {
         }
     }
 
+    // MARK: - #99 — footprint size rebalance
+
+    /// Only genuine "postcard" landmarks may exceed a 2×2 footprint.
+    /// Everything else — including civic majors like libraries — must cap at
+    /// 2×2 so size differences read as intentional rather than as rendering
+    /// bugs. See #99 (size rebalance).
+    ///
+    /// The allowlist is curated and small on purpose: when a new building
+    /// wants a larger footprint, a reviewer has to consciously add it here
+    /// and justify it as a marquee attraction.
+    func testNoNonLandmarkBuildingExceedsTwoByTwo() {
+        // Marquee attractions that legitimately dominate their biome.
+        let landmarkIds: Set<String> = [
+            "desert-pyramid", // 3×3 — the postcard building, per its blurb
+            "beach-aquarium", // 3×2 — the biome's headline destination
+        ]
+        for b in BuildingCatalog.all where !landmarkIds.contains(b.id) {
+            XCTAssertLessThanOrEqual(
+                b.footprint.w, 2,
+                "\(b.id) is not a landmark but is \(b.footprint.w)×\(b.footprint.h) wide"
+            )
+            XCTAssertLessThanOrEqual(
+                b.footprint.h, 2,
+                "\(b.id) is not a landmark but is \(b.footprint.w)×\(b.footprint.h) deep"
+            )
+        }
+    }
+
+    /// The very largest 3×3 footprint stays reserved for a single marquee
+    /// landmark. This is the specific invariant the Library violated (#99).
+    func testOnlyLandmarksOccupyThreeByThree() {
+        let threeByThree = BuildingCatalog.all
+            .filter { $0.footprint.w >= 3 && $0.footprint.h >= 3 }
+            .map(\.id)
+        XCTAssertEqual(
+            Set(threeByThree), ["desert-pyramid"],
+            "3×3 footprint must stay reserved for the pyramid landmark; found \(threeByThree)"
+        )
+    }
+
+    /// Regression guard for the specific outlier #99 called out: the plain
+    /// Library used to be 3×3 (identical to the Stepped Pyramid landmark, and
+    /// ~9× a cottage), which looked like a bug. It is now a sane civic 2×2.
+    func testLibraryHasSaneFootprint() {
+        guard let library = BuildingCatalog.find("plain-library") else {
+            return XCTFail("plain-library missing from catalog")
+        }
+        XCTAssertEqual(library.footprint.w, 2, "Library should be reined in to 2×2")
+        XCTAssertEqual(library.footprint.h, 2, "Library should be reined in to 2×2")
+        // footprint and shape.footprint must stay in sync.
+        XCTAssertEqual(library.footprint.w, library.shape.footprint.w)
+        XCTAssertEqual(library.footprint.h, library.shape.footprint.h)
+    }
+
     // MARK: - State versioning
 
     func testStateDecodesV1SaveByRegeneratingTerrain() throws {

@@ -132,8 +132,14 @@ enum BuildingCatalog {
         Building(
             id: "plain-library", displayName: "Library", biome: .plain,
             cost: .init(coin: 180, knowledge: 32, lumber: 16),
+            // v3.13 (#99 size rebalance) — was 3×3, the same footprint as the
+            // Stepped Pyramid landmark and ~9× an ordinary cottage, so the size
+            // read like a bug. A civic library is a major building but not a
+            // postcard landmark; reined in to 2×2 to match its peers (school,
+            // mead hall, observatory). 3×3 is now reserved for genuine
+            // landmarks (the pyramid).
             shape: BuildingShape(
-                footprint: .init(3, 3),
+                footprint: .init(2, 2),
                 stories: [
                     .init(height: 22, inset: 0,
                           wallColor: Color(red: 0.50, green: 0.34, blue: 0.62),
